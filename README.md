@@ -82,7 +82,7 @@ A mini object–relational mapping (ORM) that can be use to scaffold database sc
     Utility.ReturnSuccess2(db1.Results, 200, Response)
 ```
 
-## JOIN 2 tables
+## Join tables
 ```
     db1.Table = "tbl_products p"
     Dim Columns As List

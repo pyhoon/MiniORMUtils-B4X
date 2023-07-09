@@ -37,22 +37,22 @@ A mini object–relational mapping (ORM) that can be use to scaffold database sc
 ## Update row
 ```
     db1.DataColumn = CreateMap("category_id": 2, "product_code": "T004", "product_name": "Remote Control Car", "product_price": 56.5, "modified_date": DateTime.Now)
-    Dim Criteria As ORMFilter = db1.CreateORMFilter("id", "=", 4)
-    db1.Where(Array(Criteria))
+    db1.Where = Array("id = ?")
+    db1.Parameters = Array(4)
     db1.Save
 ```
 
 ## Soft delete row
 ```
-    Dim Criteria1 As ORMFilter = db1.CreateORMFilter("id", "=", 4)
-    db1.Where(Array(Criteria1))
+    db1.Where = Array("id = ?")
+    db1.Parameters = Array(4)
     db1.SoftDelete
 ```
 
 ## Permanent delete row
 ```
-    Dim Criteria1 As ORMFilter = db1.CreateORMFilter("id", "=", 4)
-    db1.Where(Array(Criteria1))
+    db1.Where = Array("id = ?")
+    db1.Parameters = Array(4)
     db1.Delete
 ```
 
@@ -74,9 +74,10 @@ A mini object–relational mapping (ORM) that can be use to scaffold database sc
 
 ## Return multiple rows
 ```
-    Dim Criteria1 As ORMFilter = db1.CreateORMFilter("category_id", "=", 2)
-    db1.Where(Array(Criteria1))
-    db1.OrderBy(CreateMap("id": "ASC"), "")
+    db1.Where = Array("category_id = ?")
+    db1.Parameters = Array(2)
+    db1.OrderBy = CreateMap("id": "ASC")
+    db1.Query
 
     Utility.ReturnSuccess2(db1.Results, 200, Response)
 ```

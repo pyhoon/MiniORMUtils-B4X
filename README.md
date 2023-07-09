@@ -21,7 +21,7 @@ A mini object–relational mapping (ORM) that can be use to scaffold database sc
     Dim Col3 As ORMColumn = db1.CreateORMColumn("product_name", db1.VARCHAR, "", "", True, False)
     Dim Col4 As ORMColumn = db1.CreateORMColumn("product_price", db1.DECIMAL, "", "'0.00'", True, False)
     fields.AddAll(Array(Col1, Col2, Col3, Col4))
-    db1.Table = "product"
+    db1.Table = "tbl_products"
     db1.Create(fields, True)
     db1.Foreign("category_id", "id", "tbl_category", "", "")
     db1.Execute
@@ -79,5 +79,22 @@ A mini object–relational mapping (ORM) that can be use to scaffold database sc
     db1.OrderBy = CreateMap("id": "ASC")
     db1.Query
 
+    Utility.ReturnSuccess2(db1.Results, 200, Response)
+```
+
+## JOIN 2 tables
+```
+    db1.Table = "tbl_products p"
+    Dim Columns As List
+    Columns.Initialize
+    Columns.Add("p.id AS product_id")
+    Columns.Add("p.product_name")
+    Columns.Add("c.id AS category_id")
+    Columns.Add("c.category_name")
+
+	db1.Select = Columns
+	db1.Join = DB.CreateORMJoin("tbl_categories AS c", "p.category_id = c.id", "LEFT JOIN")
+	db1.OrderBy = CreateMap("p.id": "")
+	db1.Query
     Utility.ReturnSuccess2(db1.Results, 200, Response)
 ```

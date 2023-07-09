@@ -92,9 +92,10 @@ A mini object–relational mapping (ORM) that can be use to scaffold database sc
     Columns.Add("c.id AS category_id")
     Columns.Add("c.category_name")
 
-	db1.Select = Columns
-	db1.Join = DB.CreateORMJoin("tbl_categories AS c", "p.category_id = c.id", "LEFT JOIN")
-	db1.OrderBy = CreateMap("p.id": "")
-	db1.Query
+    db1.Select = Columns
+    db1.Join = DB.CreateORMJoin("tbl_categories AS c", "p.category_id = c.id", "LEFT JOIN")
+    db1.OrderBy = CreateMap("p.id": "")
+    db1.Query
+
     Utility.ReturnSuccess2(db1.Results, 200, Response)
 ```

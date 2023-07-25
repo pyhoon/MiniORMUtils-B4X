@@ -1,4 +1,4 @@
-# mini-orm
+# mini-orm-b4x
 A mini object–relational mapping (ORM) that can be use to scaffold database schema and build SQL queries
 
 # Usage example

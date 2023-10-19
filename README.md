@@ -13,33 +13,33 @@ A mini object–relational mapping (ORM) that can be use for creating db schema 
 
 ## Create table
 ```
-	DB1.Table = "tbl_products"
-	DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "category_id", _
-	"Type": DB1.INTEGER)))
-	DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "product_code", _
-	"Length": "12")))
-	DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "product_name")))
-	DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "product_price", _
-	"Type": DB1.DECIMAL, _
-	"Length": "10,2", _
-	"Default": "0.00")))
-	DB1.UseTimestamps = True
-	DB1.Foreign("category_id", "id", "tbl_category", "", "")
-	DB1.Create
-	Wait For (DB1.ExecuteBatch) Complete (Success As Boolean)
-	If Success Then		
-		Log("Database is created successfully!")
-	Else
-		Log("Database creation failed!")
-	End If
-	DB1.Close
+    DB1.Table = "tbl_products"
+    DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "category_id", _
+    "Type": DB1.INTEGER)))
+    DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "product_code", _
+    "Length": "12")))
+    DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "product_name")))
+    DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "product_price", _
+    "Type": DB1.DECIMAL, _
+    "Length": "10,2", _
+    Default": "0.00")))
+    DB1.UseTimestamps = True
+    DB1.Foreign("category_id", "id", "tbl_category", "", "")
+    DB1.Create
+    Wait For (DB1.ExecuteBatch) Complete (Success As Boolean)
+    If Success Then		
+    	Log("Database is created successfully!")
+    Else
+    	Log("Database creation failed!")
+    End If
+    DB1.Close
 ```
 
 ## Insert row (batch non query)
 ```
-	DB1.Columns = Array("category_id", "product_code", "product_name", "product_price")
-	DB1.Parameters = Array(2, "T001", "Teddy Bear", 99.9)
-	DB1.Insert
+    DB1.Columns = Array("category_id", "product_code", "product_name", "product_price")
+    DB1.Parameters = Array(2, "T001", "Teddy Bear", 99.9)
+    DB1.Insert
 ```
 
 ## Update row

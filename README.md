@@ -36,7 +36,7 @@ A mini object–relational mapping (ORM) that can be use for creating db schema 
     End If
     DB1.Close
 ```
-Note: Set `AddAfterCreate = True` before `ExecuteBatch` when using `Create`
+Note: Set `AddAfterCreate = True` before using `Create`
 
 ## Insert row (batch non query)
 ```
@@ -44,7 +44,7 @@ Note: Set `AddAfterCreate = True` before `ExecuteBatch` when using `Create`
     DB1.Parameters = Array(2, "T001", "Teddy Bear", 99.9)
     DB1.Insert
 ```
-Note: Set `AddAfterInsert = True` before `ExecuteBatch` when using `Insert`
+Note: Set `AddAfterInsert = True` before using `Insert`
 
 ## Update row
 ```

@@ -11,13 +11,10 @@ Currently it supports SQLite and MySQL.
 ```
 Dim DB1 As MiniORM
 DB1.Initialize(SQL, "MySQL")
-```
-
-Note: Before calling DB1.Create and DB1.Insert, set AddAfterCreate and AddAfterInsert to True.
-```
 DB1.AddAfterCreate = True
 DB1.AddAfterInsert = True
 ```
+Note: Before calling DB1.Create and DB1.Insert, set AddAfterCreate and AddAfterInsert to True.
 
 ## Create table
 ```

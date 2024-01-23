@@ -1,44 +1,65 @@
 # MiniORMUtils-b4x
-Version: 1.07.1
+Version: 1.08
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
-Currently it supports SQLite and MySQL.
+Currently it supports **SQLite** and **MySQL** (B4J).
 
 # Usage example
 
 ## Initialize object
 ```
-Dim DB1 As MiniORM
-DB1.Initialize(SQL, "MySQL")
-DB1.AddAfterCreate = True
-DB1.AddAfterInsert = True
+Dim MDB As MiniORM
+MDB.Initialize(CreateDBConnection, DBEngine)
+MDB.ShowExtraLogs = True
+MDB.UseTimestamps = True
+MDB.AddAfterCreate = True
+MDB.AddAfterInsert = True
 ```
 Note: Before calling DB1.Create and DB1.Insert, set AddAfterCreate and AddAfterInsert to True.
 
 ## Create table
 ```
-DB1.Table = "tbl_category"
-DB1.Columns.Add(DB1.CreateORMColumn2(CreateMap("Name": "category_name")))
-DB1.UseTimestamps = True
-DB1.Create
+MDB.Table = "tbl_category"
+MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "category_name")))
+MDB.Create
 ```
 
-## Insert row (batch non query)
+## Insert rows
 ```
-DB1.Columns = Array("category_name")
-DB1.Parameters = Array("Hardwares")
-DB1.Insert
-DB1.Parameters = Array("Toys")
-DB1.Insert
+MDB.Columns = Array("category_name")
+MDB.Parameters = Array As String("Hardwares")
+MDB.Insert
+MDB.Parameters = Array As String("Toys")
+MDB.Insert
+```
+
+## Execute NonQuery Batch
+```
+Wait For (MDB.ExecuteBatch) Complete (Success As Boolean)
+If Success Then
+    Log("Database is created successfully!")
+Else
+    Log("Database creation failed!")
+    Log(LastException)
+End If
+DBConnector.DBClose
+```
+
+## Select All Rows
+```
+DB1.Table = "tbl_category"
+DB1.Query
+Dim Items As List
+Items.Initialize
+If DB1.RowCount > 0 Then Items = DB1.Results
 ```
 
 ## Update row
 ```
 DB1.Table = "tbl_products"
 DB1.Columns = Array("category_id", "product_code", "product_name", "product_price")
-DB1.Parameters = Array(NewCategoryId, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
-DB1.Id = Item.Get("id")
+DB1.Parameters = Array As String(Category_Id, Product_Code, Product_Name, Product_Price)
 DB1.Save
 ```
 
@@ -66,9 +87,6 @@ Dim Rows As Int = DB1.RowCount
 
 ## Return single row
 ```
-Dim Data As Map = DB1.First
-```
-```
 Dim Data As Map = DB1.Find(2)
 ```
 
@@ -78,8 +96,8 @@ Dim Data As List
 Data.Initialize
 DB1.Table = "tbl_products"
 DB1.Where = Array("category_id = ?")
-DB1.Parameters = Array(2)
-DB1.OrderBy = CreateMap("id": "ASC")
+DB1.Parameters = Array As String(2)
+DB1.OrderBy = CreateMap("id": "DESC")
 DB1.Query
 Data = DB1.Results
 ```

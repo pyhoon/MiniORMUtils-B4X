@@ -1,4 +1,4 @@
-# mini-orm-b4x
+# MiniOrmUtils-b4x
 Version: 1.07.1
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.

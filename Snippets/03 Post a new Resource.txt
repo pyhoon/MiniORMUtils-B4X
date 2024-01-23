@@ -1,10 +1,8 @@
 Private Sub Post$Controller$
-	' #Plural = $Controller$s
-	' #Version = v2
+	' #Version = dev
 	' #Desc = Add a new $Controller$
 	' #Body = {<br>&nbsp;"name": "$column_name$"<br>}
-	
-	#If Not(MinimaList) And Not(No_Database)
+
 	Dim data As Map = WebApiUtils.RequestData(Request)
 	If Not(data.IsInitialized) Then
 		HRM.ResponseCode = 400
@@ -66,5 +64,4 @@ Private Sub Post$Controller$
 	HRM.ResponseMessage = "$Controller$ created successfully"
 	CloseDBConnection
 	ReturnApiResponse
-	#End If
 End Sub

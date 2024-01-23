@@ -1,0 +1,3 @@
+Private Sub CreateDBConnection As SQL
+	Return DBConnector.DBCreate
+End Sub

@@ -5,10 +5,11 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' DatabaseConnector class
-' Version 1.07
+' Version 1.08
 Sub Class_Globals
-	#if non_UI
+	#If server
 	Private Pool As ConnectionPool
+	Private MaxPoolSize As Int
 	#End If
 	Private DB As SQL
 	Private H2 As SQL
@@ -19,17 +20,12 @@ Sub Class_Globals
 	Private DBType As String
 	Private DBDir As String
 	Private DBFile As String
-	#If B4J or (B4A and non_UI)
+	#If B4J
 	Private JdbcUrl As String
-	#End If
-	#if B4J
 	Private DriverClass As String
 	Private DBName As String
 	Private User As String
 	Private Password As String
-	#if non_UI
-	Private MaxPoolSize As Int
-	#End If
 	#End If
 	Type Conn (DBType As String, DriverClass As String, JdbcUrl As String, User As String, Password As String, MaxPoolSize As Int, DBName As String, DBDir As String, DBFile As String)
 End Sub
@@ -39,6 +35,7 @@ Public Sub Initialize (mConn As Conn)
 	DBType = Conn.DBType
 	DBDir = Conn.DBDir
 	DBFile = Conn.DBFile
+
 	#If B4J
 	JdbcUrl = Conn.JdbcUrl
 	DriverClass = Conn.DriverClass
@@ -46,21 +43,36 @@ Public Sub Initialize (mConn As Conn)
 	User = Conn.User
 	Password = Conn.Password
 	#End If
-	#If non_UI
+	#If server
 	MaxPoolSize = Conn.MaxPoolSize
 	#End If
+	
+	#If B4i
+	If DBDir = "" Then DBDir = File.DirDocuments
+	If DBFile = "" Then DBFile = "data.db"
+	If File.Exists(DBDir, DBFile) Then
+		DB.Initialize(DBDir, DBFile, False)
+	End If
+	#Else If B4A
+	If DBDir = "" Then DBDir = File.DirInternal
+	If DBFile = "" Then DBFile = "data.db"
+	If File.Exists(DBDir, DBFile) Then
+	'File.Delete(DBDir, DBFile)
+		DB.Initialize(DBDir, DBFile, False)
+	End If
+	#Else
 	Select DBType.ToUpperCase
 		Case "MYSQL", "SQL SERVER", "FIREBIRD", "POSTGRESQL"
-			#If non_UI
+			#If server
 			Pool.Initialize(DriverClass, JdbcUrl, User, Password)
 			If MaxPoolSize > 0 Then
 				Dim jo As JavaObject = Pool
 				jo.RunMethod("setMaxPoolSize", Array(MaxPoolSize))
 			End If
-			#Else
-			DB.Initialize2(DriverClass, JdbcUrl, User, Password)
 			#End If
+			DB.Initialize2(DriverClass, JdbcUrl, User, Password)
 		Case "SQLITE"
+			#If B4J
 			If DriverClass <> "" And JdbcUrl <> "" Then
 				If JdbcUrl.Length > "jdbc:sqlite:".Length Then
 					Dim Temp As String = JdbcUrl.SubString("jdbc:sqlite:".Length)
@@ -79,17 +91,41 @@ Public Sub Initialize (mConn As Conn)
 				If DBExist2(Conn) Then
 					DB.Initialize(DriverClass, JdbcUrl)
 				End If
+				
 			Else
 				If DBDir = "" Then DBDir = File.DirApp
 				If DBFile = "" Then DBFile = "data.db"
 				If DBExist2(Conn) Then
+					#If B4J
 					DB.InitializeSQLite(DBDir, DBFile, True)
+					#Else
+					DB.Initialize(DBDir, DBFile, True)
+					#End If
 				End If
 			End If
+			#Else
+			#If B4A
+			DBDir = File.DirInternal
+			#End If
+			#If B4J
+			DBDir = File.DirApp
+			#End If				
+			If DBFile = "" Then DBFile = "data.db"
+			If DBExist2(Conn) Then
+				#If B4J
+				DB.InitializeSQLite(DBDir, DBFile, True)
+				#Else
+				DB.Initialize(DBDir, DBFile, True)
+				#End If
+			End If
+			#End If			
 		Case "DBF"
+			#If B4J			
 			DB.Initialize(Conn.DriverClass, Conn.JdbcUrl)
 			H2.Initialize(Conn2.DriverClass, Conn2.JdbcUrl)
+			#End If
 	End Select
+	#End If
 End Sub
 
 #if B4J
@@ -102,6 +138,7 @@ End Sub
 Public Sub DBCreate As SQL
 	Dim SQL1 As SQL
 	Try
+		#If B4J
 		Select DBType.ToUpperCase
 			Case "SQLITE"
 				If DriverClass <> "" And JdbcUrl <> "" Then
@@ -110,7 +147,7 @@ Public Sub DBCreate As SQL
 					DB.InitializeSQLite(DBDir, DBFile, True)
 				End If
 				SQL1 = DB
-				#if non_UI
+				#If server
 				SQL1.ExecNonQuery("PRAGMA journal_mode = wal")
 				#End If
 			#If B4J
@@ -122,7 +159,12 @@ Public Sub DBCreate As SQL
 				Dim qry As String = $"USE ${DBName}"$
 				SQL1.ExecNonQuery(qry)
 			#End If
-		End Select
+		End Select		
+		#End If
+		#If B4A or B4i
+		DB.Initialize(DBDir, DBFile, True)
+		SQL1 = DB
+		#End If		
 	Catch
 		Log(LastException.Message)
 	End Try
@@ -166,7 +208,7 @@ Public Sub DBExist2 (mConn As Conn) As Boolean
 End Sub
 
 Public Sub DBOpen As SQL
-	#If non_UI
+	#If server
 	Select DBType.ToUpperCase
 		Case "MYSQL", "SQL SERVER", "FIREBIRD", "POSTGRESQL"
 			Return Pool.GetConnection
@@ -174,7 +216,9 @@ Public Sub DBOpen As SQL
 			Return DB
 	End Select
 	#Else
-		#If B4J
+		#If B4A or B4i
+		DB.Initialize(DBDir, DBFile, True)
+		#Else
 		Select DBType.ToUpperCase
 			Case "SQLITE"
 				If DriverClass <> "" And JdbcUrl <> "" Then
@@ -197,32 +241,28 @@ Public Sub DBOpen As SQL
 					If DBDir = "" Then DBDir = File.DirApp
 					If DBFile = "" Then DBFile = "data.db"
 					DB.InitializeSQLite(DBDir, DBFile, True)
-				End If		
+				End If
 			Case "MYSQL", "SQL SERVER", "FIREBIRD", "POSTGRESQL"
 				DB.Initialize2(DriverClass, JdbcUrl, User, Password)
 			Case "DBF"
 				DB.Initialize(Conn.DriverClass, Conn.JdbcUrl)
 				H2.Initialize(Conn2.DriverClass, Conn2.JdbcUrl)
-			End Select
-		#Else
-		DB.Initialize(DBDir, DBFile, True)
+		End Select
 		#End If
 		Return DB
 	#End If
 End Sub
 
-' Not applied for SQLite
 Public Sub DBClose
-	#if non_UI
 	Select DBType.ToUpperCase
 		Case "SQLITE"
-			' Do not close SQLite in release mode
+			' Do not close SQLite object in multi-threaded server handler in release mode
+			#If Not(server)
+			If DB <> Null And DB.IsInitialized Then DB.Close
+			#End If
 		Case Else
 			If DB <> Null And DB.IsInitialized Then DB.Close
 	End Select
-	#Else
-	If DB <> Null And DB.IsInitialized Then DB.Close
-	#End If
 End Sub
 
 ' Check database can be connected
@@ -240,16 +280,15 @@ Public Sub H2Open As SQL
 End Sub
 
 Public Sub Close (SQL1 As SQL)
-	#if non_UI
 	Select DBType.ToUpperCase
 		Case "SQLITE"
-			' Do not close SQLite in release mode
+			' Do not close SQLite object in multi-threaded server handler in release mode
+			#If Not(server)
+			If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
+			#End If
 		Case Else
 			If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
 	End Select
-	#Else
-	If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
-	#End If
 End Sub
 
 Public Sub GetDate As String

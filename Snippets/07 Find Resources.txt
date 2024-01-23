@@ -1,5 +1,5 @@
 Private Sub GetFind$Controller$ (keyword As String, value As String)
-	' #Version = v2
+	' #Version = dev
 	' #Desc = Find $Controller$ by id, cid, code or name
 	' #Elements = ["$controller$", ":keyword", ":value"]
 

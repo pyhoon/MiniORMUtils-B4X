@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.07.1
+' Version 1.08
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String = "INTEGER"
@@ -15,7 +15,11 @@ Sub Class_Globals
 	Public ORMResult As ORMResult
 	Private DBID As Int
 	Private DBColumns As List
+	#If B4A or B4i
+	Private DBParameters() As String
+	#Else
 	Private DBParameters As List
+	#End If
 	Private DBEngine As String
 	Private DBTable As String
 	Private DBStatement As String
@@ -28,6 +32,7 @@ Sub Class_Globals
 	#If B4J
 	Private BlnFirst As Boolean
 	#End If
+	Private BlnShowExtraLogs As Boolean
 	Private BlnUseTimestamps As Boolean
 	#If B4J
 	Private BlnUseTimestampsAsTicks As Boolean
@@ -39,15 +44,15 @@ Sub Class_Globals
 	#If B4J
 	Private DateTimeMethods As Map
 	#End If
-	Private const COLOR_RED As Int = -65536			'ignore
-	Private const COLOR_GREEN As Int = -16711936	'ignore
-	Private const COLOR_BLUE As Int = -16776961		'ignore
-	Private const COLOR_MAGENTA As Int = -65281		'ignore
+	Public const COLOR_RED As Int = -65536			'ignore
+	Public const COLOR_GREEN As Int = -16711936		'ignore
+	Public const COLOR_BLUE As Int = -16776961		'ignore
+	Public const COLOR_MAGENTA As Int = -65281		'ignore
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMFilter (Column As String, Operator As String, Value As String)
 	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
 	Type ORMTable (ResultSet As ResultSet, RowCount As Int, Results As List, Row As Map, First As Map, Last As Map)
-	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, DefaultValue As String, Nullable As Boolean, AutoIncrement As Boolean)
+	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, DefaultValue As String, AllowNull As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
 Public Sub Initialize (mSQL As SQL, mEngine As String)
@@ -72,6 +77,9 @@ Public Sub Close
 	Select DBEngine.ToUpperCase
 		Case "SQLITE"
 			' Do not close SQLite object in multi-threaded server handler in release mode
+			#If Not(server)
+			If SQL <> Null And SQL.IsInitialized Then SQL.Close
+			#End If
 		Case Else
 			If SQL <> Null And SQL.IsInitialized Then SQL.Close
 	End Select
@@ -96,6 +104,10 @@ End Sub
 
 Public Sub getColumns As List
 	Return DBColumns
+End Sub
+
+Public Sub setShowExtraLogs (Value As Boolean)
+	BlnShowExtraLogs = Value
 End Sub
 
 Public Sub setUpdateModifiedDate (Value As Boolean)
@@ -134,7 +146,11 @@ Public Sub Reset
 	DBPrimaryKey = ""
 	DBForeignKey = ""
 	DBColumns.Initialize
+	#If B4A or B4i
+	Dim DBParameters() As String
+	#Else
 	DBParameters.Initialize
+	#End If
 End Sub
 
 Public Sub Results As List
@@ -143,7 +159,10 @@ End Sub
 
 ' First queried row
 Public Sub First As Map
-	Return ORMTable.First
+	If ORMTable.IsInitialized And ORMTable.First.IsInitialized Then
+		Return ORMTable.First
+	End If
+	Return CreateMap("id": 0)
 End Sub
 
 ' New inserted row
@@ -174,6 +193,11 @@ End Sub
 ' Returns number of rows in the result
 Public Sub getRowCount As Int
 	Return ORMTable.RowCount
+End Sub
+
+' Returns True if RowCount > 0
+Public Sub getFound As Boolean
+	Return ORMTable.RowCount > 0
 End Sub
 
 Public Sub setSelect (Columns As List)
@@ -220,6 +244,10 @@ Public Sub setOrderBy (Col As Map)
 	End If
 End Sub
 
+Public Sub SortByLastId
+	DBOrderBy = $" ORDER BY id DESC"$
+End Sub
+
 Public Sub Create
 	Dim sb As StringBuilder
 	sb.Initialize
@@ -245,7 +273,7 @@ Public Sub Create
 			sb.Append(col.ColumnType)
 		End If
 		
-		If Not(col.Nullable) Then sb.Append(" NOT NULL")
+		If col.AllowNull = False Then sb.Append(" NOT NULL")
 		If col.ColumnType = INTEGER Then
 			If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append(col.DefaultValue)
 		Else If col.ColumnType = DECIMAL Then
@@ -320,6 +348,16 @@ Public Sub Create
 	End If
 	stmt.Append(")")
 	DBStatement = stmt.ToString
+	If BlnShowExtraLogs Then
+		Log(DBStatement)
+		Dim Params As String = "["
+		For Each Param In DBParameters
+			If Params <> "[" Then Params = Params & ", "
+			Params = Params & Param
+		Next
+		Params = Params & "]"
+		Log(Params)
+	End If
 	If BlnAddAfterCreate Then AddQuery 'AddQuery2
 End Sub
 
@@ -359,32 +397,30 @@ End Sub
 
 Public Sub AddQuery
 	'LogColor(DBStatement & " " & DBParameters, COLOR_MAGENTA)
-	'SQL.AddNonQueryToBatch(DBStatement, DBParameters) ' Bugs fixed
-	'Dim Param As Object = CopyObject(DBParameters)
-	'SQL.AddNonQueryToBatch(DBStatement, Param)
-	Dim StringArgs(DBParameters.Size) As String
+	'SQL.AddNonQueryToBatch(DBStatement, DBParameters) ' <-- cannot pass the reference
+	' Use array so do not need to use B4XSerializator CopyObject
+	#If B4A or B4i
+	Dim Args(DBParameters.Length) As Object
+	#Else
+	Dim Args(DBParameters.Size) As Object
+	#End If
 	Dim i As Int
-	For Each Param As String In DBParameters
-		StringArgs(i) = Param
+	For Each Param In DBParameters
+		Args(i) = Param
 		i = i + 1
 	Next
-	SQL.AddNonQueryToBatch(DBStatement, StringArgs)
+	SQL.AddNonQueryToBatch(DBStatement, Args)
 End Sub
 
-Public Sub AddQuery2
-	'LogColor(DBStatement, COLOR_BLUE)
-	SQL.AddNonQueryToBatch(DBStatement, Null)
+#If B4A or B4i
+Public Sub setParameters (Params() As String)
+	DBParameters = Params
 End Sub
-
-' Make a copy of an object
-'Public Sub CopyObject (obj As Object) As Object
-'	Dim ser As B4XSerializator
-'	Return ser.ConvertBytesToObject(ser.ConvertObjectToBytes(obj))
-'End Sub
-
+#Else
 Public Sub setParameters (Params As List)
 	DBParameters = Params
 End Sub
+#End If
 
 Public Sub setLimit (Value As String)
 	DBLimit = Value
@@ -405,35 +441,64 @@ Public Sub Query
 		
 		'Log(DBStatement)
 		'Log(DBParameters)
-		#If Not(B4J)
-		Dim StringArgs(DBParameters.Size) As String
-		Dim i As Int
-		For Each param As String In DBParameters
-			StringArgs(i) = param
-			i = i + 1
-		Next
-		#End If
-		
-		If DBParameters.IsInitialized Then
-			If DBParameters.Size > 0 Then
-				#If B4J
-				Dim RS As ResultSet = SQL.ExecQuery2(DBStatement, DBParameters)
-				#Else
-				Dim RS As ResultSet = SQL.ExecQuery2(DBStatement, StringArgs)
-				#End If				
-			Else
-				Dim RS As ResultSet = SQL.ExecQuery(DBStatement)
-			End If
+		#If B4A or B4i
+		If DBParameters.Length > 0 Then
+			Dim RS As ResultSet = SQL.ExecQuery2(DBStatement, DBParameters)
 		Else
 			Dim RS As ResultSet = SQL.ExecQuery(DBStatement)
 		End If
+		#Else
+		If DBParameters.Size > 0 Then
+			Dim RS As ResultSet = SQL.ExecQuery2(DBStatement, DBParameters)
+		Else
+			Dim RS As ResultSet = SQL.ExecQuery(DBStatement)
+		End If		
+		#End If
 
 		ORMTable.Initialize
 		ORMTable.Results.Initialize
 		ORMTable.ResultSet = RS
 		ORMTable.First.Initialize
 		
-		#If B4J
+		#If B4A or B4i
+		Dim Columns As Map = DBUtils.ExecuteMap(SQL, DBStatement, DBParameters)
+		If Columns.IsInitialized Then
+			Dim ColumnTypes(Columns.Size) As String
+			Dim i As Int
+			For i = 0 To Columns.Size - 1
+				ColumnTypes(i) = DBUtils.DB_TEXT
+			Next
+		Else
+			Dim ColumnTypes() As String
+		End If
+
+		Dim Rows As Map = DBUtils.ExecuteJSON(SQL, DBStatement, DBParameters, 0, ColumnTypes)
+		If BlnShowExtraLogs Then
+			Log(Rows.As(JSON).ToString)
+		End If
+		ORMTable.Results = Rows.Get("root")
+		ORMTable.RowCount = ORMTable.Results.Size
+
+		If ORMTable.RowCount > 0 Then
+			ORMTable.First = ORMTable.Results.Get(0)
+			ORMTable.Row = ORMTable.Results.Get(0)
+			Columns.Initialize
+			i = 0
+			For Each Key In ORMTable.First.Keys
+				Columns.Put(Key, i)
+				i = i + 1
+			Next
+		End If
+
+		Dim res As ORMResult
+		res.Initialize
+		res.Rows.Initialize
+		res.Columns.Initialize
+		res.Tag = Null 'without this the Tag properly will not be serializable.
+		res.Rows = ORMTable.Results
+		res.Columns = Columns
+		ORMResult = res
+		#Else
 		BlnFirst = True
 		Dim jrs As JavaObject = RS
 		Dim rsmd As JavaObject = jrs.RunMethod("getMetaData", Null)
@@ -484,68 +549,40 @@ Public Sub Query
 			End If
 		Loop
 		RS.Close ' test 2023-10-24
-		ORMResult = res		
-		#Else
-		Dim Columns As Map = DBUtils.ExecuteMap(SQL, DBStatement, StringArgs)
-		Dim cols As Int = Columns.Size
-		ORMTable.First = Columns
-		ORMTable.Row = Columns
-		
-		Dim i As Int
-		Dim ColName(cols) As String
-		For Each key In Columns.Keys
-			ColName(i) = key
-			i = i + 1
-		Next
-		
-		Dim Rows As List = DBUtils.ExecuteMemoryTable(SQL, DBStatement, StringArgs, 0)
-		ORMTable.RowCount = Rows.Size
-		For Each row In Rows
-			Dim arr() As String = row
-			Dim i As Int
-			Dim map1 As Map = CreateMap()
-			For Each item In arr
-				map1.Put(ColName(i), item)
-				i = i + 1
-			Next
-			ORMTable.Results.Add(map1)
-		Next
-		
-		Dim res As ORMResult
-		res.Initialize
-		res.Rows.Initialize
-		res.Columns.Initialize
-		res.Tag = Null 'without this the Tag properly will not be serializable.
-		res.Rows = Rows
-		res.Columns = Columns
-		ORMResult = res	
+		ORMResult = res
 		#End If
 	Catch
-		Log($"${DBStatement} (${DBParameters})"$)
+		If BlnShowExtraLogs Then
+			Log($"${DBStatement}"$)
+			For Each Param In DBParameters
+				Log(Param)
+			Next
+		End If
 		Log(LastException)
 	End Try
 	Condition = ""
-	'DBParameters.Clear
+	#If B4A or B4i
+	DBParameters = Array As String()
+	#Else
 	DBParameters.Initialize
+	#End If
 End Sub
 
 Public Sub getScalar As Object
 	If Condition.Length > 0 Then DBStatement = DBStatement & Condition
-	If DBParameters.Size > 0 Then
-		#If Not(B4J)
-		Dim StringArgs(DBParameters.Size) As String
-		Dim i As Int
-		For Each param As String In DBParameters
-			StringArgs(i) = param
-			i = i + 1
-		Next
-		Return SQL.ExecQuerySingleResult2(DBStatement, StringArgs)
-		#Else
+	#If B4A or B4i
+	If DBParameters.Length > 0 Then
 		Return SQL.ExecQuerySingleResult2(DBStatement, DBParameters)
-		#End If
 	Else
 		Return SQL.ExecQuerySingleResult(DBStatement)
 	End If
+	#Else
+	If DBParameters.Size > 0 Then
+		Return SQL.ExecQuerySingleResult2(DBStatement, DBParameters)
+	Else
+		Return SQL.ExecQuerySingleResult(DBStatement)
+	End If
+	#End If
 End Sub
 
 Public Sub Insert
@@ -579,6 +616,16 @@ Public Sub Insert
 	End If
 	Dim qry As String = $"INSERT INTO ${DBTable} (${sb.ToString}) VALUES (${vb.ToString})"$
 	DBStatement = qry
+	If BlnShowExtraLogs Then
+		Log(DBStatement)
+		Dim Params As String = "["
+		For Each Param In DBParameters
+			If Params <> "[" Then Params = Params & ", "
+			Params = Params & Param
+		Next
+		Params = Params & "]"
+		Log(Params)
+	End If
 	If BlnAddAfterInsert Then AddQuery
 End Sub
 
@@ -605,7 +652,7 @@ Public Sub Save
 			End Select
 		End If
 		qry = qry & Condition
-		Condition = ""
+		'Condition = ""
 	Else
 		Dim cd As Boolean ' contains created_date
 		Dim sb, vb As StringBuilder
@@ -638,22 +685,51 @@ Public Sub Save
 		BlnNew = True
 	End If
 	DBStatement = qry
-	If DBParameters.Size > 0 Then
+	#If B4A or B4i
+	If DBParameters.Length > 0 Then
 		SQL.ExecNonQuery2(qry, DBParameters)
 	Else
 		SQL.ExecNonQuery(qry)
 	End If
+	#Else
+	If DBParameters.Size > 0 Then
+		SQL.ExecNonQuery2(qry, DBParameters)
+	Else
+		SQL.ExecNonQuery(qry)
+	End If	
+	#End If
 	
+	' Remove this
 	' Return new row
 	Dim NewID As Int
 	If BlnNew Then
 		NewID = getLastInsertID
+		Find(NewID)
 	Else
-		NewID = getFirstId
+		' Count numbers of ?
+		Dim Params As Int = CountChar("?", Condition)
+		If BlnShowExtraLogs Then Log("Params=" & Params)
+		DBStatement = "SELECT * FROM " & DBTable
+		#If B4A or B4i
+		Dim ConditionParams(Params) As String
+		For i = 0 To Params - 1
+			ConditionParams(i) = DBParameters(DBParameters.Length - Params + i)
+		Next
+		#Else
+		Dim ConditionParams As List
+		ConditionParams.Initialize		
+		'For i = DBParameters.Size - Params To DBParameters.Size - 1
+		'	ConditionParams.Add(DBParameters.Get(i))
+		'Next
+		For i = 0 To Params - 1
+			ConditionParams.Add(DBParameters.Get(DBParameters.Size - Params + i))
+		Next		
+		#End If
+		'If BlnShowExtraLogs Then Log("ConditionParams=" & ConditionParams)
+		DBParameters = ConditionParams
+		If BlnShowExtraLogs Then Log("DBParameters=" & DBParameters)
+		Query
 	End If
-	Reset
-	setId(NewID)
-	Query
 End Sub
 
 Public Sub getLastInsertID As Object
@@ -679,6 +755,18 @@ Public Sub setWhere (mStatements As List)
 	Condition = Condition & sb.ToString
 End Sub
 
+#If B4A or B4i
+Public Sub setWhereValue (mStatements As List, mParams() As String)
+	Dim sb As StringBuilder
+	sb.Initialize
+	For Each statement In mStatements
+		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
+		sb.Append(statement)
+	Next
+	Condition = Condition & sb.ToString
+	setParameters(mParams)
+End Sub
+#Else
 Public Sub setWhereValue (mStatements As List, mParams As List)
 	Dim sb As StringBuilder
 	sb.Initialize
@@ -689,6 +777,7 @@ Public Sub setWhereValue (mStatements As List, mParams As List)
 	Condition = Condition & sb.ToString
 	setParameters(mParams)
 End Sub
+#End If
 
 Public Sub Append (strSQL As String) As String
 	DBStatement = DBStatement & strSQL
@@ -699,14 +788,36 @@ Public Sub ToString As String
 	Return DBStatement
 End Sub
 
+'Public Sub Split (str As String) As String()
+'	Return Regex.Split(",", str)
+'End Sub
+Public Sub Split (str As String) As String()
+	Log(str)
+	Dim ss() As String
+	ss = Regex.Split(",", str)
+	For Each s As String In ss
+		s = s.Trim
+	Next
+	Log(ss)
+	Return ss
+End Sub
+
 Public Sub Delete
 	Dim qry As String = $"DELETE FROM ${DBTable}"$
 	If Condition.Length > 0 Then qry = qry & Condition
-	If DBParameters.Size > 0 Then
+	#If B4A or B4i
+	If DBParameters.Length > 0 Then
 		SQL.ExecNonQuery2(qry, DBParameters)
 	Else
 		SQL.ExecNonQuery(qry)
 	End If
+	#Else
+	If DBParameters.Size > 0 Then
+		SQL.ExecNonQuery2(qry, DBParameters)
+	Else
+		SQL.ExecNonQuery(qry)
+	End If	
+	#End If
 	Condition = ""
 End Sub
 
@@ -736,6 +847,16 @@ Public Sub TableExists (TableName As String) As Boolean
 	Return count > 0
 End Sub
 
+Private Sub CountChar (c As String, Text As String) As Int
+	Dim count As Int
+	For i = 0 To Text.Length - 1
+		If c = Text.SubString2(i, i + 1) Then
+			count = count + 1
+		End If
+	Next
+	Return count
+End Sub
+
 Public Sub CreateORMColumn2 (Props As Map) As ORMColumn
 	Dim t1 As ORMColumn
 	t1.Initialize
@@ -749,7 +870,7 @@ Public Sub CreateORMColumn2 (Props As Map) As ORMColumn
 	
 	t1.ColumnLength = 255
 	t1.DefaultValue = ""
-	t1.Nullable = True
+	t1.AllowNull = True
 	t1.AutoIncrement = False
 	
 	For Each Key As String In Props.Keys
@@ -763,7 +884,7 @@ Public Sub CreateORMColumn2 (Props As Map) As ORMColumn
 			Case "DefaultValue".ToLowerCase, "Default".ToLowerCase
 				t1.DefaultValue = Props.Get(Key)
 			Case "Nullable".ToLowerCase, "Null".ToLowerCase
-				t1.Nullable = Props.Get(Key)
+				t1.AllowNull = Props.Get(Key)
 			Case "AutoIncrement".ToLowerCase
 				t1.AutoIncrement = Props.Get(Key)
 			Case Else
@@ -773,14 +894,14 @@ Public Sub CreateORMColumn2 (Props As Map) As ORMColumn
 	Return t1
 End Sub
 
-Public Sub CreateORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, DefaultValue As String, Nullable As Boolean, AutoIncrement As Boolean) As ORMColumn
+Public Sub CreateORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, DefaultValue As String, AllowNull As Boolean, AutoIncrement As Boolean) As ORMColumn
 	Dim t1 As ORMColumn
 	t1.Initialize
 	t1.ColumnName = ColumnName
 	t1.ColumnType = ColumnType
 	t1.ColumnLength = ColumnLength
 	t1.DefaultValue = DefaultValue
-	t1.Nullable = Nullable
+	t1.AllowNull = AllowNull
 	t1.AutoIncrement = AutoIncrement
 	Return t1
 End Sub

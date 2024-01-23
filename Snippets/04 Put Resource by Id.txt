@@ -1,11 +1,9 @@
 Private Sub Put$Controller$ (id As Long)
-	' #Plural = $Controller$s
-	' #Version = v2
+	' #Version = dev
 	' #Desc = Update $Controller$ by id
 	' #Body = {<br>&nbsp;"name": "$column_name$"<br>}
 	' #Elements = [":id"]
-	
-	#If Not(MinimaList) And Not(No_Database)
+
 	Dim data As Map = WebApiUtils.RequestData(Request)
 	If Not(data.IsInitialized) Then
 		HRM.ResponseCode = 400
@@ -72,5 +70,4 @@ Private Sub Put$Controller$ (id As Long)
 	HRM.ResponseMessage = "$Controller$ updated successfully"
 	CloseDBConnection
 	ReturnApiResponse
-	#End If
 End Sub

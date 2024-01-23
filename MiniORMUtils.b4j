@@ -1,0 +1,26 @@
+﻿AppType=StandardJava
+Build1=Default,b4j.example
+Group=Default
+Library1=javaobject
+Library2=jcore
+Library3=jsql
+Module1=DatabaseConnector
+Module2=MiniORM
+NumberOfFiles=0
+NumberOfLibraries=3
+NumberOfModules=2
+Version=10
+@EndOfDesignText@
+'Non-UI application (console / server application)
+#Region Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+#End Region
+
+Sub Process_Globals
+	
+End Sub
+
+Sub AppStart (Args() As String)
+	Log("Hello world!!!")
+End Sub

@@ -1,10 +1,8 @@
 Private Sub Get$Controller$ (id As Long)
-	' #Plural = $Controller$s
-	' #Version = v2
+	' #Version = dev
 	' #Desc = Read one $Controller$ by id
 	' #Elements = [":id"]
 
-	#If Not(MinimaList) And Not(No_Database)
     DB.Table = "$table_name$"
     Dim map As Map = DB.Find(id)
 	If map.IsInitialized Then
@@ -16,5 +14,4 @@ Private Sub Get$Controller$ (id As Long)
 	End If
 	CloseDBConnection
 	ReturnApiResponse
-	#End If
 End Sub

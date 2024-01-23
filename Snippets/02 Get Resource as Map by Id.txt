@@ -1,0 +1,20 @@
+Private Sub Get$Controller$ (id As Long)
+	' #Plural = $Controller$s
+	' #Version = v2
+	' #Desc = Read one $Controller$ by id
+	' #Elements = [":id"]
+
+	#If Not(MinimaList) And Not(No_Database)
+    DB.Table = "$table_name$"
+    Dim map As Map = DB.Find(id)
+	If map.IsInitialized Then
+		HRM.ResponseCode = 200
+		HRM.ResponseObject = map
+	Else
+		HRM.ResponseCode = 404
+		HRM.ResponseError = "$Controller$ not found"
+	End If
+	CloseDBConnection
+	ReturnApiResponse
+	#End If
+End Sub

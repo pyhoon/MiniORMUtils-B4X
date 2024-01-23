@@ -1,0 +1,55 @@
+' Add to Main
+Private Sub CreateDatabase
+	Dim SQL1 As SQL = DBConnector.DBCreate
+	Dim MDB As MiniORM
+	MDB.Initialize(SQL1, DBConnector.DBEngine)
+	MDB.AddAfterCreate = True
+	MDB.AddAfterInsert = True
+	
+	MDB.Table = "tbl_category"
+	MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "category_name")))
+	MDB.UseTimestamps = True
+	MDB.Create
+	
+	MDB.Columns = Array("category_name")
+	MDB.Parameters = Array("Hardwares")
+	MDB.Insert
+	MDB.Parameters = Array("Toys")
+	MDB.Insert
+	
+	MDB.Table = "tbl_products"
+	MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "category_id", "Type": MDB.INTEGER)))
+	MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "product_code", "Length": "12")))
+	MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "product_name")))
+
+	Dim PriceColumn As ORMColumn
+	PriceColumn.ColumnName = "product_price"
+	PriceColumn.ColumnType = MDB.DECIMAL
+	PriceColumn.ColumnLength = "10,2"
+	PriceColumn.DefaultValue = "0.00"
+	MDB.Columns.Add(PriceColumn)
+
+	MDB.UseTimestamps = True
+	MDB.Foreign("category_id", "id", "tbl_category", "", "")
+	MDB.Create
+	
+	MDB.Columns = Array("category_id", "product_code", "product_name", "product_price")
+	MDB.Parameters = Array(2, "T001", "Teddy Bear", 99.9)
+	MDB.Insert
+	MDB.Parameters = Array(1, "H001", "Hammer", 15.75)
+	MDB.Insert
+	MDB.Parameters = Array(2, "T002", "Optimus Prime", 1000.00)
+	MDB.Insert
+	
+	Wait For (MDB.ExecuteBatch) Complete (Success As Boolean)
+	If Success Then
+		Log("Database is created successfully!")
+	Else
+		Log("Database creation failed!")
+	End If
+	DBConnector.Close(SQL1)
+	Select DBConnector.DBEngine.ToUpperCase
+		Case "MYSQL"
+			ConfigureDatabase(True)
+	End Select
+End Sub

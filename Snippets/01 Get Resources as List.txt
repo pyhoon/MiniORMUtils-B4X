@@ -1,0 +1,14 @@
+Private Sub Get$Controller$s
+	' #Plural = $Controller$s
+	' #Version = v2
+	' #Desc = Read all $Controller$s
+
+	#If Not(MinimaList) And Not(No_Database)
+    DB.Table = "$table_name$"
+    DB.Query
+    HRM.ResponseCode = 200
+    HRM.ResponseData = DB.Results
+    CloseDBConnection
+    ReturnApiResponse
+	#End If
+End Sub

@@ -1,0 +1,22 @@
+Private Sub Delete$Controller$ (id As Long)
+	' #Plural = $Controller$s
+	' #Version = v2
+	' #Desc = Delete $Controller$ by id
+	' #Elements = [":id"]
+	
+	#If Not(MinimaList) And Not(No_Database)
+	DB.Table = "$table_name$"
+	If Not(DB.Find(id).IsInitialized) Then
+		HRM.ResponseCode = 404
+		HRM.ResponseError = "$Controller$ not found"
+	Else
+		DB.Reset
+		DB.Id = id
+		DB.Delete
+		HRM.ResponseCode = 200
+		HRM.ResponseMessage = "$Controller$ deleted successfully"
+	End If
+	CloseDBConnection
+	ReturnApiResponse
+	#End If
+End Sub

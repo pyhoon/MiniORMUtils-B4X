@@ -1,0 +1,2 @@
+' Add to Controller Initialize sub
+DB.Initialize(OpenDBConnection, DBEngine)

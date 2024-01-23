@@ -1,0 +1,3 @@
+Private Sub ReturnApiResponse
+	WebApiUtils.ReturnHttpResponse(HRM, Response)
+End Sub

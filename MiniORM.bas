@@ -1,11 +1,11 @@
 ﻿B4J=true
-Group=Class
+Group=App\Classes
 ModulesStructureVersion=1
 Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.08
+' Version 1.09
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String = "INTEGER"
@@ -212,7 +212,23 @@ Public Sub setSelect (Columns As List)
 	DBStatement = DBStatement.Replace($"SELECT * FROM"$, "SELECT" & SB.ToString & " FROM")
 End Sub
 
+' Added on 2024-01-31
+' Return map of only selected columns from First row
+Public Sub SelectOnly (Columns As List) As Map
+	Dim NewMap As Map
+	NewMap.Initialize
+	If ORMTable.IsInitialized And ORMTable.First.IsInitialized Then
+		For Each Col In Columns
+			If ORMTable.First.ContainsKey(Col) Then
+				NewMap.Put(Col, ORMTable.First.Get(Col))
+			End If
+		Next
+	End If
+	Return NewMap ' CreateMap("id": 0)
+End Sub
+
 Public Sub setRawSQL (RawSQLQuery As String)
+	Reset
 	DBStatement = RawSQLQuery
 End Sub
 
@@ -422,6 +438,7 @@ Public Sub setParameters (Params As List)
 End Sub
 #End If
 
+' Example: Limit 10, 10 (second parameter is Offset)
 Public Sub setLimit (Value As String)
 	DBLimit = Value
 End Sub
@@ -559,6 +576,7 @@ Public Sub Query
 			Next
 		End If
 		Log(LastException)
+		Log(DBStatement)
 	End Try
 	Condition = ""
 	#If B4A or B4i
@@ -692,6 +710,7 @@ Public Sub Save
 		SQL.ExecNonQuery(qry)
 	End If
 	#Else
+	'If BlnShowExtraLogs Then Log("Qry=" & qry)
 	If DBParameters.Size > 0 Then
 		SQL.ExecNonQuery2(qry, DBParameters)
 	Else
@@ -786,6 +805,11 @@ End Sub
 
 Public Sub ToString As String
 	Return DBStatement
+End Sub
+
+' Added on 2024-01-31
+Public Sub LogQuery
+	Log($"${DBStatement} [${DBParameters}]"$)
 End Sub
 
 'Public Sub Split (str As String) As String()

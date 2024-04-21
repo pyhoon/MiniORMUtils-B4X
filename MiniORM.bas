@@ -1,5 +1,5 @@
 ﻿B4J=true
-Group=App\Classes
+Group=Classes
 ModulesStructureVersion=1
 Type=Class
 Version=9.71

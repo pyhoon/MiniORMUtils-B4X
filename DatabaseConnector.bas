@@ -1,5 +1,5 @@
 ﻿B4J=true
-Group=Class
+Group=Classes
 ModulesStructureVersion=1
 Type=Class
 Version=9.1
@@ -121,6 +121,7 @@ Public Sub DBExist As ResumableSub
 	Try
 		Dim DBFound As Boolean
 		Select DBType.ToUpperCase
+			#If B4J			
 			Case "MYSQL"
 				Dim JdbcUrl2 As String = Conn.JdbcUrl
 				JdbcUrl2 = JdbcUrl2.Replace("{DbName}", "information_schema")
@@ -137,23 +138,21 @@ Public Sub DBExist As ResumableSub
 					rs.Close
 				End If
 				If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
+			#End If	
 			Case "SQLITE"
 				If File.Exists(Conn.DBDir, Conn.DBName) Then
 					DBFound = True
 				End If
 		End Select
 	Catch
-		LogError(LastException.Message)
+		Log(LastException.Message)
 	End Try
 	Return DBFound
 End Sub
 
 Public Sub DBOpen As SQL
 	#If B4A or B4i
-	If DBExist(Conn) Then
-	'File.Delete(DBDir, DBName)
-		DB.Initialize(DBDir, DBName, False)
-	End If
+	DB.Initialize(DBDir, DBName, False)
 	#End If
 	#If B4J
 	Select DBType.ToUpperCase

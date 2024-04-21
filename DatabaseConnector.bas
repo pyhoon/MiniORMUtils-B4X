@@ -116,7 +116,6 @@ Public Sub DBCreate As ResumableSub
 	Return Success
 End Sub
 
-#If B4J
 ' Check Database exists
 Public Sub DBExist As ResumableSub
 	Try
@@ -148,7 +147,6 @@ Public Sub DBExist As ResumableSub
 	End Try
 	Return DBFound
 End Sub
-#End If
 
 Public Sub DBOpen As SQL
 	#If B4A or B4i

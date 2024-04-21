@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.09
+' Version 1.10
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String = "INTEGER"
@@ -469,7 +469,7 @@ Public Sub Query
 			Dim RS As ResultSet = SQL.ExecQuery2(DBStatement, DBParameters)
 		Else
 			Dim RS As ResultSet = SQL.ExecQuery(DBStatement)
-		End If		
+		End If
 		#End If
 
 		ORMTable.Initialize
@@ -576,7 +576,6 @@ Public Sub Query
 			Next
 		End If
 		Log(LastException)
-		Log(DBStatement)
 	End Try
 	Condition = ""
 	#If B4A or B4i
@@ -664,7 +663,7 @@ Public Sub Save
 		If BlnUpdateModifiedDate And Not(md) Then
 			Select DBEngine.ToUpperCase
 				Case "SQLITE"
-					qry = qry & ", modified_date = DateTime('now', 'localtime')"	
+					qry = qry & ", modified_date = DateTime('now', 'localtime')"
 				Case "MYSQL"
 					qry = qry & ", modified_date = now()"
 			End Select
@@ -710,12 +709,11 @@ Public Sub Save
 		SQL.ExecNonQuery(qry)
 	End If
 	#Else
-	'If BlnShowExtraLogs Then Log("Qry=" & qry)
 	If DBParameters.Size > 0 Then
 		SQL.ExecNonQuery2(qry, DBParameters)
 	Else
 		SQL.ExecNonQuery(qry)
-	End If	
+	End If
 	#End If
 	
 	' Remove this
@@ -736,13 +734,13 @@ Public Sub Save
 		Next
 		#Else
 		Dim ConditionParams As List
-		ConditionParams.Initialize		
+		ConditionParams.Initialize
 		'For i = DBParameters.Size - Params To DBParameters.Size - 1
 		'	ConditionParams.Add(DBParameters.Get(i))
 		'Next
 		For i = 0 To Params - 1
 			ConditionParams.Add(DBParameters.Get(DBParameters.Size - Params + i))
-		Next		
+		Next
 		#End If
 		'If BlnShowExtraLogs Then Log("ConditionParams=" & ConditionParams)
 		DBParameters = ConditionParams
@@ -840,7 +838,7 @@ Public Sub Delete
 		SQL.ExecNonQuery2(qry, DBParameters)
 	Else
 		SQL.ExecNonQuery(qry)
-	End If	
+	End If
 	#End If
 	Condition = ""
 End Sub

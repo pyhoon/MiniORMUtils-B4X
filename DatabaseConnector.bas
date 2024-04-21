@@ -4,8 +4,8 @@ ModulesStructureVersion=1
 Type=Class
 Version=9.1
 @EndOfDesignText@
-' DatabaseConnector class
-' Version 1.09
+' Database Connector class
+' Version 1.10
 Sub Class_Globals
 	#If server
 	Private Pool As ConnectionPool
@@ -18,113 +18,61 @@ Sub Class_Globals
 	Private Conn2 As Conn
 	#End If
 	Private DBType As String
+	Private DBName As String
 	Private DBDir As String
-	Private DBFile As String
 	#If B4J
 	Private JdbcUrl As String
 	Private DriverClass As String
-	Private DBName As String
+	Private DBHost As String
+	Private DBPort As String
 	Private User As String
 	Private Password As String
 	#End If
-	Type Conn (DBType As String, DriverClass As String, JdbcUrl As String, User As String, Password As String, MaxPoolSize As Int, DBName As String, DBDir As String, DBFile As String)
+	Type Conn ( _
+	DBType 		As String, _
+	DriverClass As String, _
+	JdbcUrl 	As String, _
+	User 		As String, _
+	Password 	As String, _
+	MaxPoolSize As Int, _
+	DBHost 		As String, _
+	DBPort 		As String, _
+	DBName 		As String, _
+	DBDir 		As String)
 End Sub
 
 Public Sub Initialize (mConn As Conn)
 	Conn = mConn
 	DBType = Conn.DBType
-	DBDir = Conn.DBDir
-	DBFile = Conn.DBFile
-
-	#If B4J
-	JdbcUrl = Conn.JdbcUrl
-	DriverClass = Conn.DriverClass
 	DBName = Conn.DBName
-	User = Conn.User
-	Password = Conn.Password
-	#End If
-	#If server
-	MaxPoolSize = Conn.MaxPoolSize
+	DBDir = Conn.DBDir
+	
+	#If B4A
+	If DBDir = "" Then DBDir = File.DirInternal
+	If DBName = "" Then DBName = "data.db"
 	#End If
 	
 	#If B4i
 	If DBDir = "" Then DBDir = File.DirDocuments
-	If DBFile = "" Then DBFile = "data.db"
-	If File.Exists(DBDir, DBFile) Then
-		DB.Initialize(DBDir, DBFile, False)
-	End If
-	#Else If B4A
-	If DBDir = "" Then DBDir = File.DirInternal
-	If DBFile = "" Then DBFile = "data.db"
-	If File.Exists(DBDir, DBFile) Then
-	'File.Delete(DBDir, DBFile)
-		DB.Initialize(DBDir, DBFile, False)
-	End If
-	#Else
-	Select DBType.ToUpperCase
-		Case "MYSQL", "SQL SERVER", "FIREBIRD", "POSTGRESQL"
-			#If server
-			Pool.Initialize(DriverClass, JdbcUrl, User, Password)
-			If MaxPoolSize > 0 Then
-				Dim jo As JavaObject = Pool
-				jo.RunMethod("setMaxPoolSize", Array(MaxPoolSize))
-			End If
-			#End If
-			DB.Initialize2(DriverClass, JdbcUrl, User, Password)
-		Case "SQLITE"
-			#If B4J
-			If DriverClass <> "" And JdbcUrl <> "" Then
-				If JdbcUrl.Length > "jdbc:sqlite:".Length Then
-					Dim Temp As String = JdbcUrl.SubString("jdbc:sqlite:".Length)
-				End If
+	If DBName = "" Then DBName = "data.db"
+	#End If
 
-				If Temp = DBFile Then
-					DBDir = File.DirApp
-				Else
-					DBFile = File.GetName(Temp)
-					DBDir = Temp.Replace($"/${DBFile}"$, "")
-				End If
-
-				If File.Exists(DBDir, "") = False Then
-					File.MakeDir(DBDir, "")
-				End If
-				If DBExist2(Conn) Then
-					DB.Initialize(DriverClass, JdbcUrl)
-				End If
-				
-			Else
-				If DBDir = "" Then DBDir = File.DirApp
-				If DBFile = "" Then DBFile = "data.db"
-				If DBExist2(Conn) Then
-					#If B4J
-					DB.InitializeSQLite(DBDir, DBFile, True)
-					#Else
-					DB.Initialize(DBDir, DBFile, True)
-					#End If
-				End If
-			End If
-			#Else
-			#If B4A
-			DBDir = File.DirInternal
-			#End If
-			#If B4J
-			DBDir = File.DirApp
-			#End If				
-			If DBFile = "" Then DBFile = "data.db"
-			If DBExist2(Conn) Then
-				#If B4J
-				DB.InitializeSQLite(DBDir, DBFile, True)
-				#Else
-				DB.Initialize(DBDir, DBFile, True)
-				#End If
-			End If
-			#End If			
-		Case "DBF"
-			#If B4J			
-			DB.Initialize(Conn.DriverClass, Conn.JdbcUrl)
-			H2.Initialize(Conn2.DriverClass, Conn2.JdbcUrl)
-			#End If
-	End Select
+	#If B4J
+	DBHost = Conn.DBHost
+	DBPort = Conn.DBPort
+	JdbcUrl = Conn.JdbcUrl
+	DriverClass = Conn.DriverClass
+	User = Conn.User
+	Password = Conn.Password
+	
+	JdbcUrl = JdbcUrl.Replace("{DbName}", DBName)
+	JdbcUrl = JdbcUrl.Replace("{DbHost}", DBHost)
+	JdbcUrl = IIf(DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", DBPort))
+	
+	JdbcUrl = IIf(DBDir.Length = 0, JdbcUrl.Replace("{DbDir}/", ""), JdbcUrl.Replace("{DbDir}", DBDir))
+	#If server
+	MaxPoolSize = Conn.MaxPoolSize
+	#End If
 	#End If
 End Sub
 
@@ -135,40 +83,37 @@ End Sub
 #End If
 
 ' Create SQLite and MySQL database
-Public Sub DBCreate As SQL
+Public Sub DBCreate As ResumableSub
+	Dim Success As Boolean
 	Dim SQL1 As SQL
 	Try
+		#If B4A or B4i
+		SQL1.Initialize(DBDir, DBName, True)
+		#End If	
 		#If B4J
 		Select DBType.ToUpperCase
 			Case "SQLITE"
-				If DriverClass <> "" And JdbcUrl <> "" Then
-					DB.Initialize(DriverClass, JdbcUrl)
-				Else
-					DB.InitializeSQLite(DBDir, DBFile, True)
-				End If
-				SQL1 = DB
 				#If server
+				SQL1.Initialize(DriverClass, JdbcUrl)
 				SQL1.ExecNonQuery("PRAGMA journal_mode = wal")
+				#Else
+				SQL1.InitializeSQLite(DBDir, DBName, True)
 				#End If
-			#If B4J
 			Case "MYSQL"
-				Dim InformationSchemaJdbcUrl As String = JdbcUrl.Replace(DBName, "information_schema")
-				SQL1.Initialize2(DriverClass, InformationSchemaJdbcUrl, User, Password)
+				Dim JdbcUrl2 As String = Conn.JdbcUrl
+				JdbcUrl2 = JdbcUrl2.Replace("{DbName}", "information_schema")
+				JdbcUrl2 = JdbcUrl2.Replace("{DbHost}", DBHost)
+				JdbcUrl2 = IIf(DBPort.Length = 0, JdbcUrl2.Replace(":{DbPort}", ""), JdbcUrl2.Replace("{DbPort}", DBPort))
+				SQL1.Initialize2(DriverClass, JdbcUrl2, User, Password)
 				Dim qry As String = $"CREATE DATABASE ${DBName} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"$
 				SQL1.ExecNonQuery(qry)
-				Dim qry As String = $"USE ${DBName}"$
-				SQL1.ExecNonQuery(qry)
-			#End If
-		End Select		
+		End Select
 		#End If
-		#If B4A or B4i
-		DB.Initialize(DBDir, DBFile, True)
-		SQL1 = DB
-		#End If		
+		Success = True
 	Catch
 		Log(LastException.Message)
 	End Try
-	Return SQL1
+	Return Success
 End Sub
 
 #If B4J
@@ -176,20 +121,28 @@ End Sub
 Public Sub DBExist As ResumableSub
 	Try
 		Dim DBFound As Boolean
-		If DBType.EqualsIgnoreCase("MySQL") Then
-			Dim InformationSchemaJdbcUrl As String = JdbcUrl.Replace(DBName, "information_schema")
-			Dim SQL1 As SQL
-			SQL1.Initialize2(DriverClass, InformationSchemaJdbcUrl, User, Password)
-			If SQL1 <> Null And SQL1.IsInitialized Then
-				Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
-				Dim rs As ResultSet = SQL1.ExecQuery2(qry, Array As String(DBName))
-				Do While rs.NextRow
+		Select DBType.ToUpperCase
+			Case "MYSQL"
+				Dim JdbcUrl2 As String = Conn.JdbcUrl
+				JdbcUrl2 = JdbcUrl2.Replace("{DbName}", "information_schema")
+				JdbcUrl2 = JdbcUrl2.Replace("{DbHost}", DBHost)
+				JdbcUrl2 = IIf(DBPort.Length = 0, JdbcUrl2.Replace(":{DbPort}", ""), JdbcUrl2.Replace("{DbPort}", DBPort))
+				Dim SQL1 As SQL
+				SQL1.Initialize2(DriverClass, JdbcUrl2, User, Password)
+				If SQL1 <> Null And SQL1.IsInitialized Then
+					Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
+					Dim rs As ResultSet = SQL1.ExecQuery2(qry, Array As String(DBName))
+					Do While rs.NextRow
+						DBFound = True
+					Loop
+					rs.Close
+				End If
+				If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
+			Case "SQLITE"
+				If File.Exists(Conn.DBDir, Conn.DBName) Then
 					DBFound = True
-				Loop
-				rs.Close
-			End If
-			If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
-		End If
+				End If
+		End Select
 	Catch
 		LogError(LastException.Message)
 	End Try
@@ -197,60 +150,40 @@ Public Sub DBExist As ResumableSub
 End Sub
 #End If
 
-' Check SQLite database file exists
-Public Sub DBExist2 (mConn As Conn) As Boolean
-	Dim DBFound As Boolean
-	If File.Exists(mConn.DBDir, mConn.DBFile) Then
-		DBFound = True
-		'Log(mConn.DBDir)
-	End If
-	Return DBFound
-End Sub
-
 Public Sub DBOpen As SQL
-	#If server
+	#If B4A or B4i
+	If DBExist(Conn) Then
+	'File.Delete(DBDir, DBName)
+		DB.Initialize(DBDir, DBName, False)
+	End If
+	#End If
+	#If B4J
 	Select DBType.ToUpperCase
 		Case "MYSQL", "SQL SERVER", "FIREBIRD", "POSTGRESQL"
-			Return Pool.GetConnection
-		Case Else
-			Return DB
-	End Select
-	#Else
-		#If B4A or B4i
-		DB.Initialize(DBDir, DBFile, True)
-		#Else
-		Select DBType.ToUpperCase
-			Case "SQLITE"
-				If DriverClass <> "" And JdbcUrl <> "" Then
-					If JdbcUrl.Length > "jdbc:sqlite:".Length Then
-						Dim Temp As String = JdbcUrl.SubString("jdbc:sqlite:".Length)
-					End If
-						
-					If Temp = DBFile Then
-						DBDir = File.DirApp
-					Else
-						DBFile = File.GetName(Temp)
-						DBDir = Temp.Replace($"/${DBFile}"$, "")
-					End If
-						
-					If File.Exists(DBDir, "") = False Then
-						File.MakeDir(DBDir, "")
-					End If
-					DB.Initialize(DriverClass, JdbcUrl)
-				Else
-					If DBDir = "" Then DBDir = File.DirApp
-					If DBFile = "" Then DBFile = "data.db"
-					DB.InitializeSQLite(DBDir, DBFile, True)
+			#If server
+			If Pool.IsInitialized = False Then
+				Pool.Initialize(DriverClass, JdbcUrl, User, Password)
+				If MaxPoolSize > 0 Then
+					Dim jo As JavaObject = Pool
+					jo.RunMethod("setMaxPoolSize", Array(MaxPoolSize))
 				End If
-			Case "MYSQL", "SQL SERVER", "FIREBIRD", "POSTGRESQL"
-				DB.Initialize2(DriverClass, JdbcUrl, User, Password)
-			Case "DBF"
-				DB.Initialize(Conn.DriverClass, Conn.JdbcUrl)
-				H2.Initialize(Conn2.DriverClass, Conn2.JdbcUrl)
-		End Select
-		#End If
-		Return DB
+			End If
+			Return Pool.GetConnection
+			#Else
+			DB.Initialize2(DriverClass, JdbcUrl, User, Password)
+			#End If
+		Case "SQLITE"
+			#If server
+			DB.Initialize(DriverClass, JdbcUrl)
+			#Else
+			DB.InitializeSQLite(DBDir, DBName, False)
+			#End If	
+		Case "DBF"
+			DB.Initialize(Conn.DriverClass, Conn.JdbcUrl)
+			H2.Initialize(Conn2.DriverClass, Conn2.JdbcUrl)
+	End Select
 	#End If
+	Return DB
 End Sub
 
 Public Sub DBClose
@@ -294,10 +227,10 @@ End Sub
 Public Sub GetDate As String
 	Try
 		Select DBType.ToUpperCase
-			Case "SQLITE"
-				Dim qry As String = $"SELECT datetime(datetime('now'))"$
 			Case "MYSQL"
 				Dim qry As String = $"SELECT now()"$
+			Case "SQLITE"
+				Dim qry As String = $"SELECT datetime(datetime('now'))"$
 			Case Else
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
 				Return DateTime.Date(DateTime.Now)
@@ -314,10 +247,10 @@ End Sub
 Public Sub GetDateTime As String
 	Try
 		Select DBType.ToUpperCase
-			Case "SQLITE"
-				Dim qry As String = $"SELECT datetime(datetime('now'))"$
 			Case "MYSQL"
 				Dim qry As String = $"SELECT now()"$
+			Case "SQLITE"
+				Dim qry As String = $"SELECT datetime(datetime('now'))"$
 			Case Else
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
 				Return DateTime.Date(DateTime.Now)
@@ -343,16 +276,12 @@ End Sub
 ' Return SQL query for Last Insert ID based on DBType
 Public Sub getLastInsertIDQuery As String
 	Select DBType.ToUpperCase
-		Case "SQLITE"
-			Dim qry As String = "SELECT LAST_INSERT_ROWID()"
 		Case "MYSQL"
 			Dim qry As String = "SELECT LAST_INSERT_ID()"
 		Case "SQL SERVER"
 			Dim qry As String = "SELECT SCOPE_IDENTITY()"
-		Case "FIREBIRD"
-			Dim qry As String = "SELECT PK"
-		Case "POSTGRESQL"
-			Dim qry As String = "SELECT LASTVAL()"
+		Case "SQLITE"
+			Dim qry As String = "SELECT LAST_INSERT_ROWID()"
 		Case Else
 			Dim qry As String = "SELECT 0"
 	End Select

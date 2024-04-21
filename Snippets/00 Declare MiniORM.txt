@@ -1,2 +1,0 @@
-' Add to Controller Class_Globals sub
-Private DB As MiniORM

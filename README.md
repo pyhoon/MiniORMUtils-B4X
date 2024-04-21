@@ -41,7 +41,7 @@ If Success Then
 Else
     Log("Database creation failed!")
 End If
-MDB.DBClose
+MDB.Close
 ```
 
 ## Select All Rows

@@ -22,5 +22,5 @@ Sub Process_Globals
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Hello world!!!")
+	Log("Version: 1.10")
 End Sub

@@ -1,5 +1,5 @@
 Private Sub GetFind$Controller$ (keyword As String, value As String)
-	' #Version = dev
+	' #Version = v2
 	' #Desc = Find $Controller$ by id, cid, code or name
 	' #Elements = ["$controller$", ":keyword", ":value"]
 
@@ -16,16 +16,16 @@ Private Sub GetFind$Controller$ (keyword As String, value As String)
 			Else
 				QueryProductByKeyword(Array("c.id = ?"), Array(value))
 			End If
-		Case "$controller$_code", "code"
-			QueryProductByKeyword(Array("p.$controller$_code = ?"), Array(value))
-		Case "$controller$_name", "name"
-			QueryProductByKeyword(Array("$controller$_name LIKE ?"), Array("%" & value & "%"))
 		Case "$category$_name", "$category$"
 			QueryProductByKeyword(Array("c.$category$_name = ?"), Array(value))
+		Case "$controller$_code", "code"
+			QueryProductByKeyword(Array("p.$controller$_code = ?"), Array(value))		
+		Case "$controller$_name", "name"
+			QueryProductByKeyword(Array("$controller$_name LIKE ?"), Array("%" & value & "%"))
 		Case Else
 			ReturnInvalidKeywordValue
 	End Select
-	CloseDBConnection
+	DB.Close
 	ReturnApiResponse
 End Sub
 
@@ -40,8 +40,7 @@ Private Sub Query$Controller$ByKeyword (Condition As List, Value As List)
 End Sub
 
 Private Sub ReturnUnprocessableEntity
-	HRM.ResponseCode = 422
-	HRM.ResponseError = "Error Unprocessable Entity"
+	WebApiUtils.ReturnErrorUnprocessableEntity(Response)
 End Sub
 
 Private Sub ReturnInvalidKeywordValue

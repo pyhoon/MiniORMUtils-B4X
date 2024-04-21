@@ -1,5 +1,5 @@
 Private Sub Put$Controller$ (id As Long)
-	' #Version = dev
+	' #Version = v2
 	' #Desc = Update $Controller$ by id
 	' #Body = {<br>&nbsp;"name": "$column_name$"<br>}
 	' #Elements = [":id"]
@@ -29,17 +29,20 @@ Private Sub Put$Controller$ (id As Long)
 	DB.Where = Array("$column_name$ = ?", "id <> ?")
 	DB.Parameters = Array As String(data.Get("$column_name$"), id)
 	DB.Query
-	If DB.First.IsInitialized Then
+
+	If DB.Found Then
 		HRM.ResponseCode = 409
 		HRM.ResponseError = "$Controller$ already exist"
-		CloseDBConnection
+		DB.Close
 		ReturnApiResponse
 		Return
 	End If
-	If Not(DB.Find(id).IsInitialized) Then
+	
+	DB.Find(id)
+	If Not(DB.Found) Then
 		HRM.ResponseCode = 404
 		HRM.ResponseError = "$Controller$ not found"
-		CloseDBConnection
+		DB.Close
 		ReturnApiResponse
 		Return
 	End If
@@ -66,8 +69,8 @@ Private Sub Put$Controller$ (id As Long)
 	DB.Save
 
 	HRM.ResponseCode = 200
-	HRM.ResponseObject = DB.First ' comment this line to show message as object
 	HRM.ResponseMessage = "$Controller$ updated successfully"
-	CloseDBConnection
+	HRM.ResponseObject = DB.First
+	DB.Close
 	ReturnApiResponse
 End Sub

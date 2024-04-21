@@ -1,3 +1,9 @@
-' Add to Controller Initialize sub
-DB.Initialize(OpenDBConnection, DBEngine)
-'DB.ShowExtraLogs = True
+' Initialize Controller
+Public Sub Initialize (req As ServletRequest, resp As ServletResponse)
+	Request = req
+	Response = resp
+	HRM.Initialize
+	HRM.SimpleResponse = Main.SimpleResponse
+	DB.Initialize(Main.DBOpen, Main.DBEngine)
+	DB.UseTimestamps = True
+End Sub

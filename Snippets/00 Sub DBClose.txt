@@ -1,0 +1,3 @@
+Private Sub DBClose
+	DBConnector.DBClose
+End Sub

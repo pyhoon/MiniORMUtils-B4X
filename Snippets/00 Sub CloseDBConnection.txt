@@ -1,3 +1,0 @@
-Private Sub CloseDBConnection
-	DBConnector.DBClose
-End Sub

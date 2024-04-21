@@ -1,11 +1,11 @@
-Private Sub Get$Controller$s
-	' #Version = dev
-	' #Desc = Read all $Controller$s
+Private Sub Get$Controller$
+	' #Version = v2
+	' #Desc = Read all $Controller$
 
     DB.Table = "$table_name$"
     DB.Query
     HRM.ResponseCode = 200
     HRM.ResponseData = DB.Results
-    CloseDBConnection
-    ReturnApiResponse
+	DB.Close
+	ReturnApiResponse
 End Sub

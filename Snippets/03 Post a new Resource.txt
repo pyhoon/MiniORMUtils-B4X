@@ -1,5 +1,5 @@
 Private Sub Post$Controller$
-	' #Version = dev
+	' #Version = v2
 	' #Desc = Add a new $Controller$
 	' #Body = {<br>&nbsp;"name": "$column_name$"<br>}
 
@@ -10,6 +10,7 @@ Private Sub Post$Controller$
 		ReturnApiResponse
 		Return
 	End If
+
 	' Make it compatible with Web API Client v1
 	If data.ContainsKey("name") Then
 		data.Put("$column_name$", data.Get("name"))
@@ -28,10 +29,10 @@ Private Sub Post$Controller$
 	DB.Parameters = Array As String(data.Get("$column_name$"))
 	DB.Query
 
-	If DB.Results.Size > 0 Then
+	If DB.Found Then
 		HRM.ResponseCode = 409
 		HRM.ResponseError = "$Controller$ already exist"
-		CloseDBConnection
+		DB.Close
 		ReturnApiResponse
 		Return
 	End If
@@ -50,7 +51,6 @@ Private Sub Post$Controller$
 				Values.Add(WebApiUtils.CurrentDateTime)
 			Case Else
 				Log(key)
-				'Exit
 		End Select
 	Next
 
@@ -62,6 +62,6 @@ Private Sub Post$Controller$
 	HRM.ResponseCode = 201
 	HRM.ResponseObject = DB.First
 	HRM.ResponseMessage = "$Controller$ created successfully"
-	CloseDBConnection
+	DB.Close
 	ReturnApiResponse
 End Sub

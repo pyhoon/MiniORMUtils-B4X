@@ -1,7 +1,14 @@
-' Add to Main
 Private Sub CreateDatabase
+	Log("Creating database...")
+	Wait For (Main.DBConnector.DBCreate) Complete (Success As Boolean)
+	If Not(Success) Then
+		Log("Database creation failed!")
+		Return
+	End If
+	
+	Log("Creating tables...")
 	Dim MDB As MiniORM
-	MDB.Initialize(CreateDBConnection, DBEngine)
+	MDB.Initialize(Main.DBOpen, Main.DBEngine)
 	MDB.UseTimestamps = True
 	MDB.AddAfterCreate = True
 	MDB.AddAfterInsert = True
@@ -43,9 +50,5 @@ Private Sub CreateDatabase
 	Else
 		Log("Database creation failed!")
 	End If
-	DBConnector.DBClose
-	Select DBConnector.DBEngine.ToUpperCase
-		Case "MYSQL"
-			ConfigureDatabase(True)
-	End Select
+	MDB.Close
 End Sub

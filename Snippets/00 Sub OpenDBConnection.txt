@@ -1,3 +1,0 @@
-Private Sub OpenDBConnection As SQL
-	Return DBConnector.DBOpen
-End Sub

@@ -3,7 +3,7 @@ Private Sub Get$Controller$ (id As Long)
 	' #Desc = Read one $Controller$ by id
 	' #Elements = [":id"]
 
-    DB.Table = "$table_name$"
+    DB.Table = "$table$"
 	DB.Find(id)
 	If DB.Found Then
 		HRM.ResponseCode = 200

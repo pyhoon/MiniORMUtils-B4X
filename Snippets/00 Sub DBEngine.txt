@@ -1,3 +1,0 @@
-Private Sub DBEngine As String
-	Return DBConnector.DBEngine
-End Sub

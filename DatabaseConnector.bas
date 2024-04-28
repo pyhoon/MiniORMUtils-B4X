@@ -5,7 +5,7 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 1.10
+' Version 1.11
 Sub Class_Globals
 	#If server
 	Private Pool As ConnectionPool

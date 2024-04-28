@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.10
+' Version 1.11
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String = "INTEGER"

@@ -3,17 +3,17 @@ Private Sub Delete$Controller$ (id As Long)
 	' #Desc = Delete $Controller$ by id
 	' #Elements = [":id"]
 	
-	DB.Table = "$table_name$"
+	DB.Table = "$table$"
 	DB.Find(id)
-	If Not(DB.Found) Then
-		HRM.ResponseCode = 404
-		HRM.ResponseError = "$Controller$ not found"
-	Else
+	If DB.Found Then
 		DB.Reset
 		DB.Id = id
 		DB.Delete
 		HRM.ResponseCode = 200
 		HRM.ResponseMessage = "$Controller$ deleted successfully"
+	Else
+		HRM.ResponseCode = 404
+		HRM.ResponseError = "$Controller$ not found"
 	End If
 	DB.Close
 	ReturnApiResponse	

@@ -1,7 +1,7 @@
 Private Sub Post$Controller$
 	' #Version = v2
 	' #Desc = Add a new $Controller$
-	' #Body = {<br>&nbsp;"name": "$column_name$"<br>}
+	' #Body = {<br>&nbsp;"cat_id": category_id,<br>&nbsp;"name": "$column$"<br>}
 
 	Dim data As Map = WebApiUtils.RequestData(Request)
 	If Not(data.IsInitialized) Then
@@ -12,23 +12,31 @@ Private Sub Post$Controller$
 	End If
 
 	' Make it compatible with Web API Client v1
+	If data.ContainsKey("cat_id") Then
+		data.Put("category_id", data.Get("cat_id"))
+		data.Remove("cat_id")
+	End If	
 	If data.ContainsKey("name") Then
-		data.Put("$column_name$", data.Get("name"))
+		data.Put("$column$", data.Get("name"))
 		data.Remove("name")
 	End If
 	
-	If Not(data.ContainsKey("$column_name$")) Then
-		HRM.ResponseCode = 400
-		HRM.ResponseError = "Key '$column_name$' not found"
-		ReturnApiResponse
-		Return
-	End If
+	' Check whether required keys are provided
+	Dim RequiredKeys As List = Array As String("category_id", "$column$")
+	For Each requiredkey As String In RequiredKeys
+		If Not(data.ContainsKey(requiredkey)) Then
+			HRM.ResponseCode = 400
+			HRM.ResponseError = $"Key '${requiredkey}' not found"$
+			ReturnApiResponse
+			Return
+		End If
+	Next
 
-	DB.Table = "$table_name$"
-	DB.Where = Array("$column_name$ = ?")
-	DB.Parameters = Array As String(data.Get("$column_name$"))
+	' Check conflict product code
+	DB.Table = "$table$"
+	DB.Where = Array("$column$ = ?")
+	DB.Parameters = Array As String(data.Get("$column$"))
 	DB.Query
-
 	If DB.Found Then
 		HRM.ResponseCode = 409
 		HRM.ResponseError = "$Controller$ already exist"
@@ -43,22 +51,21 @@ Private Sub Post$Controller$
 	Values.Initialize
 	For Each key As String In data.Keys
 		Select key
-			Case "$column_name$"
+			Case "category_id", "$column$", "created_date"
 				Columns.Add(key)
 				Values.Add(data.Get(key))
-			Case "created_date"
-				Columns.Add(key)
-				Values.Add(WebApiUtils.CurrentDateTime)
 			Case Else
 				Log(key)
 		End Select
 	Next
 
+	' Insert new row
 	DB.Reset
 	DB.Columns = Columns
 	DB.Parameters = Values
 	DB.Save
 
+	' Retrieve new row
 	HRM.ResponseCode = 201
 	HRM.ResponseObject = DB.First
 	HRM.ResponseMessage = "$Controller$ created successfully"

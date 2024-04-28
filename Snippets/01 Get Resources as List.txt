@@ -2,7 +2,7 @@ Private Sub Get$Controller$
 	' #Version = v2
 	' #Desc = Read all $Controller$
 
-    DB.Table = "$table_name$"
+    DB.Table = "$table$"
     DB.Query
     HRM.ResponseCode = 200
     HRM.ResponseData = DB.Results

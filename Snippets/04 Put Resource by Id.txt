@@ -1,7 +1,7 @@
 Private Sub Put$Controller$ (id As Long)
 	' #Version = v2
 	' #Desc = Update $Controller$ by id
-	' #Body = {<br>&nbsp;"name": "$column_name$"<br>}
+	' #Body = {<br>&nbsp;"cat_id": category_id,<br>&nbsp;"name": "$column$"<br>}
 	' #Elements = [":id"]
 
 	Dim data As Map = WebApiUtils.RequestData(Request)
@@ -13,23 +13,20 @@ Private Sub Put$Controller$ (id As Long)
 	End If
 
 	' Make it compatible with Web API Client v1
+	If data.ContainsKey("cat_id") Then
+		data.Put("category_id", data.Get("cat_id"))
+		data.Remove("cat_id")
+	End If	
 	If data.ContainsKey("name") Then
-		data.Put("$column_name$", data.Get("name"))
+		data.Put("$column$", data.Get("name"))
 		data.Remove("name")
 	End If
-	
-	If Not(data.ContainsKey("$column_name$")) Then
-		HRM.ResponseCode = 400
-		HRM.ResponseError = "Key '$column_name$' not found"
-		ReturnApiResponse
-		Return
-	End If
 
-	DB.Table = "$table_name$"
-	DB.Where = Array("$column_name$ = ?", "id <> ?")
-	DB.Parameters = Array As String(data.Get("$column_name$"), id)
+	' Check conflict $column$
+	DB.Table = "$table$"
+	DB.Where = Array("$column$ = ?", "id <> ?")
+	DB.Parameters = Array As String(data.Get("$column$"), id)
 	DB.Query
-
 	If DB.Found Then
 		HRM.ResponseCode = 409
 		HRM.ResponseError = "$Controller$ already exist"
@@ -53,7 +50,7 @@ Private Sub Put$Controller$ (id As Long)
 	Values.Initialize
 	For Each key As String In data.Keys
 		Select key
-			Case "$column_name$"
+			Case "category_id", "$column$", "modified_date"
 				Columns.Add(key)
 				Values.Add(data.Get(key))
 		End Select

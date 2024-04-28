@@ -1,3 +1,4 @@
 Private Sub ReturnApiResponse
+	HRM.SimpleResponse = Main.SimpleResponse
 	WebApiUtils.ReturnHttpResponse(HRM, Response)
 End Sub

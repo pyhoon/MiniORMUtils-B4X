@@ -1,13 +1,14 @@
 ﻿AppType=StandardJava
-Build1=Default,b4j.example
-Group=Default
+Build1=Default,b4j.example,server
+Group=App
 Library1=javaobject
 Library2=jcore
-Library3=jsql
+Library3=jserver
+Library4=jsql
 Module1=DatabaseConnector
 Module2=MiniORM
 NumberOfFiles=0
-NumberOfLibraries=3
+NumberOfLibraries=4
 NumberOfModules=2
 Version=10
 @EndOfDesignText@
@@ -22,5 +23,5 @@ Sub Process_Globals
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Version: 1.10")
+	Log("Version: 1.12")
 End Sub

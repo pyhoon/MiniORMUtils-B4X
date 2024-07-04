@@ -5,7 +5,7 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 1.12
+' Version 1.13
 Sub Class_Globals
 	Private DB As SQL
 	Private Conn As Conn
@@ -32,10 +32,11 @@ Public Sub Initialize (mConn As Conn)
 	If Conn.DBDir = "" Then Conn.DBDir = File.DirDocuments
 	#Else If B4J
 	If Conn.DBDir = "" Then Conn.DBDir = File.DirApp
-	Conn.JdbcUrl = Conn.JdbcUrl.Replace("{DbName}", Conn.DBName)
+	'Conn.JdbcUrl = Conn.JdbcUrl.Replace("{DbName}", Conn.DBName)
 	Conn.JdbcUrl = Conn.JdbcUrl.Replace("{DbHost}", Conn.DBHost)
 	Conn.JdbcUrl = IIf(Conn.DBPort.Length = 0, Conn.JdbcUrl.Replace(":{DbPort}", ""), Conn.JdbcUrl.Replace("{DbPort}", Conn.DBPort))
 	Conn.JdbcUrl = IIf(Conn.DBDir.Length = 0, Conn.JdbcUrl.Replace("{DbDir}/", ""), Conn.JdbcUrl.Replace("{DbDir}", Conn.DBDir))
+	Conn.JdbcUrl = IIf(Conn.DBFile.Length = 0, Conn.JdbcUrl.Replace("{DbFile}", ""), Conn.JdbcUrl.Replace("{DbFile}", Conn.DBFile))
 	#End If
 End Sub
 
@@ -136,6 +137,7 @@ Public Sub DBOpen As SQL
 		Case "MYSQL"
 			If Conn.MaxPoolSize > 0 Then
 				If Pool.IsInitialized = False Then
+					Conn.JdbcUrl = Conn.JdbcUrl.Replace("{DbName}", Conn.DBName)
 					Pool.Initialize(Conn.DriverClass, Conn.JdbcUrl, Conn.User, Conn.Password)
 					Dim jo As JavaObject = Pool
 					jo.RunMethod("setMaxPoolSize", Array(Conn.MaxPoolSize))
@@ -160,6 +162,7 @@ Public Sub DBOpen2 As ResumableSub
 			Case "MYSQL"
 				If Conn.MaxPoolSize > 0 Then
 					If Pool.IsInitialized = False Then
+						Conn.JdbcUrl = Conn.JdbcUrl.Replace("{DbName}", Conn.DBName)
 						Pool.Initialize(Conn.DriverClass, Conn.JdbcUrl, Conn.User, Conn.Password)
 						If Conn.MaxPoolSize > 0 Then
 							Dim jo As JavaObject = Pool
@@ -265,7 +268,7 @@ Public Sub GetDate As String
 	Catch
 		Log(LastException.Message)
 	End Try
-	If con <> Null And con.IsInitialized Then con.Close
+	Close(con)
 	Return str
 End Sub
 
@@ -286,7 +289,7 @@ Public Sub GetDate2 As ResumableSub
 	Catch
 		Log(LastException.Message)
 	End Try
-	If con <> Null And con.IsInitialized Then con.Close
+	Close(con)
 	Return str
 End Sub
 
@@ -310,7 +313,7 @@ Public Sub GetDateTime As String
 	Catch
 		Log(LastException.Message)
 	End Try
-	If con <> Null And con.IsInitialized Then con.Close
+	Close(con)
 	Return str
 End Sub
 
@@ -331,7 +334,7 @@ Public Sub GetDateTime2 As ResumableSub
 	Catch
 		Log(LastException.Message)
 	End Try
-	If con <> Null And con.IsInitialized Then con.Close
+	Close(con)
 	Return str
 End Sub
 

@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.12
+' Version 1.13
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String
@@ -330,6 +330,14 @@ Public Sub Create
 		End Select
 		If col.AllowNull Then sb.Append(" NULL") Else sb.Append(" NOT NULL")
 		If col.Unique Then sb.Append(" UNIQUE")
+		If col.AutoIncrement Then
+			Select DBEngine.ToUpperCase
+				Case "MYSQL"
+					sb.Append(" AUTO_INCREMENT")
+				Case "SQLITE"
+					sb.Append(" AUTOINCREMENT")
+			End Select
+		End If
 		sb.Append(",").Append(CRLF)
 	Next
 	
@@ -367,7 +375,7 @@ Public Sub Create
 	If BlnDisableAutoIncrementId = False Then
 		Select DBEngine.ToUpperCase
 			Case "MYSQL"
-				stmt.Append($"id ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
+				stmt.Append($"id ${INTEGER} NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
 			Case "SQLITE"
 				stmt.Append($"id ${INTEGER},"$).Append(CRLF)
 		End Select
@@ -376,18 +384,21 @@ Public Sub Create
 	' Put the columns here
 	stmt.Append(sb.ToString)
 	
-	' id column set as primary key by default
-	If BlnDisableAutoIncrementId = False Then
+	If DBPrimaryKey.Length > 0 Then
 		stmt.Append(CRLF)
-		If DBPrimaryKey.Length > 0 Then
-			stmt.Append(DBPrimaryKey)
-		Else
+		stmt.Append($"PRIMARY KEY(${DBPrimaryKey})"$)
+	Else
+		' id column set as primary key by default
+		If BlnDisableAutoIncrementId = False Then
+			stmt.Append(CRLF)
 			Select DBEngine.ToUpperCase
 				Case "MYSQL"
 					stmt.Append($"PRIMARY KEY(id)"$)
 				Case "SQLITE"
 					stmt.Append($"PRIMARY KEY(id AUTOINCREMENT)"$)
 			End Select
+		Else
+			stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
 		End If
 	End If
 	
@@ -414,34 +425,32 @@ Public Sub Create
 	
 	If BlnShowExtraLogs Then
 		Log(DBStatement)
-		Dim Params As String = "["
-		For Each Param In DBParameters
-			If Params <> "[" Then Params = Params & ", "
-			Params = Params & Param
-		Next
-		Params = Params & "]"
-		Log(Params)
+		'Dim Params As String = "["
+		'For Each Param In DBParameters
+		'	If Params <> "[" Then Params = Params & ", "
+		'	Params = Params & Param
+		'Next
+		'Params = Params & "]"
+		'Log(Params)
 	End If
 
 	If BlnExecuteAfterCreate Then
 		Execute
 	Else If BlnAddAfterCreate Then
-		AddQuery 'AddQuery2
+		AddQuery
 	End If
 End Sub
 
 ' Replace default primary key
 Public Sub Primary (mKeys() As String)
-	If mKeys.Length < 1 Then Return
-	Dim sb As StringBuilder
-	sb.Initialize
-	sb.Append("PRIMARY KEY").Append(" (")
+	If mKeys.Length = 0 Then Return
+	Dim keys As StringBuilder
+	keys.Initialize
 	For i = 0 To mKeys.Length - 1
-		If i > 0 Then sb.Append(", ")
-		sb.Append(mKeys(i))
+		If i > 0 Then keys.Append(", ")
+		keys.Append(mKeys(i))
 	Next
-	sb.Append(")")
-	DBPrimaryKey = sb.ToString
+	DBPrimaryKey = keys.ToString
 End Sub
 
 ' Add foreign key
@@ -739,13 +748,16 @@ Public Sub Save
 		Dim qry As String = $"UPDATE ${DBTable} SET "$
 		For Each col As String In DBColumns
 			If sb.Length > 0 Then sb.Append(", ")
+			If col.EqualsIgnoreCase("modified_date") Then md = True
 			' Modified on 2024-06-06
 			If col.Contains("=") Then
 				sb.Append(col)
+			Else If col.EndsWith("++") Then ' ' Added on 2024-07-04 experimental
+				col = col.Replace("++", "").Trim
+				sb.Append($"${col} = ${col} + 1"$)
 			Else
 				sb.Append(col & " = ?")
 			End If
-			If col.EqualsIgnoreCase("modified_date") Then md = True
 		Next
 		qry = qry & sb.ToString
 		' To handle varchar timestamps

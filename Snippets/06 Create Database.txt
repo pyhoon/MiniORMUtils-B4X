@@ -18,10 +18,8 @@ Private Sub CreateDatabase
 	MDB.Create
 	
 	MDB.Columns = Array("category_name")
-	MDB.Parameters = Array As String("Hardwares")
-	MDB.Insert
-	MDB.Parameters = Array As String("Toys")
-	MDB.Insert
+	MDB.Insert2(Array("Hardwares"))
+	MDB.Insert2(Array("Toys"))
 	
 	MDB.Table = "tbl_products"
 	MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "category_id", "Type": MDB.INTEGER)))
@@ -37,12 +35,9 @@ Private Sub CreateDatabase
 	MDB.Create
 	
 	MDB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-	MDB.Parameters = Array As String(2, "T001", "Teddy Bear", 99.9)
-	MDB.Insert
-	MDB.Parameters = Array As String(1, "H001", "Hammer", 15.75)
-	MDB.Insert
-	MDB.Parameters = Array As String(2, "T002", "Optimus Prime", 1000.00)
-	MDB.Insert
+	MDB.Insert2(Array(2, "T001", "Teddy Bear", 99.9))
+	MDB.Insert2(Array(1, "H001", "Hammer", 15.75))
+	MDB.Insert2(Array(2, "T002", "Optimus Prime", 1000.00))
 	
 	Wait For (MDB.ExecuteBatch) Complete (Success As Boolean)
 	If Success Then

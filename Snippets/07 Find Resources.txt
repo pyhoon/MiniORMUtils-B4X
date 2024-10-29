@@ -33,7 +33,7 @@ Private Sub Query$Controller$ByKeyword (Condition As List, Value As List)
 	DB.Table = "tbl_$controller$ p"
 	DB.Select = Array("p.*", "c.$category$_name")
 	DB.Join = DB.CreateORMJoin("tbl_$category$ c", "p.$category$_id = c.id", "")
-	DB.setWhereValue(Condition, Value)
+	DB.WhereValue(Condition, Value)
 	DB.Query
 	HRM.ResponseCode = 200
 	HRM.ResponseData = DB.Results

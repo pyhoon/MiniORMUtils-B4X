@@ -25,8 +25,7 @@ Private Sub Put$Controller$ (id As Long)
 	' Check conflict $column$
 	DB.Table = "$table$"
 	DB.Where = Array("$column$ = ?", "id <> ?")
-	DB.Parameters = Array As String(data.Get("$column$"), id)
-	DB.Query
+	DB.Query2(Array(data.Get("$column$"), id))
 	If DB.Found Then
 		HRM.ResponseCode = 409
 		HRM.ResponseError = "$Controller$ already exist"

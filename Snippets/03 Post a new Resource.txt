@@ -35,8 +35,7 @@ Private Sub Post$Controller$
 	' Check conflict product code
 	DB.Table = "$table$"
 	DB.Where = Array("$column$ = ?")
-	DB.Parameters = Array As String(data.Get("$column$"))
-	DB.Query
+	DB.Query2(Array(data.Get("$column$")))
 	If DB.Found Then
 		HRM.ResponseCode = 409
 		HRM.ResponseError = "$Controller$ already exist"

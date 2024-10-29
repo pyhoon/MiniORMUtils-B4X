@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 1.13
+Version: 1.14
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
@@ -27,10 +27,8 @@ MDB.Create
 ## Insert rows
 ```
 MDB.Columns = Array("category_name")
-MDB.Parameters = Array As String("Hardwares")
-MDB.Insert
-MDB.Parameters = Array As String("Toys")
-MDB.Insert
+MDB.Insert2(Array("Hardwares"))
+MDB.Insert2(Array("Toys"))
 ```
 
 ## Execute NonQuery Batch
@@ -55,8 +53,8 @@ Dim Items As List = MDB.Results
 ```
 MDB.Table = "tbl_products"
 MDB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-MDB.Parameters = Array As String(Category_Id, Product_Code, Product_Name, Product_Price)
-MDB.Save
+MDB.Id = 2
+MDB.Save2(Array(Category_Id, Product_Code, Product_Name, Product_Price))
 ```
 
 ## Soft delete row
@@ -101,7 +99,7 @@ Dim Data As List = MDB.Results
 MDB.Table = "tbl_products p"
 MDB.Select = Array("p.*", "c.category_name")
 MDB.Join = MDB.CreateORMJoin("tbl_category c", "p.category_id = c.id", "")
-MDB.setWhereValue(Array("c.id = ?"), Array(CategoryId))
+MDB.WhereValue(Array("c.id = ?"), Array(CategoryId))
 MDB.Query
 Dim Data As List = MDB.Results
 ```

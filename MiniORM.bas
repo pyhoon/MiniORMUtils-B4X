@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.13
+' Version 1.14
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String
@@ -441,6 +441,23 @@ Public Sub Create
 	End If
 End Sub
 
+Public Sub Create2 (CreateStatement As String)
+	DBStatement = CreateStatement
+	If BlnShowExtraLogs Then
+		Log(DBStatement)
+	End If
+
+	If BlnExecuteAfterCreate Then
+		Try
+			SQL.ExecNonQuery(DBStatement)
+		Catch
+			Log(LastException)
+		End Try
+	Else If BlnAddAfterCreate Then
+		SQL.AddNonQueryToBatch(DBStatement, Null)
+	End If
+End Sub
+
 ' Replace default primary key
 Public Sub Primary (mKeys() As String)
 	If mKeys.Length = 0 Then Return
@@ -678,6 +695,11 @@ Public Sub Query
 	#End If
 End Sub
 
+Public Sub Query2 (Params As List)
+	setParameters(Params)
+	Query
+End Sub
+
 ' Return an object without query
 ' Note: ORMTable and ORMResults are not affected
 Public Sub getScalar As Object
@@ -687,6 +709,11 @@ Public Sub getScalar As Object
 	Else
 		Return SQL.ExecQuerySingleResult(DBStatement)
 	End If
+End Sub
+
+Public Sub getScalar2 (Params As List) As Object
+	setParameters(Params)
+	Return getScalar
 End Sub
 
 Public Sub Insert
@@ -736,6 +763,11 @@ Public Sub Insert
 	Else If BlnAddAfterInsert Then
 		AddQuery
 	End If
+End Sub
+
+Public Sub Insert2 (Params As List)
+	setParameters(Params)
+	Insert
 End Sub
 
 ' Update must have at least 1 condition
@@ -845,6 +877,11 @@ Public Sub Save
 	DBStatement = DBSaveStatement
 End Sub
 
+Public Sub Save2 (Params As List)
+	setParameters(Params)
+	Save
+End Sub
+
 Public Sub getLastInsertID As Object
 	Select DBEngine.ToUpperCase
 		Case "MYSQL"
@@ -866,18 +903,22 @@ Public Sub setWhere (mStatements As List)
 End Sub
 
 #If B4A or B4i
+'Deprecated
 Public Sub setWhereValue (mStatements As List, mParams() As String)
-	Dim sb As StringBuilder
-	sb.Initialize
-	For Each statement In mStatements
-		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
-		sb.Append(statement)
-	Next
-	Condition = Condition & sb.ToString
-	setParameters(mParams)
-End Sub
 #Else
+'Deprecated
 Public Sub setWhereValue (mStatements As List, mParams As List)
+#End If
+	WhereValue (mStatements, mParams)
+End Sub
+
+#If B4A or B4i
+' formerly named as setWhereValue
+Public Sub WhereValue (mStatements As List, mParams() As String)
+#Else
+' formerly named as setWhereValue
+Public Sub WhereValue (mStatements As List, mParams As List)
+#End If
 	Dim sb As StringBuilder
 	sb.Initialize
 	For Each statement In mStatements
@@ -887,7 +928,6 @@ Public Sub setWhereValue (mStatements As List, mParams As List)
 	Condition = Condition & sb.ToString
 	setParameters(mParams)
 End Sub
-#End If
 
 Public Sub Delete
 	Dim qry As String = $"DELETE FROM ${DBTable}"$

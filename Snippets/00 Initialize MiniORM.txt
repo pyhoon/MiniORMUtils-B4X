@@ -1,8 +1,0 @@
-' Initialize Controller
-Public Sub Initialize (req As ServletRequest, resp As ServletResponse)
-	Request = req
-	Response = resp
-	HRM.Initialize
-	HRM.SimpleResponse = Main.SimpleResponse
-	DB.Initialize(Main.DBOpen, Main.DBEngine)
-End Sub

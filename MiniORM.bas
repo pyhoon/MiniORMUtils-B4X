@@ -5,13 +5,15 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.14
+' Version 1.15
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String
 	Public DECIMAL As String
 	Public VARCHAR As String
+	Public DATE_TIME As String ' datetime
 	Public TIMESTAMP As String
+	Public TEXT As String
 	Public ORMTable As ORMTable
 	Public ORMResult As ORMResult
 	Private DBID As Int
@@ -31,7 +33,8 @@ Sub Class_Globals
 	Private DBGroupBy As String
 	Private DBOrderBy As String
 	Private DBLimit As String
-	Private Condition As String
+	Private DBCondition As String
+	Private DBHaving As String
 	#If B4J
 	Private BlnFirst As Boolean
 	#End If
@@ -47,6 +50,7 @@ Sub Class_Globals
 	Private BlnAddAfterInsert As Boolean
 	Private BlnExecuteAfterCreate As Boolean
 	Private BlnExecuteAfterInsert As Boolean
+	Private StrDefaultUserId As String = "1"
 	#If B4J
 	Private DateTimeMethods As Map
 	#End If
@@ -69,11 +73,15 @@ Public Sub Initialize (mSQL As SQL, mEngine As String)
 			INTEGER = "int"
 			DECIMAL = "decimal"
 			VARCHAR = "varchar"
+			TEXT = "text"
+			DATE_TIME = "datetime"
 			TIMESTAMP = "timestamp"
 		Case "SQLITE"
 			INTEGER = "INTEGER"
 			DECIMAL = "NUMERIC"
 			VARCHAR = "TEXT"
+			TEXT = "TEXT"
+			DATE_TIME = "TEXT"
 			TIMESTAMP = "TEXT"
 	End Select
 	#If B4J
@@ -140,6 +148,10 @@ Public Sub setUseDataAuditUserId (Value As Boolean)
 	BlnUseDataAuditUserId = Value
 End Sub
 
+Public Sub setDefaultUserId (Value As String)
+	StrDefaultUserId = Value
+End Sub
+
 Public Sub setAddAfterCreate (Value As Boolean)
 	BlnAddAfterCreate = Value
 End Sub
@@ -162,7 +174,8 @@ End Sub
 
 Public Sub Reset
 	DBStatement = $"SELECT * FROM ${DBTable}"$
-	Condition = ""
+	DBCondition = ""
+	DBHaving = ""
 	DBPrimaryKey = ""
 	DBUniqueKey = ""
 	DBForeignKey = ""
@@ -265,16 +278,24 @@ Public Sub setRawSQL (RawSQLQuery As String)
 	DBStatement = RawSQLQuery
 End Sub
 
-Public Sub setGroupBy (Col As Map)
-	If Col.IsInitialized Then
-		Dim sb As StringBuilder
-		sb.Initialize
-		For Each key As String In Col.Keys
-			If sb.Length > 0 Then sb.Append(", ")
-			sb.Append(key)
-		Next
-		DBGroupBy = $" GROUP BY ${sb.ToString}"$
-	End If
+Public Sub setGroupBy (Columns As List)
+	Dim sb As StringBuilder
+	sb.Initialize
+	For Each Column As String In Columns
+		If sb.Length > 0 Then sb.Append(", ") Else sb.Append(" GROUP BY ")
+		sb.Append(Column)
+	Next
+	DBGroupBy = sb.ToString
+End Sub
+
+Public Sub setHaving (mStatements As List)
+	Dim sb As StringBuilder
+	sb.Initialize
+	For Each statement In mStatements
+		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" HAVING ")
+		sb.Append(statement)
+	Next
+	DBHaving = sb.ToString
 End Sub
 
 Public Sub setOrderBy (Col As Map)
@@ -307,7 +328,7 @@ Public Sub Create
 		Select DBEngine.ToUpperCase
 			Case "MYSQL"
 				Select col.ColumnType
-					Case INTEGER, DECIMAL, TIMESTAMP
+					Case INTEGER, DECIMAL, TIMESTAMP, DATE_TIME, TEXT
 						sb.Append(col.ColumnType)
 					Case Else
 						sb.Append(VARCHAR)
@@ -323,7 +344,7 @@ Public Sub Create
 		End Select
 
 		Select col.ColumnType
-			Case INTEGER
+			Case INTEGER, TIMESTAMP, DATE_TIME
 				If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append(col.DefaultValue)
 			Case Else
 				If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
@@ -344,19 +365,19 @@ Public Sub Create
 	Select DBEngine.ToUpperCase
 		Case "MYSQL"
 			If BlnUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT 1,").Append(CRLF)
+				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
 				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
 				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
 			If BlnUseTimestamps Then
 				' Use timestamp and datetime
 				sb.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
-				sb.Append("modified_date datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
-				sb.Append("deleted_date datetime DEFAULT NULL,")
+				sb.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
+				sb.Append("deleted_date " & DATE_TIME & " DEFAULT NULL,")
 			End If
 		Case "SQLITE"
 			If BlnUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT 1,").Append(CRLF)
+				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
 				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
 				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
@@ -571,8 +592,9 @@ End Sub
 
 Public Sub Query
 	Try
-		If Condition.Length > 0 Then DBStatement = DBStatement & Condition
+		If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
 		If DBGroupBy.Length > 0 Then DBStatement = DBStatement & DBGroupBy
+		If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
 		If DBOrderBy.Length > 0 Then DBStatement = DBStatement & DBOrderBy
 		If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
 
@@ -687,7 +709,8 @@ Public Sub Query
 		End If
 		Log(LastException)
 	End Try
-	Condition = ""
+	DBCondition = ""
+	DBHaving = ""
 	#If B4A or B4i
 	DBParameters = Array As String()
 	#Else
@@ -703,7 +726,7 @@ End Sub
 ' Return an object without query
 ' Note: ORMTable and ORMResults are not affected
 Public Sub getScalar As Object
-	If Condition.Length > 0 Then DBStatement = DBStatement & Condition
+	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
 	If ParametersCount > 0 Then
 		Return SQL.ExecQuerySingleResult2(DBStatement, DBParameters)
 	Else
@@ -773,7 +796,7 @@ End Sub
 ' Update must have at least 1 condition
 Public Sub Save
 	Dim BlnNew As Boolean
-	If Condition.Length > 0 Then
+	If DBCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim sb As StringBuilder
 		sb.Initialize
@@ -801,7 +824,7 @@ Public Sub Save
 					qry = qry & ", modified_date = DATETIME('now')"
 			End Select
 		End If
-		qry = qry & Condition
+		qry = qry & DBCondition
 	Else
 		Dim cd As Boolean ' contains created_date
 		Dim sb, vb As StringBuilder
@@ -853,7 +876,7 @@ Public Sub Save
 			SQL.ExecNonQuery(qry)
 		End If
 		' Count numbers of ?
-		Dim Params As Int = CountChar("?", Condition)
+		Dim Params As Int = CountChar("?", DBCondition)
 		If BlnShowExtraLogs Then Log("Params=" & Params)
 		DBStatement = "SELECT * FROM " & DBTable
 		#If B4A or B4i
@@ -899,7 +922,7 @@ Public Sub setWhere (mStatements As List)
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
 		sb.Append(statement)
 	Next
-	Condition = Condition & sb.ToString
+	DBCondition = DBCondition & sb.ToString
 End Sub
 
 #If B4A or B4i
@@ -925,19 +948,19 @@ Public Sub WhereValue (mStatements As List, mParams As List)
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
 		sb.Append(statement)
 	Next
-	Condition = Condition & sb.ToString
+	DBCondition = DBCondition & sb.ToString
 	setParameters(mParams)
 End Sub
 
 Public Sub Delete
 	Dim qry As String = $"DELETE FROM ${DBTable}"$
-	If Condition.Length > 0 Then qry = qry & Condition
+	If DBCondition.Length > 0 Then qry = qry & DBCondition
 	If ParametersCount > 0 Then
 		SQL.ExecNonQuery2(qry, DBParameters)
 	Else
 		SQL.ExecNonQuery(qry)
 	End If
-	Condition = ""
+	DBCondition = ""
 End Sub
 
 Public Sub Destroy (ids() As Int) As ResumableSub
@@ -960,7 +983,7 @@ Public Sub SoftDelete
 		Case "SQLITE"
 			Dim qry As String = $"UPDATE ${DBTable} SET deleted_date = strftime('%s000', 'now')"$
 	End Select
-	If Condition.Length > 0 Then qry = qry & Condition
+	If DBCondition.Length > 0 Then qry = qry & DBCondition
 	SQL.ExecNonQuery(qry)
 End Sub
 
@@ -1011,10 +1034,10 @@ Private Sub ParametersCount As Int
 	#End If
 End Sub
 
-Private Sub CountChar (c As String, Text As String) As Int
+Private Sub CountChar (c As String, Word As String) As Int
 	Dim count As Int
-	For i = 0 To Text.Length - 1
-		If c = Text.SubString2(i, i + 1) Then
+	For i = 0 To Word.Length - 1
+		If c = Word.SubString2(i, i + 1) Then
 			count = count + 1
 		End If
 	Next

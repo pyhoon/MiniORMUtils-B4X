@@ -5,10 +5,11 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.15
+' Version 1.16
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String
+	Public BIG_INT As String
 	Public DECIMAL As String
 	Public VARCHAR As String
 	Public DATE_TIME As String ' datetime
@@ -71,6 +72,7 @@ Public Sub Initialize (mSQL As SQL, mEngine As String)
 	Select DBEngine.ToUpperCase
 		Case "MYSQL"
 			INTEGER = "int"
+			BIG_INT = "bigint"
 			DECIMAL = "decimal"
 			VARCHAR = "varchar"
 			TEXT = "text"
@@ -78,6 +80,7 @@ Public Sub Initialize (mSQL As SQL, mEngine As String)
 			TIMESTAMP = "timestamp"
 		Case "SQLITE"
 			INTEGER = "INTEGER"
+			BIG_INT = "INTEGER"
 			DECIMAL = "NUMERIC"
 			VARCHAR = "TEXT"
 			TEXT = "TEXT"
@@ -328,7 +331,7 @@ Public Sub Create
 		Select DBEngine.ToUpperCase
 			Case "MYSQL"
 				Select col.ColumnType
-					Case INTEGER, DECIMAL, TIMESTAMP, DATE_TIME, TEXT
+					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT
 						sb.Append(col.ColumnType)
 					Case Else
 						sb.Append(VARCHAR)
@@ -344,8 +347,12 @@ Public Sub Create
 		End Select
 
 		Select col.ColumnType
-			Case INTEGER, TIMESTAMP, DATE_TIME
-				If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append(col.DefaultValue)
+			Case INTEGER, BIG_INT, TIMESTAMP, DATE_TIME
+				If DBEngine.EqualsIgnoreCase("SQLITE") And col.ColumnType.EqualsIgnoreCase("TEXT") Then
+					If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
+				Else
+					If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append(col.DefaultValue)
+				End If
 			Case Else
 				If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
 		End Select
@@ -1057,7 +1064,11 @@ Public Sub CreateORMColumn (ColumnName As String, ColumnType As String, ColumnLe
 	t1.AutoIncrement = AutoIncrement
 	If t1.ColumnType = "" Then t1.ColumnType = VARCHAR
 	If t1.ColumnType = VARCHAR And t1.ColumnLength = "" Then t1.ColumnLength = "255"
-	If t1.ColumnType = INTEGER Or t1.ColumnType = TIMESTAMP Or t1.ColumnLength = "0" Then t1.ColumnLength = ""
+	If t1.ColumnType = BIG_INT And t1.ColumnLength = "" Then t1.ColumnLength = "20"
+	'If t1.ColumnType = INTEGER Or t1.ColumnType = TIMESTAMP Or t1.ColumnLength = "0" Then t1.ColumnLength = ""
+	If t1.ColumnType = INTEGER Then t1.ColumnLength = "11"
+	If t1.ColumnType = TIMESTAMP Then t1.ColumnLength = ""
+	If t1.ColumnLength = "0" Then t1.ColumnLength = ""
 	Return t1
 End Sub
 
@@ -1104,7 +1115,11 @@ Public Sub CreateORMColumn2 (Props As Map) As ORMColumn
 	Next
 	If t1.ColumnType = "" Then t1.ColumnType = VARCHAR
 	If t1.ColumnType = VARCHAR And t1.ColumnLength = "" Then t1.ColumnLength = "255"
-	If t1.ColumnType = INTEGER Or t1.ColumnType = TIMESTAMP Or t1.ColumnLength = "0" Then t1.ColumnLength = ""
+	If t1.ColumnType = BIG_INT And t1.ColumnLength = "" Then t1.ColumnLength = "20"
+	'If t1.ColumnType = INTEGER Or t1.ColumnType = TIMESTAMP Or t1.ColumnLength = "0" Then t1.ColumnLength = ""
+	If t1.ColumnType = INTEGER Then t1.ColumnLength = "11"
+	If t1.ColumnType = TIMESTAMP Then t1.ColumnLength = ""
+	If t1.ColumnLength = "0" Then t1.ColumnLength = ""
 	Return t1
 End Sub
 

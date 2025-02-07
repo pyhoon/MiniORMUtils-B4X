@@ -27,8 +27,8 @@ MDB.Create
 ## Insert rows
 ```
 MDB.Columns = Array("category_name")
-MDB.Insert2(Array("Hardwares"))
-MDB.Insert2(Array("Toys"))
+MDB.Insert2(Array As String("Hardwares"))
+MDB.Insert2(Array As String("Toys"))
 ```
 
 ## Execute NonQuery Batch
@@ -52,9 +52,9 @@ Dim Items As List = MDB.Results
 ## Update row
 ```
 MDB.Table = "tbl_products"
-MDB.Columns = Array("category_id", "product_code", "product_name", "product_price")
+MDB.Columns = Array As String("category_id", "product_code", "product_name", "product_price")
 MDB.Id = 2
-MDB.Save2(Array(Category_Id, Product_Code, Product_Name, Product_Price))
+MDB.Save2(Array As String(Category_Id, Product_Code, Product_Name, Product_Price))
 ```
 
 ## Soft delete row
@@ -87,7 +87,7 @@ Dim Data As Map = MDB.Find(2)
 ## Return multiple rows
 ```
 MDB.Table = "tbl_products"
-MDB.Where = Array("category_id = ?")
+MDB.Where = Array As String("category_id = ?")
 MDB.Parameters = Array As String(2)
 MDB.OrderBy = CreateMap("id": "DESC")
 MDB.Query
@@ -99,7 +99,7 @@ Dim Data As List = MDB.Results
 MDB.Table = "tbl_products p"
 MDB.Select = Array("p.*", "c.category_name")
 MDB.Join = MDB.CreateORMJoin("tbl_category c", "p.category_id = c.id", "")
-MDB.WhereValue(Array("c.id = ?"), Array(CategoryId))
+MDB.WhereValue(Array As String("c.id = ?"), Array(CategoryId))
 MDB.Query
 Dim Data As List = MDB.Results
 ```

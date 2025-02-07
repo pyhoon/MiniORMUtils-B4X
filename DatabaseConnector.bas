@@ -5,11 +5,13 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 1.16
+' Version 1.17
 Sub Class_Globals
 	Private DB As SQL
 	Private Conn As Conn
+	#If B4J
 	Private Pool As ConnectionPool
+	#End If
 	Type Conn ( _
 	DBDir As String, _
 	DBFile As String, _
@@ -127,7 +129,7 @@ End Sub
 ' Note: SQLite uses DBDir and DBFile
 Public Sub DBOpen As SQL
 	#If B4A or B4i
-	If DBExist(Conn) Then
+	If DBExist Then
 		'File.Delete(Conn.DBDir, Conn.DBFile)
 		DB.Initialize(Conn.DBDir, Conn.DBFile, False)
 	End If
@@ -284,7 +286,11 @@ Public Sub GetDate2 As ResumableSub
 				DateTime.DateFormat = "yyyy-MM-dd"
 				Return DateTime.Date(DateTime.Now)
 		End Select
+		#If B4J
 		Wait For (DBOpen2) Complete (con As SQL)
+		#Else
+		Dim con As SQL = DBOpen
+		#End If
 		Dim str As String = con.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
@@ -329,7 +335,11 @@ Public Sub GetDateTime2 As ResumableSub
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
 				Return DateTime.Date(DateTime.Now)
 		End Select
+		#If B4J
 		Wait For (DBOpen2) Complete (con As SQL)
+		#Else
+		Dim con As SQL = DBOpen
+		#End If		
 		Dim str As String = con.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)

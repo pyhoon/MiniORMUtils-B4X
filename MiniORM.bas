@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 1.16
+' Version 1.17
 Sub Class_Globals
 	Public SQL As SQL
 	Public INTEGER As String
@@ -220,7 +220,7 @@ End Sub
 Public Sub Find2 (mColumn As String, mValue As Object) 'As Map
 	Reset
 	setWhere(Array($"${mColumn} = ?"$))
-	setParameters(Array(mValue))
+	setParameters(Array As String(mValue))
 	Query
 	'Return ORMTable.Row
 End Sub
@@ -725,8 +725,12 @@ Public Sub Query
 	#End If
 End Sub
 
-Public Sub Query2 (Params As List)
-	setParameters(Params)
+#If B4A or B4i
+Public Sub Query2 (mParams() As String)
+#Else
+Public Sub Query2 (mParams As List)
+#End If
+	setParameters(mParams)
 	Query
 End Sub
 
@@ -741,8 +745,12 @@ Public Sub getScalar As Object
 	End If
 End Sub
 
-Public Sub getScalar2 (Params As List) As Object
-	setParameters(Params)
+#If B4A or B4i
+Public Sub getScalar2 (mParams() As String) As Object
+#Else
+Public Sub getScalar2 (mParams As List) As Object
+#End If
+	setParameters(mParams)
 	Return getScalar
 End Sub
 
@@ -795,8 +803,12 @@ Public Sub Insert
 	End If
 End Sub
 
-Public Sub Insert2 (Params As List)
-	setParameters(Params)
+#If B4A or B4i
+Public Sub Insert2 (mParams() As String)
+#Else
+Public Sub Insert2 (mParams As List)
+#End If
+	setParameters(mParams)
 	Insert
 End Sub
 
@@ -907,8 +919,12 @@ Public Sub Save
 	DBStatement = DBSaveStatement
 End Sub
 
-Public Sub Save2 (Params As List)
-	setParameters(Params)
+#If B4A or B4i
+Public Sub Save2 (mParams() As String)
+#Else
+Public Sub Save2 (mParams As List)
+#End If
+	setParameters(mParams)
 	Save
 End Sub
 

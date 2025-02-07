@@ -1,5 +1,5 @@
 Author=Aeric
-Version=1.16
+Version=1.17
 B4J.DependsOn=javaobject, jSQL, jServer
-B4i.DependsOn=DBUtils, iSQL
-B4A.DependsOn=DBUtils, SQL
+B4i.DependsOn=DBUtils, iSQL, iJSON
+B4A.DependsOn=DBUtils, SQL, JSON

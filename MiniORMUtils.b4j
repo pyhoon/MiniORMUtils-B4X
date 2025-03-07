@@ -1,14 +1,15 @@
 ﻿AppType=StandardJava
-Build1=Default,b4j.example,server
+Build1=Default,b4j.example
 Group=App
 Library1=javaobject
 Library2=jcore
 Library3=jserver
 Library4=jsql
-Module1=DatabaseConnector
-Module2=MiniORM
+Library5=byteconverter
+Module1=MiniORM
+Module2=ORMConnector
 NumberOfFiles=0
-NumberOfLibraries=4
+NumberOfLibraries=5
 NumberOfModules=2
 Version=10
 @EndOfDesignText@
@@ -23,5 +24,17 @@ Sub Process_Globals
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Version: 1.16")
+	Log("Version: 2.00")
+
+	Dim Info As ConnectionInfo
+	Info.Initialize
+	Info.DBFile = "test.db"
+	
+	Dim CON As ORMConnector
+	CON.Initialize(Info)
+	
+	Dim DB As MiniORM
+	DB.Initialize(DB.SQLITE, CON.DBOpen)
+
+	CON.DBClose
 End Sub

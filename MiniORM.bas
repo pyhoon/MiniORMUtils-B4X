@@ -559,7 +559,7 @@ Public Sub AddNonQueryToBatch
 End Sub
 
 #If B4A or B4i
-Public Sub setParameters (Params() As String)
+Public Sub AddParameters (Params() As String)
 	'If Params.Length = 0 Then Return
 	'If DBParameters.Length > 0 Then
 	'	Dim NewArray(DBParameters.Length + Params.Length) As String
@@ -576,8 +576,18 @@ Public Sub setParameters (Params() As String)
 	DBParameters = Merge(DBParameters, Params)
 End Sub
 #Else
-Public Sub setParameters (Params As List)
+Public Sub AddParameters (Params As List)
 	DBParameters.AddAll(Params)
+End Sub
+#End If
+
+#If B4A or B4i
+Public Sub setParameters (Params() As String)
+	DBParameters = Params
+End Sub
+#Else
+Public Sub setParameters (Params As List)
+	DBParameters = Params
 End Sub
 #End If
 
@@ -953,7 +963,7 @@ Public Sub Where2 (mStatements As List, mParams As List)
 		sb.Append(statement)
 	Next
 	DBCondition = DBCondition & sb.ToString
-	setParameters(mParams)
+	AddParameters(mParams)
 End Sub
 
 Public Sub Where3 (mColumn As String, mValue As Object)
@@ -962,7 +972,7 @@ Public Sub Where3 (mColumn As String, mValue As Object)
 	If DBCondition.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
 	sb.Append(mColumn).Append(" = ?")
 	DBCondition = DBCondition & sb.ToString
-	setParameters(Array(mValue))
+	AddParameters(Array(mValue))
 End Sub
 
 Public Sub Delete

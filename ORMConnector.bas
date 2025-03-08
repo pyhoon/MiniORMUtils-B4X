@@ -7,10 +7,10 @@ Version=9.1
 ' Database Connector class
 ' Version 2.00
 Sub Class_Globals
-	Private SQL		As SQL
-	Private CN 		As ConnectionInfo
+	Private SQL As SQL
+	Private CN As ConnectionInfo
 	#If B4J
-	Private Pool 	As ConnectionPool
+	Private Pool As ConnectionPool
 	#End If
 	Type ConnectionInfo ( _
 	DBDir As String, _
@@ -35,10 +35,7 @@ Sub Class_Globals
 	Public Const SQLITE As String = "SQLITE"
 End Sub
 
-' If InitPool is True, database will be initialized
-' Set to False if database is not created
 Public Sub Initialize (Info As ConnectionInfo)
-	CN = Info
 	DBType = Info.DBType.ToUpperCase
 	#If B4A
 	If CN.DBDir = "" Then CN.DBDir = File.DirInternal
@@ -47,25 +44,22 @@ Public Sub Initialize (Info As ConnectionInfo)
 	If CN.DBDir = "" Then CN.DBDir = File.DirDocuments
 	#End If
 	#If B4J
-	If CN.DBDir = "" Then CN.DBDir = File.DirApp
-	'CN.JdbcUrl = CN.JdbcUrl.Replace("{DbName}", CN.DBName)
-	CN.JdbcUrl = CN.JdbcUrl.Replace("{DbHost}", CN.DBHost)
-	CN.JdbcUrl = IIf(CN.DBPort.Length = 0, CN.JdbcUrl.Replace(":{DbPort}", ""), CN.JdbcUrl.Replace("{DbPort}", CN.DBPort))
-	CN.JdbcUrl = IIf(CN.DBDir.Length = 0, CN.JdbcUrl.Replace("{DbDir}" & GetSystemProperty("file.separator", "/"), ""), CN.JdbcUrl.Replace("{DbDir}", CN.DBDir))
-	CN.JdbcUrl = IIf(CN.DBFile.Length = 0, CN.JdbcUrl.Replace("{DbFile}", ""), CN.JdbcUrl.Replace("{DbFile}", CN.DBFile))
-	#End If
-End Sub
-
-Public Sub InitializePool
-	Dim JdbcUrl2 As String = CN.JdbcUrl
-	JdbcUrl2 = JdbcUrl2.Replace("{DbName}", CN.DBName)
-	JdbcUrl2 = JdbcUrl2.Replace("{DbHost}", CN.DBHost)
-	JdbcUrl2 = IIf(CN.DBPort.Length = 0, JdbcUrl2.Replace(":{DbPort}", ""), JdbcUrl2.Replace("{DbPort}", CN.DBPort))
-	Pool.Initialize(CN.DriverClass, JdbcUrl2, CN.User, CN.Password)
-	If CN.MaxPoolSize > 0 Then
-		Dim jo As JavaObject = Pool
-		jo.RunMethod("setMaxPoolSize", Array(CN.MaxPoolSize))
+	If DBType = "SQLITE" Then
+		CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
+		CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
+		CN.JdbcUrl = Info.JdbcUrl.Replace("{DbDir}", Info.DBDir)
+		CN.JdbcUrl = CN.JdbcUrl.Replace("{DbFile}", CN.DBFile)
 	End If
+	If DBType = "MYSQL" Then
+		CN.User = Info.User
+		CN.DBHost = Info.DBHost
+		CN.DBPort = Info.DBPort
+		CN.DBName = Info.DBName
+		CN.JdbcUrl = Info.JdbcUrl
+		CN.Password = Info.Password
+		CN.DriverClass = Info.DriverClass
+	End If
+	#End If
 End Sub
 
 #If B4J
@@ -74,79 +68,69 @@ Public Sub DBCreate As ResumableSub
 	Try
 		Select DBType
 			Case MYSQL
-				Wait For (DBSchema) Complete (SQL1 As SQL)
+				If SQL.IsInitialized = False Then
+					Wait For (InitSchema) Complete (Success As Boolean)
+					If Success = False Then
+						Return False
+					End If
+				End If
 				Dim qry As String = $"CREATE DATABASE ${CN.DBName} CHARACTER SET ${mCharacterSet} COLLATE ${mCollate}"$
-				SQL1.ExecNonQuery(qry)
+				SQL.ExecNonQuery(qry)
 			Case SQLITE
 				Select mJournalMode.ToUpperCase
 					Case "WAL"
 						'SQL1.Initialize(CN.DriverClass, CN.JdbcUrl)
 						'SQL1.ExecNonQuery("PRAGMA journal_mode = wal")
-						SQL1.InitializeSQLite(CN.DBDir, CN.DBFile, True)
-						SQL1.ExecQuerySingleResult("PRAGMA journal_mode = wal")
+						SQL.InitializeSQLite(CN.DBDir, CN.DBFile, True)
+						SQL.ExecQuerySingleResult("PRAGMA journal_mode = wal")
 					Case "DELETE"
-						SQL1.InitializeSQLite(CN.DBDir, CN.DBFile, True)
+						SQL.InitializeSQLite(CN.DBDir, CN.DBFile, True)
 				End Select
 		End Select
 	Catch
 		Log(LastException)
 		Return False
 	End Try
-	Close(SQL1)
-	Select DBType
-		Case MYSQL
-			
-	End Select
+	DBClose
 	Return True
 End Sub
 #Else
 ' Create SQLite database
 Public Sub DBCreate As Boolean
 	Try
-		Dim SQL1 As SQL
-		SQL1.Initialize(CN.DBDir, CN.DBFile, True)
+		'Dim SQL1 As SQL
+		SQL.Initialize(CN.DBDir, CN.DBFile, True)
 	Catch
 		Log(LastException.Message)
 		Return False
 	End Try
-	Close(SQL1)
+	'Close(SQL1)
+	DBClose
 	Return True
 End Sub
 #End If
 
-'Public Sub InitializePool 'As ResumableSub
-'	Try
-'		'Dim Schema As String = "information_schema"
-'		Dim JdbcUrl2 As String = CN.JdbcUrl
-'		JdbcUrl2 = JdbcUrl2.Replace("{DbName}", CN.DBName)
-'		JdbcUrl2 = JdbcUrl2.Replace("{DbHost}", CN.DBHost)
-'		JdbcUrl2 = IIf(CN.DBPort.Length = 0, JdbcUrl2.Replace(":{DbPort}", ""), JdbcUrl2.Replace("{DbPort}", CN.DBPort))
-'		Pool.Initialize(CN.DriverClass, JdbcUrl2, CN.User, CN.Password)
-''		Wait For SQL_Ready (Success As Boolean)
-''		If Success = False Then
-''			Log(LastException)
-''			Return SQL
-''		End If
-'		If CN.MaxPoolSize > 0 Then
-'			Dim jo As JavaObject = Pool
-'			jo.RunMethod("setMaxPoolSize", Array(CN.MaxPoolSize))
-'		End If
-'	Catch
-'		LogError(LastException)
-'		'Return SQL
-'	End Try
-'End Sub
+' Connect to database name (MySQL)
+Public Sub InitPool
+	Try
+		Dim JdbcUrl As String = CN.JdbcUrl
+		JdbcUrl = JdbcUrl.Replace("{DbHost}", CN.DBHost)
+		JdbcUrl = JdbcUrl.Replace("{DbName}", CN.DBName)
+		JdbcUrl = IIf(CN.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", CN.DBPort))
+		Pool.Initialize(CN.DriverClass, JdbcUrl, CN.User, CN.Password)
+	Catch
+		LogError(LastException)
+	End Try
+End Sub
 
 ' Connect to database schema (MySQL)
-Public Sub DBSchema As ResumableSub
+Private Sub InitSchema As ResumableSub
 	Try
-		Dim Schema As String = "information_schema"
-		Dim JdbcUrl2 As String = CN.JdbcUrl
-		JdbcUrl2 = JdbcUrl2.Replace("{DbName}", Schema)
-		JdbcUrl2 = JdbcUrl2.Replace("{DbHost}", CN.DBHost)
-		JdbcUrl2 = IIf(CN.DBPort.Length = 0, JdbcUrl2.Replace(":{DbPort}", ""), JdbcUrl2.Replace("{DbPort}", CN.DBPort))
-		Dim SQL1 As SQL
-		SQL1.InitializeAsync("DB", CN.DriverClass, JdbcUrl2, CN.User, CN.Password)
+		Dim JdbcUrl As String = CN.JdbcUrl
+		JdbcUrl = JdbcUrl.Replace("{DbHost}", CN.DBHost)
+		JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
+		JdbcUrl = IIf(CN.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", CN.DBPort))
+		SQL.InitializeAsync("DB", CN.DriverClass, JdbcUrl, CN.User, CN.Password)
 		Wait For DB_Ready (Success As Boolean)
 		If Success = False Then
 			Log(LastException)
@@ -154,7 +138,7 @@ Public Sub DBSchema As ResumableSub
 	Catch
 		LogError(LastException)
 	End Try
-	Return SQL1
+	Return Success
 End Sub
 
 ' Check database file exists (SQLite)
@@ -171,19 +155,22 @@ End Sub
 Public Sub DBExist2 As ResumableSub
 	Dim DBFound As Boolean
 	Try
-		Wait For (DBSchema) Complete (SQL1 As SQL)
-		If SQL1 <> Null And SQL1.IsInitialized Then
-			Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
-			Dim rs As ResultSet = SQL1.ExecQuery2(qry, Array As String(CN.DBName))
-			Do While rs.NextRow
-				DBFound = True
-			Loop
-			rs.Close
+		If SQL.IsInitialized = False Then
+			Wait For (InitSchema) Complete (Success As Boolean)
+			If Success = False Then
+				Return False
+			End If
 		End If
+		Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
+		Dim rs As ResultSet = SQL.ExecQuery2(qry, Array As String(CN.DBName))
+		Do While rs.NextRow
+			DBFound = True
+		Loop
+		rs.Close
 	Catch
 		LogError(LastException)
 	End Try
-	Close(SQL1)
+	DBClose
 	Return DBFound
 End Sub
 #End If
@@ -193,7 +180,7 @@ End Sub
 Public Sub DBOpen As SQL
 	#If B4A or B4i
 	If DBExist Then
-		DB.Initialize(CN.DBDir, CN.DBFile, False)
+		SQL.Initialize(CN.DBDir, CN.DBFile, False)
 	End If
 	#End If
 	#If B4J

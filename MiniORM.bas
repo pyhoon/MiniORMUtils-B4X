@@ -66,7 +66,7 @@ Sub Class_Globals
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
-Public Sub Initialize (mEngine As String, mSQL As SQL)
+Public Sub Initialize (mSQL As SQL, mEngine As String)
 	setSQL(mSQL)
 	setEngine(mEngine)
 	BlnAutoIncrement = True
@@ -179,10 +179,11 @@ End Sub
 
 Public Sub Reset
 	DBStatement = $"SELECT * FROM ${DBTable}"$
-	DBCondition = ""
 	DBHaving = ""
-	DBPrimaryKey = ""
+	DBOrderBy = ""
+	DBCondition = ""
 	DBUniqueKey = ""
+	DBPrimaryKey = ""
 	DBForeignKey = ""
 	DBConstraint = ""
 	DBColumns.Initialize
@@ -887,7 +888,6 @@ Public Sub Save
 		End If
 		' Count numbers of ?
 		Dim Params As Int = CountChar("?", DBCondition)
-		If BlnShowExtraLogs Then Log("Params=" & Params)
 		DBStatement = "SELECT * FROM " & DBTable
 		#If B4A or B4i
 		Dim ConditionParams(Params) As String
@@ -902,6 +902,8 @@ Public Sub Save
 		Next
 		#End If
 		DBParameters = ConditionParams
+		If BlnShowExtraLogs Then Log("DBStatement=" & DBStatement)
+		If BlnShowExtraLogs Then Log("Params=" & Params)
 		If BlnShowExtraLogs Then Log("DBParameters=" & DBParameters)
 		' Return row after update
 		Query

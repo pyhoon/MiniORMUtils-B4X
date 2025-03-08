@@ -34,7 +34,7 @@ Sub AppStart (Args() As String)
 	CON.Initialize(Info)
 	
 	Dim DB As MiniORM
-	DB.Initialize(DB.SQLITE, CON.DBOpen)
+	DB.Initialize(CON.DBOpen, DB.SQLITE)
 
 	CON.DBClose
 End Sub

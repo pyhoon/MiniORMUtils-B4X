@@ -5,11 +5,10 @@ Library1=javaobject
 Library2=jcore
 Library3=jserver
 Library4=jsql
-Library5=byteconverter
 Module1=MiniORM
 Module2=ORMConnector
 NumberOfFiles=0
-NumberOfLibraries=5
+NumberOfLibraries=4
 NumberOfModules=2
 Version=10
 @EndOfDesignText@

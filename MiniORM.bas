@@ -1051,6 +1051,7 @@ Public Sub Split (str As String) As String()
 	Return ss
 End Sub
 
+#If B4A or B4i
 ' Merge 2 arrays
 Public Sub Merge (array1() As Object, array2() As Object) As Object
 	Dim BC As ByteConverter
@@ -1059,6 +1060,7 @@ Public Sub Merge (array1() As Object, array2() As Object) As Object
 	BC.ArrayCopy(array2, 0, array3, array1.Length, array2.Length)
 	Return array3
 End Sub
+#End If
 
 Private Sub ParametersCount As Int
 	#If B4A or B4i

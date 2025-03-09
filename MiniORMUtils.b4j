@@ -30,11 +30,11 @@ Sub AppStart (Args() As String)
 	Info.Initialize
 	Info.DBFile = "test.db"
 	
-	Dim CON As ORMConnector
-	CON.Initialize(Info)
+	Dim Con As ORMConnector
+	Con.Initialize(Info)
 	
 	Dim DB As MiniORM
-	DB.Initialize(CON.DBOpen, DB.SQLITE)
+	DB.Initialize(Con.DBOpen, DB.SQLITE)
 
-	CON.DBClose
+	Con.DBClose
 End Sub

@@ -7,58 +7,54 @@ Version=9.71
 ' Mini Object-Relational Mapper (ORM) class
 ' Version 2.00
 Sub Class_Globals
-	Public INTEGER As String
-	Public BIG_INT As String
-	Public DECIMAL As String
-	Public VARCHAR As String
-	Public DATE_TIME As String ' datetime
-	Public TIMESTAMP As String
-	Public TEXT As String
-	Public ORMTable As ORMTable
-	Public ORMResult As ORMResult
+	Private DBSQL 					As SQL
+	Private DBEngine 				As String
+	Private DBID 					As Int
+	Private DBColumns 				As List
+	Private DBTable 				As String
+	Private DBStatement 			As String
+	Private DBPrimaryKey 			As String
+	Private DBUniqueKey 			As String
+	Private DBForeignKey 			As String
+	Private DBConstraint 			As String
+	Private DBGroupBy 				As String
+	Private DBOrderBy 				As String
+	Private DBLimit 				As String
+	Private DBCondition 			As String
+	Private DBHaving 				As String
 	#If B4A or B4i
-	Private DBParameters() As String
+	Private DBParameters() 			As String
 	#Else
-	Private DBParameters As List
-	#End If
-	Private DBSQL As SQL
-	Private DBEngine As String
-	Private DBID As Int
-	Private DBColumns As List
-	Private DBTable As String
-	Private DBStatement As String
-	Private DBPrimaryKey As String
-	Private DBUniqueKey As String
-	Private DBForeignKey As String
-	Private DBConstraint As String
-	Private DBGroupBy As String
-	Private DBOrderBy As String
-	Private DBLimit As String
-	Private DBCondition As String
-	Private DBHaving As String
-	#If B4J
-	Private BlnFirst As Boolean
-	#End If
-	Private BlnShowExtraLogs As Boolean
-	Private BlnUseTimestamps As Boolean
-	#If B4J
+	Private DBParameters 			As List
+	Private BlnFirst 				As Boolean
 	Private BlnUseTimestampsAsTicks As Boolean
 	#End If
-	Private BlnAutoIncrement As Boolean
-	Private BlnUseDataAuditUserId As Boolean
-	Private BlnUpdateModifiedDate As Boolean
-	Private BlnQueryAddToBatch As Boolean
-	Private BlnQueryExecute As Boolean
-	Private StrDefaultUserId As String = "1"
+	Private BlnShowExtraLogs 		As Boolean
+	Private BlnUseTimestamps 		As Boolean
+	Private BlnAutoIncrement 		As Boolean
+	Private BlnUseDataAuditUserId 	As Boolean
+	Private BlnUpdateModifiedDate 	As Boolean
+	Private BlnQueryAddToBatch 		As Boolean
+	Private BlnQueryExecute 		As Boolean
+	Private StrDefaultUserId 		As String = "1"
 	#If B4J
-	Private DateTimeMethods As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
+	Private DateTimeMethods 		As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
 	#End If
-	Public Const MYSQL As String = "MYSQL"
-	Public Const SQLITE As String = "SQLITE"
-	Private Const COLOR_RED As Int = -65536			'ignore
-	Private Const COLOR_GREEN As Int = -16711936	'ignore
-	Private Const COLOR_BLUE As Int = -16776961		'ignore
-	Private Const COLOR_MAGENTA As Int = -65281		'ignore
+	Public INTEGER 					As String
+	Public BIG_INT 					As String
+	Public DECIMAL 					As String
+	Public VARCHAR 					As String
+	Public DATE_TIME 				As String ' datetime
+	Public TIMESTAMP 				As String
+	Public TEXT 					As String
+	Public ORMTable 				As ORMTable
+	Public ORMResult 				As ORMResult
+	Public Const MYSQL 				As String = "MYSQL"
+	Public Const SQLITE 			As String = "SQLITE"
+	Private Const COLOR_RED 		As Int = -65536			'ignore
+	Private Const COLOR_GREEN 		As Int = -16711936	'ignore
+	Private Const COLOR_BLUE 		As Int = -16776961		'ignore
+	Private Const COLOR_MAGENTA 	As Int = -65281		'ignore
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMFilter (Column As String, Operator As String, Value As String)
 	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
@@ -168,8 +164,7 @@ Public Sub setAutoIncrement (Value As Boolean)
 End Sub
 
 Public Sub Close
-	#If server
-	' Do not close SQLite object in multi-threaded server handler in release mode
+	#If WAL
 	If DBEngine = SQLITE Then
 		Return
 	End If
@@ -546,8 +541,6 @@ End Sub
 
 Public Sub AddNonQueryToBatch
 	'LogColor(DBStatement & " " & DBParameters, COLOR_MAGENTA)
-	'DBSQL.AddNonQueryToBatch(DBStatement, DBParameters) ' <-- cannot pass the reference
-	' Use array so do not need to use B4XSerializator CopyObject
 	Dim paramsize As Int = ParametersCount
 	Dim Args(paramsize) As Object
 	Dim i As Int
@@ -1058,6 +1051,7 @@ Public Sub Split (str As String) As String()
 	Return ss
 End Sub
 
+' Merge 2 arrays
 Public Sub Merge (array1() As Object, array2() As Object) As Object
 	Private BC As ByteConverter
 	Dim aray3(array1.Length + array2.Length) As Object

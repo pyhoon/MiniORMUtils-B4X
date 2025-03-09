@@ -7,11 +7,17 @@ Version=9.1
 ' Database Connector class
 ' Version 2.00
 Sub Class_Globals
-	Private SQL As SQL
-	Private CN As ConnectionInfo
+	Private SQL 			As SQL
+	Private CN 				As ConnectionInfo
+	Private DBType 			As String
+	Private mJournalMode 	As String = "DELETE"
 	#If B4J
-	Private Pool As ConnectionPool
+	Private Pool 			As ConnectionPool
+	Private mCharacterSet 	As String = "utf8mb4"
+	Private mCollate 		As String = "utf8mb4_unicode_ci"
+	Private Const MYSQL 	As String = "MYSQL"
 	#End If
+	Private Const SQLITE 	As String = "SQLITE"
 	Type ConnectionInfo ( _
 	DBDir As String, _
 	DBFile As String, _
@@ -25,14 +31,6 @@ Sub Class_Globals
 	Password As String, _
 	JournalMode As String, _
 	MaxPoolSize As Int)
-	Private DBType As String
-	Private mJournalMode As String = "DELETE"
-	#If B4J
-	Private mCharacterSet As String = "utf8mb4"
-	Private mCollate As String = "utf8mb4_unicode_ci"
-	Public Const MYSQL As String = "MYSQL"
-	#End If
-	Public Const SQLITE As String = "SQLITE"
 End Sub
 
 Public Sub Initialize (Info As ConnectionInfo)
@@ -44,13 +42,13 @@ Public Sub Initialize (Info As ConnectionInfo)
 	If CN.DBDir = "" Then CN.DBDir = File.DirDocuments
 	#End If
 	#If B4J
-	If DBType = "SQLITE" Then
+	If DBType = SQLITE Then
 		CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
 		CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
 		CN.JdbcUrl = Info.JdbcUrl.Replace("{DbDir}", Info.DBDir)
 		CN.JdbcUrl = CN.JdbcUrl.Replace("{DbFile}", CN.DBFile)
 	End If
-	If DBType = "MYSQL" Then
+	If DBType = MYSQL Then
 		CN.User = Info.User
 		CN.DBHost = Info.DBHost
 		CN.DBPort = Info.DBPort
@@ -63,7 +61,7 @@ Public Sub Initialize (Info As ConnectionInfo)
 End Sub
 
 #If B4J
-' Create database
+' Create MySQL or SQLite database
 Public Sub DBCreate As ResumableSub
 	Try
 		Select DBType
@@ -98,13 +96,11 @@ End Sub
 ' Create SQLite database
 Public Sub DBCreate As Boolean
 	Try
-		'Dim SQL1 As SQL
 		SQL.Initialize(CN.DBDir, CN.DBFile, True)
 	Catch
 		Log(LastException.Message)
 		Return False
 	End Try
-	'Close(SQL1)
 	DBClose
 	Return True
 End Sub
@@ -162,11 +158,11 @@ Public Sub DBExist2 As ResumableSub
 			End If
 		End If
 		Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
-		Dim rs As ResultSet = SQL.ExecQuery2(qry, Array As String(CN.DBName))
-		Do While rs.NextRow
+		Dim RS As ResultSet = SQL.ExecQuery2(qry, Array As String(CN.DBName))
+		Do While RS.NextRow
 			DBFound = True
 		Loop
-		rs.Close
+		RS.Close
 	Catch
 		LogError(LastException)
 	End Try
@@ -210,7 +206,6 @@ Public Sub DBOpen2 As ResumableSub
 				If Success = False Then
 					Log(LastException)
 				End If
-
 		End Select
 	Catch
 		LogError(LastException.Message)
@@ -219,36 +214,39 @@ Public Sub DBOpen2 As ResumableSub
 End Sub
 #End If
 
+Public Sub DBOpened As Boolean
+	Return SQL <> Null And SQL.IsInitialized
+End Sub
+
 ' Close SQL object
 Public Sub DBClose
-	#If server
-	' Do not close SQLite object in multi-threaded server handler in release mode
+	#If WAL
 	If DBType = SQLITE Then
 		Return
 	End If
 	#End If
-	If SQL <> Null And SQL.IsInitialized Then SQL.Close
+	If DBOpened Then
+		SQL.Close
+	End If
 End Sub
 
 ' Check database can be connected
 Public Sub Test As Boolean
-	Dim con As SQL = DBOpen
-	If con <> Null And con.IsInitialized Then
-		con.Close
+	If DBOpened Then
+		DBClose
 		Return True
 	End If
 	Return False
 End Sub
 
 ' Close SQL object
-Public Sub Close (SQL1 As SQL)
-	#If server
-	' Do not close SQLite object in multi-threaded server handler in release mode
+Public Sub Close (mSQL As SQL)
+	#If WAL
 	If DBType = SQLITE Then
 		Return
 	End If
 	#End If
-	If SQL1 <> Null And SQL1.IsInitialized Then SQL1.Close
+	If mSQL <> Null And mSQL.IsInitialized Then mSQL.Close
 End Sub
 
 ' Return server date
@@ -266,12 +264,11 @@ Public Sub GetDate As String
 				DateTime.DateFormat = CurrentDateFormat
 				Return DateValue
 		End Select
-		Dim con As SQL = DBOpen
-		Dim str As String = con.ExecQuerySingleResult(qry)
+		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
 	End Try
-	Close(con)
+	DBClose
 	Return str
 End Sub
 
@@ -287,16 +284,11 @@ Public Sub GetDate2 As ResumableSub
 				DateTime.DateFormat = "yyyy-MM-dd"
 				Return DateTime.Date(DateTime.Now)
 		End Select
-		#If B4J
-		Wait For (DBOpen2) Complete (con As SQL)
-		#Else
-		Dim con As SQL = DBOpen
-		#End If
-		Dim str As String = con.ExecQuerySingleResult(qry)
+		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
 	End Try
-	Close(con)
+	DBClose
 	Return str
 End Sub
 
@@ -315,12 +307,11 @@ Public Sub GetDateTime As String
 				DateTime.DateFormat = CurrentDateFormat
 				Return DateValue
 		End Select
-		Dim con As SQL = DBOpen
-		Dim str As String = con.ExecQuerySingleResult(qry)
+		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
 	End Try
-	Close(con)
+	DBClose
 	Return str
 End Sub
 
@@ -335,17 +326,12 @@ Public Sub GetDateTime2 As ResumableSub
 			Case Else
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
 				Return DateTime.Date(DateTime.Now)
-		End Select
-		#If B4J
-		Wait For (DBOpen2) Complete (con As SQL)
-		#Else
-		Dim con As SQL = DBOpen
-		#End If		
-		Dim str As String = con.ExecQuerySingleResult(qry)
+		End Select	
+		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
 	End Try
-	Close(con)
+	DBClose
 	Return str
 End Sub
 

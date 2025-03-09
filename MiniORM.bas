@@ -1053,11 +1053,11 @@ End Sub
 
 ' Merge 2 arrays
 Public Sub Merge (array1() As Object, array2() As Object) As Object
-	Private BC As ByteConverter
-	Dim aray3(array1.Length + array2.Length) As Object
-	BC.ArrayCopy(array1, 0, aray3, 0, array1.Length)
-	BC.ArrayCopy(array2, 0, aray3, array1.Length, array2.Length)
-	Return aray3
+	Dim BC As ByteConverter
+	Dim array3(array1.Length + array2.Length) As Object
+	BC.ArrayCopy(array1, 0, array3, 0, array1.Length)
+	BC.ArrayCopy(array2, 0, array3, array1.Length, array2.Length)
+	Return array3
 End Sub
 
 Private Sub ParametersCount As Int

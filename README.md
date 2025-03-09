@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 1.17
+Version: 2.00
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
@@ -9,97 +9,104 @@ Currently it supports **SQLite** and **MySQL** (B4J).
 
 ## Initialize object
 ```
-Dim MDB As MiniORM
-MDB.Initialize(Main.DBOpen, Main.DBEngine)
-MDB.UseTimestamps = True
-MDB.AddAfterCreate = True
-MDB.AddAfterInsert = True
+Dim Info As ConnectionInfo
+Info.Initialize
+info.DBType = "SQLite"
+Info.DBFile = "data.db"
+
+Dim Conn As ORMConnector
+Conn.Initialize(Info)
+
+Dim DB As MiniORM
+DB.Initialize(Conn.DBOpen, Info.DBType)
+DB.UseTimestamps = True
+DB.QueryAddToBatch = True
 ```
-Note: Before calling MDB.Create and MDB.Insert, set AddAfterCreate and AddAfterInsert to True.
+Note: Before calling DB.Create and DB.Insert, set QueryAddToBatch to True.
 
 ## Create table
 ```
-MDB.Table = "tbl_category"
-MDB.Columns.Add(MDB.CreateORMColumn2(CreateMap("Name": "category_name")))
-MDB.Create
+DB.Table = "tbl_category"
+DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_name")))
+DB.Create
 ```
 
 ## Insert rows
 ```
-MDB.Columns = Array("category_name")
-MDB.Insert2(Array As String("Hardwares"))
-MDB.Insert2(Array As String("Toys"))
+DB.Columns = Array("category_name")
+DB.Insert2(Array As String("Hardwares"))
+DB.Insert2(Array As String("Toys"))
 ```
 
 ## Execute NonQuery Batch
 ```
-Wait For (MDB.ExecuteBatch) Complete (Success As Boolean)
+Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
 If Success Then
     Log("Database is created successfully!")
 Else
     Log("Database creation failed!")
 End If
-MDB.Close
+DB.Close
 ```
 
 ## Select All Rows
 ```
-MDB.Table = "tbl_category"
-MDB.Query
-Dim Items As List = MDB.Results
+DB.Table = "tbl_category"
+DB.Query
+Dim Items As List = DB.Results
 ```
 
 ## Update row
 ```
-MDB.Table = "tbl_products"
-MDB.Columns = Array As String("category_id", "product_code", "product_name", "product_price")
-MDB.Id = 2
-MDB.Save2(Array As String(Category_Id, Product_Code, Product_Name, Product_Price))
+DB.Table = "tbl_products"
+DB.Columns = Array As String("category_id", "product_code", "product_name", "product_price")
+DB.Id = 2
+DB.Save2(Array As String(Category_Id, Product_Code, Product_Name, Product_Price))
 ```
 
 ## Soft delete row
 ```
-MDB.Id = 3
-MDB.SoftDelete
+DB.Id = 3
+DB.SoftDelete
 ```
 
 ## Permanent delete row
 ```
-MDB.Id = 4
-MDB.Delete
+DB.Id = 4
+DB.Delete
 ```
 
 ## Batch delete rows
 ```
-MDB.Destroy(Array As Int(2, 3))
+DB.Destroy(Array As Int(2, 3))
 ```
 
 ## Return number of rows in query results
 ```
-Dim Rows As Int = MDB.RowCount
+Dim Rows As Int = DB.RowCount
 ```
 
 ## Return single row
 ```
-Dim Data As Map = MDB.Find(2)
+Dim Data As Map = DB.Find(2)
 ```
 
 ## Return multiple rows
 ```
-MDB.Table = "tbl_products"
-MDB.Where = Array As String("category_id = ?")
-MDB.Parameters = Array As String(2)
-MDB.OrderBy = CreateMap("id": "DESC")
-MDB.Query
-Dim Data As List = MDB.Results
+DB.Table = "tbl_products"
+DB.Where = Array As String("category_id = ?")
+DB.Parameters = Array As String(2)
+DB.OrderBy = CreateMap("id": "DESC")
+DB.Query
+Dim Data As List = DB.Results
 ```
 
 ## Join tables
 ```
-MDB.Table = "tbl_products p"
-MDB.Select = Array("p.*", "c.category_name")
-MDB.Join = MDB.CreateORMJoin("tbl_category c", "p.category_id = c.id", "")
-MDB.WhereValue(Array As String("c.id = ?"), Array(CategoryId))
-MDB.Query
-Dim Data As List = MDB.Results
+DB.Table = "tbl_products p"
+DB.Select = Array("p.*", "c.category_name")
+DB.Join = DB.CreateJoin("tbl_category c", "p.category_id = c.id", "")
+DB.Where3("c.id", CategoryId)
+DB.Query
+Dim Data As List = DB.Results
 ```

@@ -120,20 +120,17 @@ Public Sub InitPool
 End Sub
 
 ' Connect to database schema (MySQL)
-Private Sub InitSchema As ResumableSub
-	Try
-		Dim JdbcUrl As String = CN.JdbcUrl
-		JdbcUrl = JdbcUrl.Replace("{DbHost}", CN.DBHost)
-		JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
-		JdbcUrl = IIf(CN.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", CN.DBPort))
-		SQL.InitializeAsync("DB", CN.DriverClass, JdbcUrl, CN.User, CN.Password)
-		Wait For DB_Ready (Success As Boolean)
-		If Success = False Then
-			Log(LastException)
-		End If
-	Catch
-		LogError(LastException)
-	End Try
+Public Sub InitSchema As ResumableSub
+	Dim JdbcUrl As String = CN.JdbcUrl
+	JdbcUrl = JdbcUrl.Replace("{DbHost}", CN.DBHost)
+	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
+	JdbcUrl = IIf(CN.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", CN.DBPort))
+	SQL.InitializeAsync("DB", CN.DriverClass, JdbcUrl, CN.User, CN.Password)
+	Wait For DB_Ready (Success As Boolean)
+	If Success = False Then
+		Log(LastException.Message)
+		Return False
+	End If
 	Return Success
 End Sub
 

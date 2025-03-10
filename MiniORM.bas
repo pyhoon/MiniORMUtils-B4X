@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.20
+' Version 2.21
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBEngine 				As String
@@ -196,24 +196,20 @@ End Sub
 ' Query column id
 Public Sub Find (mID As Int)
 	Reset
-	WhereParam("id", mID)
+	WhereParam("id = ?", mID)
 	Query
 End Sub
 
-' Query by single column name
-Public Sub Find2 (mColumn As String, mValue As Object)
+' Query by single condition
+Public Sub Find2 (mCondition As String, mValue As Object)
 	Reset
-	WhereParam(mColumn, mValue)
+	WhereParam(mCondition, mValue)
 	Query
 End Sub
 
 Public Sub setId (mID As Int)
 	DBID = mID
-	#If B4J
-	WhereParams(Array As String("id = ?"), Array As Int(mID))
-	#Else
-	WhereParams(Array As String("id = ?"), Array As String(mID))
-	#End If
+	WhereParam("id = ?", mID)
 End Sub
 
 Public Sub getId As Int
@@ -601,6 +597,10 @@ End Sub
 
 Public Sub Query
 	Try
+		ORMTable.Initialize
+		ORMTable.First.Initialize
+		ORMTable.Results.Initialize
+		
 		If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
 		If DBGroupBy.Length > 0 Then DBStatement = DBStatement & DBGroupBy
 		If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
@@ -615,10 +615,10 @@ Public Sub Query
 			Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
 		End If
 
-		ORMTable.Initialize
-		ORMTable.Results.Initialize
+		'ORMTable.Initialize
+		'ORMTable.First.Initialize
+		'ORMTable.Results.Initialize
 		ORMTable.ResultSet = RS
-		ORMTable.First.Initialize
 
 		#If B4A or B4i
 		Dim Columns As Map = DBUtils.ExecuteMap(DBSQL, DBStatement, DBParameters)
@@ -676,7 +676,7 @@ Public Sub Query
 			map1.Initialize
 			For i = 0 To cols - 1
 				Dim ct As Int = rsmd.RunMethod("getColumnType", Array(i + 1))
-				'check whether it is a blob field
+		'check whether it is a blob field
 				If ct = -2 Or ct = 2004 Or ct = -3 Or ct = -4 Then
 					row(i) = RS.GetBlob2(i)
 				Else if ct = 2 Or ct = 3 Then
@@ -711,6 +711,7 @@ Public Sub Query
 		#End If
 	Catch
 		Log(LastException)
+		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 	End Try
 	DBCondition = ""
 	DBHaving = ""

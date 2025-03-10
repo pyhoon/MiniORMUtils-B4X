@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 2.00
+Version: 2.10
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
@@ -106,7 +106,7 @@ Dim Data As List = DB.Results
 DB.Table = "tbl_products p"
 DB.Select = Array("p.*", "c.category_name")
 DB.Join = DB.CreateJoin("tbl_category c", "p.category_id = c.id", "")
-DB.Where3("c.id", CategoryId)
+DB.WhereParam("c.id", CategoryId)
 DB.Query
 Dim Data As List = DB.Results
 ```

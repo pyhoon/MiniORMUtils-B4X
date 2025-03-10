@@ -23,7 +23,7 @@ Sub Process_Globals
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Version: 2.00")
+	Log("Version: 2.10")
 
 	Dim Info As ConnectionInfo
 	Info.Initialize

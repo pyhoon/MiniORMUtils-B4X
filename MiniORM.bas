@@ -500,8 +500,7 @@ Public Sub Constraint (mType As String, mKeys As String, mAlias As String)
 End Sub
 
 Public Sub Execute
-	Try
-		If BlnShowExtraLogs Then LogQuery
+	Try		
 		' 2024-04-09 fix missing args
 		Dim paramsize As Int = ParametersCount
 		If paramsize > 0 Then
@@ -511,8 +510,10 @@ Public Sub Execute
 				Args(i) = Param
 				i = i + 1
 			Next
+			If BlnShowExtraLogs Then LogQuery2
 			DBSQL.ExecNonQuery2(DBStatement, Args)
 		Else
+			If BlnShowExtraLogs Then LogQuery
 			DBSQL.ExecNonQuery(DBStatement)
 		End If
 	Catch
@@ -597,11 +598,12 @@ Public Sub Query
 		If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
 		If DBOrderBy.Length > 0 Then DBStatement = DBStatement & DBOrderBy
 		If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
-		If BlnShowExtraLogs Then LogQuery
 		Dim paramsize As Int = ParametersCount
 		If paramsize > 0 Then
+			If BlnShowExtraLogs Then LogQuery2
 			Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, DBParameters)
 		Else
+			If BlnShowExtraLogs Then LogQuery
 			Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
 		End If
 
@@ -848,13 +850,14 @@ Public Sub Save
 		DBStatement = $"INSERT INTO ${DBTable} (${sb.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
-
-	If BlnShowExtraLogs Then LogQuery
+	
 	Dim paramsize As Int = ParametersCount
 	If BlnNew Then
 		If paramsize > 0 Then
+			If BlnShowExtraLogs Then LogQuery2
 			DBSQL.ExecNonQuery2(DBStatement, DBParameters)
 		Else
+			If BlnShowExtraLogs Then LogQuery
 			DBSQL.ExecNonQuery(DBStatement)
 		End If
 		Dim NewID As Int = getLastInsertID
@@ -900,12 +903,13 @@ Public Sub getLastInsertID As Object
 	Select DBEngine
 		Case MYSQL
 			Dim qry As String = "SELECT LAST_INSERT_ID()"
-			DBSQL.ExecQuerySingleResult(qry)
+			Return DBSQL.ExecQuerySingleResult(qry)
 		Case SQLITE
 			Dim qry As String = "SELECT LAST_INSERT_ROWID()"
-			DBSQL.ExecQuerySingleResult(qry)
+			Return DBSQL.ExecQuerySingleResult(qry)
+		Case Else
+			Return -1
 	End Select
-	Return -1
 End Sub
 
 ' Adding new Condition
@@ -948,11 +952,12 @@ End Sub
 Public Sub Delete
 	DBStatement = $"DELETE FROM ${DBTable}"$
 	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
-	If BlnShowExtraLogs Then LogQuery
 	Dim paramsize As Int = ParametersCount
 	If paramsize > 0 Then
+		If BlnShowExtraLogs Then LogQuery2
 		DBSQL.ExecNonQuery2(DBStatement, DBParameters)
 	Else
+		If BlnShowExtraLogs Then LogQuery
 		DBSQL.ExecNonQuery(DBStatement)
 	End If
 	DBCondition = ""
@@ -962,7 +967,7 @@ Public Sub Destroy (ids() As Int) As ResumableSub
 	If ids.Length < 1 Then Return False
 	For i = 0 To ids.Length - 1
 		DBStatement = $"DELETE FROM ${DBTable} WHERE id = ?"$
-		If BlnShowExtraLogs Then LogQuery
+		If BlnShowExtraLogs Then LogQueryWithArg(ids(i))
 		DBSQL.AddNonQueryToBatch(DBStatement, Array(ids(i)))
 	Next
 	Dim SenderFilter As Object = DBSQL.ExecNonQueryBatch("SQL")
@@ -977,6 +982,9 @@ Public Sub SoftDelete
 			DBStatement = $"UPDATE ${DBTable} SET deleted_date = now()"$
 		Case SQLITE
 			DBStatement = $"UPDATE ${DBTable} SET deleted_date = strftime('%s000', 'now')"$
+		Case Else
+			If BlnShowExtraLogs Then Log("Unknown DBEngine")
+			Return
 	End Select
 	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
 	If BlnShowExtraLogs Then LogQuery
@@ -987,7 +995,7 @@ End Sub
 Public Sub TableExists (TableName As String) As Boolean
 	' SQLite code extracted from DBUtils
 	DBStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
-	If BlnShowExtraLogs Then LogQuery
+	If BlnShowExtraLogs Then LogQueryWithArg(TableName)
 	Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(TableName))
 	Return count > 0
 End Sub
@@ -995,7 +1003,7 @@ End Sub
 ' Tests whether the table exists in the given database (MySQL)
 Public Sub TableExists2 (TableName As String, DatabaseName As String) As Boolean
 	DBStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-	If BlnShowExtraLogs Then LogQuery
+	If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DatabaseName, TableName))
 	Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DatabaseName, TableName))
 	Return count > 0
 End Sub
@@ -1016,14 +1024,19 @@ Public Sub getStatement As String
 	Return DBStatement
 End Sub
 
+' Print current SQL statement without parameters
+Public Sub LogQueryWithArg (Arg As Object)
+	Log($"DBStatement=${DBStatement} [${Arg}]"$)
+End Sub
+
 ' Print current SQL statement and parameters
-Public Sub LogQuery
+Public Sub LogQuery2
 	Log($"DBStatement=${DBStatement}"$)
 	Log($"DBParameters=${DBParameters}"$)
 End Sub
 
 ' Print current SQL statement without parameters
-Public Sub LogQuery2
+Public Sub LogQuery
 	Log($"DBStatement=${DBStatement}"$)
 End Sub
 

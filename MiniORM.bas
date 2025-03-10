@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.10
+' Version 2.11
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBEngine 				As String
@@ -926,27 +926,28 @@ Public Sub setWhere (mStatements As List)
 	DBCondition = DBCondition & sb.ToString
 End Sub
 
-' Set Condition with single column and value
-Public Sub WhereParam (mColumn As String, mValue As Object)
+' Set Condition with single condition and value
+Public Sub WhereParam (mCondition As String, mValue As Object)
 	Dim sb As StringBuilder
 	sb.Initialize
-	sb.Append(" WHERE ").Append(mColumn).Append(" = ?")
+	sb.Append(" WHERE ")
+	sb.Append(mCondition)
 	DBCondition = sb.ToString
 	setParameters(Array(mValue))
 End Sub
 
 #If B4A or B4i
 ' Append new Condition and Parameters
-Public Sub WhereParams (mStatements As List, mParams() As String)
+Public Sub WhereParams (mConditions As List, mParams() As String)
 #Else
 ' Append new Condition and Parameters
-Public Sub WhereParams (mStatements As List, mParams As List)
+Public Sub WhereParams (mConditions As List, mParams As List)
 #End If
 	Dim sb As StringBuilder
 	sb.Initialize
-	For Each statement In mStatements
+	For Each condition In mConditions
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
-		sb.Append(statement)
+		sb.Append(condition)
 	Next
 	DBCondition = DBCondition & sb.ToString
 	AddParameters(mParams)

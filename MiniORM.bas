@@ -556,20 +556,20 @@ End Sub
 
 #If B4A or B4i
 Public Sub AddParameters (Params() As String)
-	'If Params.Length = 0 Then Return
-	'If DBParameters.Length > 0 Then
-	'	Dim NewArray(DBParameters.Length + Params.Length) As String
-	'	For i = 0 To DBParameters.Length - 1
-	'		NewArray(i) = DBParameters(i)
-	'	Next
-	'	For i = 0 To Params.Length - 1
-	'		NewArray(DBParameters.Length + i) = Params(i)
-	'	Next
-	'	DBParameters = NewArray
-	'Else
-	'	DBParameters = Params
-	'End If
-	DBParameters = Merge(DBParameters, Params)
+	'DBParameters = Merge(DBParameters, Params)
+	If Params.Length = 0 Then Return
+	If DBParameters.Length > 0 Then
+		Dim NewArray(DBParameters.Length + Params.Length) As String
+		For i = 0 To DBParameters.Length - 1
+			NewArray(i) = DBParameters(i)
+		Next
+		For i = 0 To Params.Length - 1
+			NewArray(DBParameters.Length + i) = Params(i)
+		Next
+		DBParameters = NewArray
+	Else
+		DBParameters = Params
+	End If
 End Sub
 #Else
 Public Sub AddParameters (Params As List)
@@ -941,7 +941,11 @@ Public Sub WhereParam (mCondition As String, mValue As Object)
 	sb.Append(" WHERE ")
 	sb.Append(mCondition)
 	DBCondition = sb.ToString
-	setParameters(Array(mValue))
+	#If B4A or B4i
+	setParameters(Array As String(mValue))
+	#Else
+	setParameters(Array As Object(mValue))
+	#End If
 End Sub
 
 #If B4A or B4i
@@ -1063,16 +1067,16 @@ Public Sub Split (str As String) As String()
 	Return ss
 End Sub
 
-#If B4A or B4i
+'#If B4A or B4i
 ' Merge 2 arrays
-Public Sub Merge (array1() As Object, array2() As Object) As Object
-	Dim BC As ByteConverter
-	Dim array3(array1.Length + array2.Length) As Object
-	BC.ArrayCopy(array1, 0, array3, 0, array1.Length)
-	BC.ArrayCopy(array2, 0, array3, array1.Length, array2.Length)
-	Return array3
-End Sub
-#End If
+'Public Sub Merge (array1() As String, array2() As String) As String()
+'	Dim BC As ByteConverter
+'	Dim array3(array1.Length + array2.Length) As String
+'	BC.ArrayCopy(array1, 0, array3, 0, array1.Length)
+'	BC.ArrayCopy(array2, 0, array3, array1.Length, array2.Length)
+'	Return array3
+'End Sub
+'#End If
 
 Private Sub ParametersCount As Int
 	#If B4A or B4i

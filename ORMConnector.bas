@@ -35,11 +35,11 @@ End Sub
 
 Public Sub Initialize (Info As ConnectionInfo)
 	DBType = Info.DBType.ToUpperCase
-	#If B4A
-	If CN.DBDir = "" Then CN.DBDir = File.DirInternal
-	#End If
-	#If B4i
-	If CN.DBDir = "" Then CN.DBDir = File.DirDocuments
+	CN.Initialize
+	#If B4A or B4i
+	Dim xui As XUI
+	CN.DBDir = IIf(Info.DBDir = "", xui.DefaultFolder, Info.DBDir)
+	CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
 	#End If
 	#If B4J
 	If DBType = SQLITE Then

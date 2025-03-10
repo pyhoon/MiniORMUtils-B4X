@@ -24,6 +24,7 @@ Sub Class_Globals
 	Private DBHaving 				As String
 	#If B4A or B4i
 	Private DBParameters() 			As String
+	Private BlnShowDBUtilsJson		As Boolean
 	#Else
 	Private DBParameters 			As List
 	Private BlnFirst 				As Boolean
@@ -125,6 +126,12 @@ Public Sub setShowExtraLogs (Value As Boolean)
 	BlnShowExtraLogs = Value
 End Sub
 
+#If B4A or B4i
+Public Sub setShowDBUtilsJson (Value As Boolean)
+	BlnShowDBUtilsJson = Value
+End Sub
+#End If
+
 Public Sub setUpdateModifiedDate (Value As Boolean)
 	BlnUpdateModifiedDate = Value
 End Sub
@@ -207,9 +214,21 @@ Public Sub Find2 (mCondition As String, mValue As Object)
 	Query
 End Sub
 
+'' Set single Condition WHERE id = value
+'Public Sub setId (mID As Int)
+'	DBID = mID
+'	WhereParam("id = ?", mID)
+'End Sub
+
+' Append new Condition WHERE id = mID
+' Parameters are preserved
 Public Sub setId (mID As Int)
 	DBID = mID
-	WhereParam("id = ?", mID)
+	#If B4A or B4i
+	WhereParams(Array As String("id = ?"), Array As String(mID))
+	#Else
+	WhereParams(Array("id = ?"), Array(mID))
+	#End If
 End Sub
 
 Public Sub getId As Int
@@ -633,7 +652,7 @@ Public Sub Query
 		End If
 
 		Dim Rows As Map = DBUtils.ExecuteJSON(DBSQL, DBStatement, DBParameters, 0, ColumnTypes)
-		If BlnShowExtraLogs Then Log(Rows.As(JSON).ToString)
+		If BlnShowDBUtilsJson Then Log(Rows.As(JSON).ToString)
 		ORMTable.Results = Rows.Get("root")
 		ORMTable.RowCount = ORMTable.Results.Size
 
@@ -966,6 +985,16 @@ Public Sub WhereParams (mConditions As List, mParams As List)
 	AddParameters(mParams)
 End Sub
 
+'' Append new Condition and Parameters
+'Public Sub WhereId (mID As Int)
+'	DBID = mID
+'	#If B4A or B4i
+'	WhereParams(Array As String("id = ?"), Array As String(mID))
+'	#Else
+'	WhereParams(Array("id = ?"), Array(mID))
+'	#End If
+'End Sub
+
 Public Sub Delete
 	DBStatement = $"DELETE FROM ${DBTable}"$
 	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
@@ -1049,7 +1078,14 @@ End Sub
 ' Print current SQL statement and parameters
 Public Sub LogQuery2
 	Log(DBStatement)
-	Log(DBParameters)
+	'Log(DBParameters)
+	Dim Params As String = "["
+	For Each Param In DBParameters
+		If Params <> "[" Then Params = Params & ", "
+		Params = Params & Param
+	Next
+	Params = Params & "]"
+	Log(Params)
 End Sub
 
 ' Print current SQL statement without parameters

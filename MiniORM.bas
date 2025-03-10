@@ -504,7 +504,7 @@ Public Sub Constraint (mType As String, mKeys As String, mAlias As String)
 End Sub
 
 Public Sub Execute
-	Try		
+	Try
 		' 2024-04-09 fix missing args
 		Dim paramsize As Int = ParametersCount
 		If paramsize > 0 Then
@@ -676,7 +676,7 @@ Public Sub Query
 			map1.Initialize
 			For i = 0 To cols - 1
 				Dim ct As Int = rsmd.RunMethod("getColumnType", Array(i + 1))
-		'check whether it is a blob field
+				'check whether it is a blob field
 				If ct = -2 Or ct = 2004 Or ct = -3 Or ct = -4 Then
 					row(i) = RS.GetBlob2(i)
 				Else if ct = 2 Or ct = 3 Then

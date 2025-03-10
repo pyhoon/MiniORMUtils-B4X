@@ -865,8 +865,10 @@ Public Sub Save
 		Find(NewID)
 	Else
 		If paramsize > 0 Then
+			If BlnShowExtraLogs Then LogQuery2
 			DBSQL.ExecNonQuery2(DBStatement, DBParameters)
 		Else
+			If BlnShowExtraLogs Then LogQuery
 			DBSQL.ExecNonQuery(DBStatement)
 		End If
 		' Count numbers of ?
@@ -902,14 +904,15 @@ End Sub
 Public Sub getLastInsertID As Object
 	Select DBEngine
 		Case MYSQL
-			Dim qry As String = "SELECT LAST_INSERT_ID()"
-			Return DBSQL.ExecQuerySingleResult(qry)
+			DBStatement = "SELECT LAST_INSERT_ID()"
 		Case SQLITE
-			Dim qry As String = "SELECT LAST_INSERT_ROWID()"
-			Return DBSQL.ExecQuerySingleResult(qry)
+			DBStatement = "SELECT LAST_INSERT_ROWID()"
 		Case Else
+			If BlnShowExtraLogs Then Log("Unknown DBEngine")
 			Return -1
 	End Select
+	If BlnShowExtraLogs Then LogQuery
+	Return DBSQL.ExecQuerySingleResult(DBStatement)
 End Sub
 
 ' Adding new Condition
@@ -1025,19 +1028,19 @@ Public Sub getStatement As String
 End Sub
 
 ' Print current SQL statement without parameters
-Public Sub LogQueryWithArg (Arg As Object)
-	Log($"DBStatement=${DBStatement} [${Arg}]"$)
+Public Sub LogQuery
+	Log(DBStatement)
 End Sub
 
 ' Print current SQL statement and parameters
 Public Sub LogQuery2
-	Log($"DBStatement=${DBStatement}"$)
-	Log($"DBParameters=${DBParameters}"$)
+	Log(DBStatement)
+	Log(DBParameters)
 End Sub
 
 ' Print current SQL statement without parameters
-Public Sub LogQuery
-	Log($"DBStatement=${DBStatement}"$)
+Public Sub LogQueryWithArg (Arg As Object)
+	Log($"${DBStatement} [${Arg}]"$)
 End Sub
 
 Public Sub Split (str As String) As String()

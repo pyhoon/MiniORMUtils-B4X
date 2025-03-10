@@ -5,12 +5,12 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 2.11
+' Version 2.20
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
 	Private DBType 			As String
-	Private mJournalMode 	As String = "DELETE"
+	Private mJournalMode 	As String = "DELETE" 'ignore
 	#If B4J
 	Private Pool 			As ConnectionPool
 	Private mCharacterSet 	As String = "utf8mb4"
@@ -106,6 +106,7 @@ Public Sub DBCreate As Boolean
 End Sub
 #End If
 
+#If B4J
 ' Connect to database name (MySQL)
 Public Sub InitPool
 	Try
@@ -133,6 +134,7 @@ Public Sub InitSchema As ResumableSub
 	End If
 	Return Success
 End Sub
+#End If
 
 ' Check database file exists (SQLite)
 Public Sub DBExist As Boolean
@@ -250,8 +252,10 @@ End Sub
 Public Sub GetDate As String
 	Try
 		Select DBType
+			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT CURDATE()"$
+			#End If
 			Case SQLITE
 				Dim qry As String = $"SELECT DATE('now')"$
 			Case Else
@@ -273,8 +277,10 @@ End Sub
 Public Sub GetDate2 As ResumableSub
 	Try
 		Select DBType
+			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT CURDATE()"$
+			#End If
 			Case SQLITE
 				Dim qry As String = $"SELECT DATE('now')"$
 			Case Else
@@ -293,8 +299,10 @@ End Sub
 Public Sub GetDateTime As String
 	Try
 		Select DBType
+			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT NOW()"$
+			#End If
 			Case SQLITE
 				Dim qry As String = $"SELECT DATETIME('now')"$
 			Case Else	
@@ -316,8 +324,10 @@ End Sub
 Public Sub GetDateTime2 As ResumableSub
 	Try
 		Select DBType
+			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT NOW()"$
+			#End If
 			Case SQLITE
 				Dim qry As String = $"SELECT DATETIME('now')"$
 			Case Else
@@ -332,6 +342,7 @@ Public Sub GetDateTime2 As ResumableSub
 	Return str
 End Sub
 
+#If B4J
 Public Sub setCharacterSet (NewCharSet As String)
 	mCharacterSet = NewCharSet
 End Sub
@@ -339,6 +350,7 @@ End Sub
 Public Sub setCollate (NewCollate As String)
 	mCollate = NewCollate
 End Sub
+#End If
 
 Public Sub setJournalMode (Mode As String)
 	mJournalMode = Mode
@@ -356,8 +368,10 @@ End Sub
 ' Return SQL query for Last Insert ID based on DBType
 Public Sub getLastInsertIDQuery As String
 	Select DBType
+		#If B4J
 		Case MYSQL
 			Dim qry As String = "SELECT LAST_INSERT_ID()"
+		#End If
 		Case SQLITE
 			Dim qry As String = "SELECT LAST_INSERT_ROWID()"
 		Case Else

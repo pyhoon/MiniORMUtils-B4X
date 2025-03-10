@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.11
+' Version 2.20
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBEngine 				As String
@@ -209,7 +209,11 @@ End Sub
 
 Public Sub setId (mID As Int)
 	DBID = mID
+	#If B4J
 	WhereParams(Array As String("id = ?"), Array As Int(mID))
+	#Else
+	WhereParams(Array As String("id = ?"), Array As String(mID))
+	#End If
 End Sub
 
 Public Sub getId As Int
@@ -446,7 +450,11 @@ End Sub
 
 Public Sub Create2 (CreateStatement As String)
 	DBStatement = CreateStatement
+	#If B4J
 	DBParameters.Clear
+	#Else
+	Dim DBParameters() As String
+	#End If
 	If BlnQueryAddToBatch Then AddNonQueryToBatch
 	If BlnQueryExecute Then Execute
 End Sub
@@ -613,7 +621,7 @@ Public Sub Query
 		ORMTable.First.Initialize
 
 		#If B4A or B4i
-		Dim Columns As Map = DBUtils.ExecuteMap(SQL, DBStatement, DBParameters)
+		Dim Columns As Map = DBUtils.ExecuteMap(DBSQL, DBStatement, DBParameters)
 		If Columns.IsInitialized Then
 			Dim ColumnTypes(Columns.Size) As String
 			Dim i As Int
@@ -624,7 +632,7 @@ Public Sub Query
 			Dim ColumnTypes() As String
 		End If
 
-		Dim Rows As Map = DBUtils.ExecuteJSON(SQL, DBStatement, DBParameters, 0, ColumnTypes)
+		Dim Rows As Map = DBUtils.ExecuteJSON(DBSQL, DBStatement, DBParameters, 0, ColumnTypes)
 		If BlnShowExtraLogs Then Log(Rows.As(JSON).ToString)
 		ORMTable.Results = Rows.Get("root")
 		ORMTable.RowCount = ORMTable.Results.Size

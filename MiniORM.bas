@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.21
+' Version 2.30
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBEngine 				As String

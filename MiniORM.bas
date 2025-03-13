@@ -12,6 +12,7 @@ Sub Class_Globals
 	Private DBID 					As Int
 	Private DBColumns 				As List
 	Private DBTable 				As String
+	Private DBView					As String
 	Private DBStatement 			As String
 	Private DBPrimaryKey 			As String
 	Private DBUniqueKey 			As String
@@ -114,6 +115,15 @@ Public Sub getTable As String
 	Return DBTable
 End Sub
 
+Public Sub setView (mView As String)
+	DBView = mView
+	SelectFromView
+End Sub
+
+Public Sub getView As String
+	Return DBView
+End Sub
+
 Public Sub setColumns (mColumns As List)
 	DBColumns = mColumns
 End Sub
@@ -189,11 +199,7 @@ Public Sub Reset
 	DBForeignKey = ""
 	DBConstraint = ""
 	DBColumns.Initialize
-	#If B4A or B4i
-	Dim DBParameters() As String
-	#Else
-	DBParameters.Initialize
-	#End If
+	ResetParameters
 End Sub
 
 Public Sub Results As List
@@ -262,17 +268,58 @@ Public Sub getFound As Boolean
 	Return ORMTable.RowCount > 0
 End Sub
 
-' Start SELECT query
+Private Sub ResetParameters
+	#If B4A or B4i
+	DBParameters = Array As String()
+	#Else
+	DBParameters.Initialize
+	#End If
+End Sub
+
+Private Sub SelectFromTable
+	Dim ac As Boolean ' Add Comma
+	Dim sb As StringBuilder
+	sb.Initialize
+	If DBColumns.IsInitialized Then
+		For Each Col In DBColumns
+			If ac Then sb.Append(", ")
+			sb.Append(Col)
+			ac = True
+		Next
+	End If
+	Dim Cols As String = sb.ToString
+	DBStatement = $"SELECT ${IIf(Cols = "", "*", Cols)} FROM ${DBTable}"$
+End Sub
+
+Private Sub SelectFromView
+	Dim ac As Boolean ' Add Comma
+	Dim sb As StringBuilder
+	sb.Initialize
+	If DBColumns.IsInitialized Then
+		For Each Col In DBColumns
+			If ac Then sb.Append(", ")
+			sb.Append(Col)
+			ac = True
+		Next
+	End If
+	Dim Cols As String = sb.ToString
+	DBStatement = $"SELECT ${IIf(Cols = "", "*", Cols)} FROM ${DBView}"$
+End Sub
+
+Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As String) As String
+	Return $"IFNULL(${ColumnName}, ${DefaultValue})"$ & IIf(AliasName = "", "", $" AS ${AliasName}"$)
+End Sub
+
+' Pass Columns and set DBStatement with SELECT FROM Table
 Public Sub setSelect (Columns As List)
-	Dim AC As Boolean ' Add Comma
-	Dim SB As StringBuilder
-	SB.Initialize
-	For Each Col In Columns
-		If AC Then SB.Append(",")
-		SB.Append(" " & Col)
-		AC = True
-	Next
-	DBStatement = DBStatement.Replace($"SELECT * FROM"$, "SELECT" & SB.ToString & " FROM")
+	DBColumns = Columns
+	SelectFromTable
+End Sub
+
+' Pass Columns and set DBStatement with SELECT FROM View
+Public Sub setSelect2 (Columns As List)
+	DBColumns = Columns
+	SelectFromView
 End Sub
 
 ' Return map of only selected columns from a row
@@ -465,11 +512,7 @@ End Sub
 
 Public Sub Create2 (CreateStatement As String)
 	DBStatement = CreateStatement
-	#If B4J
-	DBParameters.Clear
-	#Else
-	Dim DBParameters() As String
-	#End If
+	ResetParameters
 	If BlnQueryAddToBatch Then AddNonQueryToBatch
 	If BlnQueryExecute Then Execute
 End Sub
@@ -638,7 +681,6 @@ Public Sub Query
 		'ORMTable.First.Initialize
 		'ORMTable.Results.Initialize
 		ORMTable.ResultSet = RS
-
 		#If B4A or B4i
 		Dim Columns As Map = DBUtils.ExecuteMap(DBSQL, DBStatement, DBParameters)
 		If Columns.IsInitialized Then
@@ -1052,6 +1094,30 @@ Public Sub TableExists2 (TableName As String, DatabaseName As String) As Boolean
 	If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DatabaseName, TableName))
 	Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DatabaseName, TableName))
 	Return count > 0
+End Sub
+
+' Tests whether the view exists (SQLite)
+Public Sub ViewExists (ViewName As String) As Boolean
+	Try
+		Dim qry As String = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
+		Dim count As Int = DBSQL.ExecQuerySingleResult2(qry, Array As String(ViewName))
+		Return count > 0
+	Catch
+		LogColor(LastException, COLOR_RED)
+		Return False
+	End Try
+End Sub
+
+' Tests whether the view exists in the given database (MySQL)
+Public Sub ViewExists2 (ViewName As String, DatabaseName As String) As Boolean
+	Try
+		Dim qry As String = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
+		Dim count As Int = DBSQL.ExecQuerySingleResult2(qry, Array As String(DatabaseName, ViewName))
+		Return count > 0
+	Catch
+		LogColor(LastException, COLOR_RED)
+		Return False
+	End Try
 End Sub
 
 ' Append to the end of SQL statement

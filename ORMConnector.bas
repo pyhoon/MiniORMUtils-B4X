@@ -265,6 +265,9 @@ Public Sub GetDate As String
 				DateTime.DateFormat = CurrentDateFormat
 				Return DateValue
 		End Select
+		If SQL.IsInitialized = False Then
+			SQL = DBOpen
+		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
@@ -287,6 +290,9 @@ Public Sub GetDate2 As ResumableSub
 				DateTime.DateFormat = "yyyy-MM-dd"
 				Return DateTime.Date(DateTime.Now)
 		End Select
+		If SQL.IsInitialized = False Then
+			SQL = DBOpen
+		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
@@ -312,6 +318,9 @@ Public Sub GetDateTime As String
 				DateTime.DateFormat = CurrentDateFormat
 				Return DateValue
 		End Select
+		If SQL.IsInitialized = False Then
+			SQL = DBOpen
+		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)
@@ -333,7 +342,10 @@ Public Sub GetDateTime2 As ResumableSub
 			Case Else
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
 				Return DateTime.Date(DateTime.Now)
-		End Select	
+		End Select
+		If SQL.IsInitialized = False Then
+			SQL = DBOpen
+		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
 		Log(LastException.Message)

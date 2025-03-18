@@ -456,31 +456,40 @@ Public Sub Create
 	stmt.Append($"CREATE TABLE ${DBTable} ("$)
 	
 	' id column added by default
-	If BlnAutoIncrement Then
-		Select DBEngine
-			Case MYSQL
-				stmt.Append($"id ${INTEGER} NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
-			Case SQLITE
-				stmt.Append($"id ${INTEGER},"$).Append(CRLF)
-		End Select
+	Dim Pk As String = "id"
+	If DBPrimaryKey.Length > 0 Then
+		Pk = DBPrimaryKey
 	End If
+	Select DBEngine
+		Case MYSQL
+			If BlnAutoIncrement Then
+				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
+			Else
+				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL,"$).Append(CRLF)
+			End If
+		Case SQLITE
+			stmt.Append($"${Pk} ${INTEGER},"$).Append(CRLF)
+	End Select
 
 	' Put the columns here
 	stmt.Append(sb.ToString)
 	
 	If DBPrimaryKey.Length > 0 Then
 		stmt.Append(CRLF)
-		stmt.Append($"PRIMARY KEY(${DBPrimaryKey})"$)
+		Select DBEngine
+			Case MYSQL
+				stmt.Append($"PRIMARY KEY(${Pk})"$)
+			Case SQLITE
+				If BlnAutoIncrement Then
+					stmt.Append($"PRIMARY KEY(${Pk}${IIf(BlnAutoIncrement, " AUTOINCREMENT", "")})"$)
+				Else
+					stmt.Append($"PRIMARY KEY(${Pk})"$)
+				End If
+		End Select
 	Else
-		' id column set as primary key by default
 		If BlnAutoIncrement Then
 			stmt.Append(CRLF)
-			Select DBEngine
-				Case MYSQL
-					stmt.Append($"PRIMARY KEY(id)"$)
-				Case SQLITE
-					stmt.Append($"PRIMARY KEY(id AUTOINCREMENT)"$)
-			End Select
+			stmt.Append($"PRIMARY KEY(${Pk}) "$)
 		Else
 			stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
 		End If
@@ -583,7 +592,7 @@ Public Sub Execute
 			DBSQL.ExecNonQuery(DBStatement)
 		End If
 	Catch
-		Log(LastException)
+		LogColor(LastException, COLOR_RED)
 	End Try
 End Sub
 
@@ -677,9 +686,6 @@ Public Sub Query
 			Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
 		End If
 
-		'ORMTable.Initialize
-		'ORMTable.First.Initialize
-		'ORMTable.Results.Initialize
 		ORMTable.ResultSet = RS
 		#If B4A or B4i
 		Dim Columns As Map = DBUtils.ExecuteMap(DBSQL, DBStatement, DBParameters)
@@ -767,13 +773,15 @@ Public Sub Query
 				BlnFirst = False
 			End If
 		Loop
-		RS.Close ' test 2023-10-24
+		'RS.Close ' test 2023-10-24
 		ORMResult = res
 		#End If
 	Catch
 		Log(LastException)
 		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 	End Try
+	If Initialized(RS) Then RS.Close ' 2025-03-19
+	
 	DBCondition = ""
 	DBHaving = ""
 	#If B4A or B4i
@@ -920,7 +928,7 @@ Public Sub Save
 		DBStatement = $"INSERT INTO ${DBTable} (${sb.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
-	
+
 	Dim paramsize As Int = ParametersCount
 	If BlnNew Then
 		If paramsize > 0 Then
@@ -969,6 +977,110 @@ Public Sub Save2 (mParams As List)
 #End If
 	setParameters(mParams)
 	Save
+End Sub
+
+' Same as Save but return row with custom id column
+Public Sub Save3 (mColumn As String)
+	Dim BlnNew As Boolean
+	If DBCondition.Length > 0 Then
+		Dim md As Boolean ' contains modified_date
+		Dim sb As StringBuilder
+		sb.Initialize
+		DBStatement = $"UPDATE ${DBTable} SET "$
+		For Each col As String In DBColumns
+			If sb.Length > 0 Then sb.Append(", ")
+			If col.EqualsIgnoreCase("modified_date") Then md = True
+			If col.Contains("=") Then
+				sb.Append(col)
+			Else If col.EndsWith("++") Then
+				col = col.Replace("++", "").Trim
+				sb.Append($"${col} = ${col} + 1"$)
+			Else
+				sb.Append(col & " = ?")
+			End If
+		Next
+		DBStatement = DBStatement & sb.ToString
+		' To handle varchar timestamps
+		If BlnUpdateModifiedDate And Not(md) Then
+			Select DBEngine
+				Case MYSQL
+					DBStatement = DBStatement & ", modified_date = NOW()"
+				Case SQLITE
+					DBStatement = DBStatement & ", modified_date = DATETIME('now')"
+			End Select
+		End If
+		DBStatement = DBStatement & DBCondition
+	Else
+		Dim cd As Boolean ' contains created_date
+		Dim sb, vb As StringBuilder
+		sb.Initialize
+		vb.Initialize
+		For Each col As String In DBColumns
+			If sb.Length > 0 Then
+				sb.Append(", ")
+				vb.Append(", ")
+			End If
+			sb.Append(col)
+			vb.Append("?")
+			If col.EqualsIgnoreCase("created_date") Then cd = True
+		Next
+		' To handle varchar timestamps
+		If BlnUseTimestamps And Not(cd) Then
+			If sb.Length > 0 Then
+				sb.Append(", ")
+				vb.Append(", ")
+			End If
+			sb.Append("created_date")
+			Select DBEngine
+				Case MYSQL
+					vb.Append("NOW()")
+				Case SQLITE
+					vb.Append("DATETIME('now')")
+			End Select
+		End If
+		DBStatement = $"INSERT INTO ${DBTable} (${sb.ToString}) VALUES (${vb.ToString})"$
+		BlnNew = True
+	End If
+
+	Dim paramsize As Int = ParametersCount
+	If BlnNew Then
+		If paramsize > 0 Then
+			If BlnShowExtraLogs Then LogQuery2
+			DBSQL.ExecNonQuery2(DBStatement, DBParameters)
+		Else
+			If BlnShowExtraLogs Then LogQuery
+			DBSQL.ExecNonQuery(DBStatement)
+		End If
+		Dim NewID As Int = getLastInsertID
+		' Return new row
+		Find2(mColumn & " = ?", NewID)
+	Else
+		If paramsize > 0 Then
+			If BlnShowExtraLogs Then LogQuery2
+			DBSQL.ExecNonQuery2(DBStatement, DBParameters)
+		Else
+			If BlnShowExtraLogs Then LogQuery
+			DBSQL.ExecNonQuery(DBStatement)
+		End If
+		' Count numbers of ?
+		Dim Params As Int = CountChar("?", DBCondition)
+		DBStatement = "SELECT * FROM " & DBTable
+		#If B4A or B4i
+		Dim ConditionParams(Params) As String
+		For i = 0 To Params - 1
+			ConditionParams(i) = DBParameters(paramsize - Params + i)
+		Next
+		#Else
+		Dim ConditionParams As List
+		ConditionParams.Initialize
+		For i = 0 To Params - 1
+			ConditionParams.Add(DBParameters.Get(paramsize - Params + i))
+		Next
+		#End If
+		DBParameters = ConditionParams
+		' Return row after update
+		Query
+	End If
 End Sub
 
 Public Sub getLastInsertID As Object

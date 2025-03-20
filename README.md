@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 2.40
+Version: 2.50
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
@@ -18,7 +18,7 @@ Dim Conn As ORMConnector
 Conn.Initialize(Info)
 
 Dim DB As MiniORM
-DB.Initialize(Conn.DBOpen, Conn.DBEngine)
+DB.Initialize(Conn.DBEngine, Conn.DBOpen)
 DB.UseTimestamps = True
 DB.QueryAddToBatch = True
 ```

@@ -383,7 +383,6 @@ Public Sub getDBFolder As String
 	Return CN.DBDir
 End Sub
 
-' Return DBType
 Public Sub getDBType As String
 	Return mType
 End Sub

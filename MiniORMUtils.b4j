@@ -17,23 +17,34 @@ Version=10.2
 	#CommandLineArgs:
 	#MergeLibraries: True 
 #End Region
-
+#If MySQL
+#AdditionalJar: mysql-connector-java-8.0.30
+#Else
+#AdditionalJar: sqlite-jdbc-min-3.49.1.0
+#End If
 Sub Process_Globals
 	
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Version: 2.40")
-
-	Dim Info As ConnectionInfo
-	Info.Initialize
-	Info.DBFile = "test.db"
-	
-	Dim Con As ORMConnector
-	Con.Initialize(Info)
-	
+	Log("Version: 2.50")
 	Dim DB As MiniORM
-	DB.Initialize(Con.DBOpen, DB.SQLITE)
-
+	Dim Con As ORMConnector
+	Dim Info As ConnectionInfo
+	
+	Info.Initialize
+	Info.DBDir = File.DirApp
+	Info.DBFile = "test.db"
+	Info.DBType = "sqlite"
+	
+	Con.Initialize(Info)
+	DB.Initialize(Con.DBType, Null)
+	If Con.DBExist Then
+		DB.SQL = Con.DBOpen
+	Else
+		Con.DBCreate
+	End If
 	Con.DBClose
+	Log(Con.DBType)
+	StartMessageLoop
 End Sub

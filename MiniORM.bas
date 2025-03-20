@@ -5,10 +5,9 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.40
+' Version 2.50
 Sub Class_Globals
 	Private DBSQL 					As SQL
-	Private DBEngine 				As String
 	Private DBID 					As Int
 	Private DBColumns 				As List
 	Private DBTable 				As String
@@ -23,6 +22,8 @@ Sub Class_Globals
 	Private DBLimit 				As String
 	Private DBCondition 			As String
 	Private DBHaving 				As String
+	Private mType 					As String
+	Private mError 					As String
 	#If B4A or B4i
 	Private DBParameters() 			As String
 	Private BlnShowDBUtilsJson		As Boolean
@@ -64,16 +65,17 @@ Sub Class_Globals
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
-Public Sub Initialize (mSQL As SQL, mEngine As String)
-	setSQL(mSQL)
-	setEngine(mEngine)
+'Initialize MiniORM with optional SQL object
+'<code>DB.Initialize("sqlite", Null)</code>
+Public Sub Initialize (mDBType As String, mSQL As SQL)
 	BlnAutoIncrement = True
+	setDBType(mDBType)
+	setSQL(mSQL)
 End Sub
 
-' Set DB Type
-Public Sub setEngine (mEngine As String)
-	DBEngine = mEngine.ToUpperCase
-	Select DBEngine
+Public Sub setDBType (mDBType As String)
+	mType = mDBType.ToUpperCase
+	Select mType
 		Case MYSQL
 			INTEGER = "int"
 			BIG_INT = "bigint"
@@ -93,9 +95,8 @@ Public Sub setEngine (mEngine As String)
 	End Select
 End Sub
 
-' Return DB Type
-Public Sub getEngine As String
-	Return DBEngine
+Public Sub getDBType As String
+	Return mType
 End Sub
 
 Public Sub setSQL (mSQL As SQL)
@@ -182,7 +183,7 @@ End Sub
 
 Public Sub Close
 	#If WAL
-	If DBEngine = SQLITE Then
+	If mType = SQLITE Then
 		Return
 	End If
 	#End If
@@ -218,6 +219,14 @@ Public Sub Find2 (mCondition As String, mValue As Object)
 	Reset
 	WhereParam(mCondition, mValue)
 	Query
+End Sub
+
+Public Sub setError (mMessage As String)
+	mError = mMessage
+End Sub
+
+Public Sub getError As String
+	Return mError
 End Sub
 
 '' Set single Condition WHERE id = value
@@ -384,7 +393,7 @@ Public Sub Create
 	For Each col As ORMColumn In DBColumns
 		sb.Append(col.ColumnName)
 		sb.Append(" ")
-		Select DBEngine
+		Select mType
 			Case MYSQL
 				Select col.ColumnType
 					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT
@@ -404,7 +413,7 @@ Public Sub Create
 
 		Select col.ColumnType
 			Case INTEGER, BIG_INT, TIMESTAMP, DATE_TIME
-				If DBEngine = SQLITE And col.ColumnType.EqualsIgnoreCase("TEXT") Then
+				If mType = SQLITE And col.ColumnType.EqualsIgnoreCase("TEXT") Then
 					If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
 				Else
 					If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append(col.DefaultValue)
@@ -415,7 +424,7 @@ Public Sub Create
 		If col.AllowNull Then sb.Append(" NULL") Else sb.Append(" NOT NULL")
 		If col.Unique Then sb.Append(" UNIQUE")
 		If col.AutoIncrement Then
-			Select DBEngine
+			Select mType
 				Case MYSQL
 					sb.Append(" AUTO_INCREMENT")
 				Case SQLITE
@@ -425,7 +434,7 @@ Public Sub Create
 		sb.Append(",").Append(CRLF)
 	Next
 	
-	Select DBEngine
+	Select mType
 		Case MYSQL
 			If BlnUseDataAuditUserId Then
 				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
@@ -460,7 +469,7 @@ Public Sub Create
 	If DBPrimaryKey.Length > 0 Then
 		Pk = DBPrimaryKey
 	End If
-	Select DBEngine
+	Select mType
 		Case MYSQL
 			If BlnAutoIncrement Then
 				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
@@ -476,7 +485,7 @@ Public Sub Create
 	
 	If DBPrimaryKey.Length > 0 Then
 		stmt.Append(CRLF)
-		Select DBEngine
+		Select mType
 			Case MYSQL
 				stmt.Append($"PRIMARY KEY(${Pk})"$)
 			Case SQLITE
@@ -561,15 +570,15 @@ Public Sub Unique (mKey As String, mAlias As String)
 End Sub
 
 ' Add constraint
-' mType: UNIQUE or PRIMARY KEY
+' mKeyType: UNIQUE or PRIMARY KEY
 ' mKeys: Column names separated by comma
 ' Optional: mAlias
-Public Sub Constraint (mType As String, mKeys As String, mAlias As String)
+Public Sub Constraint (mKeyType As String, mKeys As String, mAlias As String)
 	Dim sb As StringBuilder
 	sb.Initialize
 	sb.Append("CONSTRAINT")
 	If mAlias.Length > 0 Then sb.Append(" " & mAlias)
-	sb.Append(" " & mType)
+	sb.Append(" " & mKeyType)
 	sb.Append($"(${mKeys})"$)
 	DBConstraint = sb.ToString
 End Sub
@@ -593,6 +602,7 @@ Public Sub Execute
 		End If
 	Catch
 		LogColor(LastException, COLOR_RED)
+		mError = LastException
 	End Try
 End Sub
 
@@ -779,6 +789,7 @@ Public Sub Query
 	Catch
 		Log(LastException)
 		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
+		mError = LastException
 	End Try
 	If Initialized(RS) Then RS.Close ' 2025-03-19
 	
@@ -845,7 +856,7 @@ Public Sub Insert
 			vb.Append(", ")
 		End If
 		sb.Append("created_date")
-		Select DBEngine
+		Select mType
 			Case MYSQL
 				vb.Append("NOW()")
 			Case SQLITE
@@ -889,7 +900,7 @@ Public Sub Save
 		DBStatement = DBStatement & sb.ToString
 		' To handle varchar timestamps
 		If BlnUpdateModifiedDate And Not(md) Then
-			Select DBEngine
+			Select mType
 				Case MYSQL
 					DBStatement = DBStatement & ", modified_date = NOW()"
 				Case SQLITE
@@ -918,7 +929,7 @@ Public Sub Save
 				vb.Append(", ")
 			End If
 			sb.Append("created_date")
-			Select DBEngine
+			Select mType
 				Case MYSQL
 					vb.Append("NOW()")
 				Case SQLITE
@@ -1002,7 +1013,7 @@ Public Sub Save3 (mColumn As String)
 		DBStatement = DBStatement & sb.ToString
 		' To handle varchar timestamps
 		If BlnUpdateModifiedDate And Not(md) Then
-			Select DBEngine
+			Select mType
 				Case MYSQL
 					DBStatement = DBStatement & ", modified_date = NOW()"
 				Case SQLITE
@@ -1031,7 +1042,7 @@ Public Sub Save3 (mColumn As String)
 				vb.Append(", ")
 			End If
 			sb.Append("created_date")
-			Select DBEngine
+			Select mType
 				Case MYSQL
 					vb.Append("NOW()")
 				Case SQLITE
@@ -1084,13 +1095,13 @@ Public Sub Save3 (mColumn As String)
 End Sub
 
 Public Sub getLastInsertID As Object
-	Select DBEngine
+	Select mType
 		Case MYSQL
 			DBStatement = "SELECT LAST_INSERT_ID()"
 		Case SQLITE
 			DBStatement = "SELECT LAST_INSERT_ROWID()"
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DBEngine")
+			If BlnShowExtraLogs Then Log("Unknown DBType")
 			Return -1
 	End Select
 	If BlnShowExtraLogs Then LogQuery
@@ -1177,13 +1188,13 @@ Public Sub Destroy (ids() As Int) As ResumableSub
 End Sub
 
 Public Sub SoftDelete
-	Select DBEngine
+	Select mType
 		Case MYSQL
 			DBStatement = $"UPDATE ${DBTable} SET deleted_date = now()"$
 		Case SQLITE
 			DBStatement = $"UPDATE ${DBTable} SET deleted_date = strftime('%s000', 'now')"$
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DBEngine")
+			If BlnShowExtraLogs Then Log("Unknown DBType")
 			Return
 	End Select
 	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
@@ -1216,6 +1227,7 @@ Public Sub ViewExists (ViewName As String) As Boolean
 		Return count > 0
 	Catch
 		LogColor(LastException, COLOR_RED)
+		mError = LastException
 		Return False
 	End Try
 End Sub
@@ -1228,6 +1240,7 @@ Public Sub ViewExists2 (ViewName As String, DatabaseName As String) As Boolean
 		Return count > 0
 	Catch
 		LogColor(LastException, COLOR_RED)
+		mError = LastException
 		Return False
 	End Try
 End Sub

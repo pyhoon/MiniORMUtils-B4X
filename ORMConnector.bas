@@ -5,11 +5,12 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 2.40
+' Version 2.50
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
-	Private DBType 			As String
+	Private mType			As String
+	Private mError			As String
 	Private mJournalMode 	As String = "DELETE" 'ignore
 	#If B4J
 	Private Pool 			As ConnectionPool
@@ -34,7 +35,7 @@ Sub Class_Globals
 End Sub
 
 Public Sub Initialize (Info As ConnectionInfo)
-	DBType = Info.DBType.ToUpperCase
+	mType = Info.DBType.ToUpperCase
 	CN.Initialize
 	#If B4A or B4i
 	Dim xui As XUI
@@ -42,13 +43,13 @@ Public Sub Initialize (Info As ConnectionInfo)
 	CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
 	#End If
 	#If B4J
-	If DBType = SQLITE Then
+	If mType = SQLITE Then
 		CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
 		CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
 		CN.JdbcUrl = Info.JdbcUrl.Replace("{DbDir}", Info.DBDir)
 		CN.JdbcUrl = CN.JdbcUrl.Replace("{DbFile}", CN.DBFile)
 	End If
-	If DBType = MYSQL Then
+	If mType = MYSQL Then
 		CN.User = Info.User
 		CN.DBHost = Info.DBHost
 		CN.DBPort = Info.DBPort
@@ -64,7 +65,7 @@ End Sub
 ' Create MySQL or SQLite database
 Public Sub DBCreate As ResumableSub
 	Try
-		Select DBType
+		Select mType
 			Case MYSQL
 				If SQL.IsInitialized = False Then
 					Wait For (InitSchema) Complete (Success As Boolean)
@@ -179,14 +180,16 @@ Public Sub DBOpen As SQL
 	End If
 	#End If
 	#If B4J
-	Select DBType
+	Select mType
 		Case MYSQL
-			SQL = Pool.GetConnection
+			Return Pool.GetConnection
 		Case SQLITE
 			SQL.InitializeSQLite(CN.DBDir, CN.DBFile, False)
+			Return SQL
+		Case Else
+			Return SQL
 	End Select
 	#End If
-	Return SQL
 End Sub
 
 #If B4J
@@ -194,7 +197,7 @@ End Sub
 ' Note: SQLite uses JdbcUrl
 Public Sub DBOpen2 As ResumableSub
 	Try
-		Select DBType
+		Select mType
 			Case MYSQL
 				Pool.GetConnectionAsync("Pool")
 				Wait For Pool_ConnectionReady (DB1 As SQL)
@@ -220,7 +223,7 @@ End Sub
 ' Close SQL object
 Public Sub DBClose
 	#If WAL
-	If DBType = SQLITE Then
+	If mType = SQLITE Then
 		Return
 	End If
 	#End If
@@ -241,7 +244,7 @@ End Sub
 ' Close SQL object
 Public Sub Close (mSQL As SQL)
 	#If WAL
-	If DBType = SQLITE Then
+	If mType = SQLITE Then
 		Return
 	End If
 	#End If
@@ -251,7 +254,7 @@ End Sub
 ' Return server date
 Public Sub GetDate As String
 	Try
-		Select DBType
+		Select mType
 			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT CURDATE()"$
@@ -279,7 +282,7 @@ End Sub
 ' Return server date (ascynchronous connection)
 Public Sub GetDate2 As ResumableSub
 	Try
-		Select DBType
+		Select mType
 			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT CURDATE()"$
@@ -304,7 +307,7 @@ End Sub
 ' Return server timestamp
 Public Sub GetDateTime As String
 	Try
-		Select DBType
+		Select mType
 			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT NOW()"$
@@ -332,7 +335,7 @@ End Sub
 ' Return server timestamp (ascynchronous connection)
 Public Sub GetDateTime2 As ResumableSub
 	Try
-		Select DBType
+		Select mType
 			#If B4J
 			Case MYSQL
 				Dim qry As String = $"SELECT NOW()"$
@@ -354,6 +357,14 @@ Public Sub GetDateTime2 As ResumableSub
 	Return str
 End Sub
 
+Public Sub setError (NewError As String)
+	mError = NewError
+End Sub
+
+Public Sub getError As String
+	Return mError
+End Sub
+
 #If B4J
 Public Sub setCharacterSet (NewCharSet As String)
 	mCharacterSet = NewCharSet
@@ -373,13 +384,13 @@ Public Sub getDBFolder As String
 End Sub
 
 ' Return DBType
-Public Sub getDBEngine As String
-	Return DBType
+Public Sub getDBType As String
+	Return mType
 End Sub
 
 ' Return SQL query for Last Insert ID based on DBType
 Public Sub getLastInsertIDQuery As String
-	Select DBType
+	Select mType
 		#If B4J
 		Case MYSQL
 			Dim qry As String = "SELECT LAST_INSERT_ID()"

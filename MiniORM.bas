@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.50
+' Version 2.51
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -118,7 +118,8 @@ End Sub
 
 Public Sub setView (mView As String)
 	DBView = mView
-	SelectFromView
+	Reset
+	'SelectFromView
 End Sub
 
 Public Sub getView As String
@@ -677,7 +678,7 @@ Public Sub setJoin (OJoin As ORMJoin)
 End Sub
 
 Public Sub Query
-	Try
+'	Try
 		ORMTable.Initialize
 		ORMTable.First.Initialize
 		ORMTable.Results.Initialize
@@ -786,11 +787,11 @@ Public Sub Query
 		'RS.Close ' test 2023-10-24
 		ORMResult = res
 		#End If
-	Catch
-		Log(LastException)
-		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
-		mError = LastException
-	End Try
+'	Catch
+'		Log(LastException)
+'		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
+'		mError = LastException
+'	End Try
 	If Initialized(RS) Then RS.Close ' 2025-03-19
 	
 	DBCondition = ""

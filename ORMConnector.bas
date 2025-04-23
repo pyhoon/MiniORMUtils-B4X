@@ -5,7 +5,7 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 2.51
+' Version 2.60
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
@@ -185,11 +185,9 @@ Public Sub DBOpen As SQL
 			Return Pool.GetConnection
 		Case SQLITE
 			SQL.InitializeSQLite(CN.DBDir, CN.DBFile, False)
-			Return SQL
-		Case Else
-			Return SQL
 	End Select
 	#End If
+	Return SQL
 End Sub
 
 #If B4J

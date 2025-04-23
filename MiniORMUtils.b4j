@@ -27,7 +27,7 @@ Sub Process_Globals
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Version: 2.51")
+	Log("Version: 2.60")
 	Dim DB As MiniORM
 	Dim Con As ORMConnector
 	Dim Info As ConnectionInfo

@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.61
+' Version 2.62
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -792,11 +792,11 @@ Public Sub Query
 		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
 	End Try
-	#If B4i
-	' B4i yet support Initialized() function
-	If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
-	#Else
+	#If B4J
 	If Initialized(RS) Then RS.Close ' 2025-03-19
+	#Else
+	' B4A and B4i yet support Initialized() function
+	If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
 	#End If
 	
 	DBCondition = ""

@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 2.62
+' Version 2.63
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -317,7 +317,7 @@ Private Sub SelectFromView
 End Sub
 
 Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As String) As String
-	Return $"IFNULL(${ColumnName}, ${DefaultValue})"$ & IIf(AliasName = "", "", $" AS ${AliasName}"$)
+	Return $"IFNULL(${ColumnName}, '${DefaultValue}')"$ & IIf(AliasName = "", "", $" AS ${AliasName}"$)
 End Sub
 
 ' Pass Columns and set DBStatement with SELECT FROM Table

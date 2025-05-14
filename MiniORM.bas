@@ -317,7 +317,7 @@ Private Sub SelectFromView
 End Sub
 
 Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As String) As String
-	Return $"IFNULL(${ColumnName}, '${DefaultValue}')"$ & IIf(AliasName = "", "", $" AS ${AliasName}"$)
+	Return $"IFNULL(${ColumnName}, '${DefaultValue}')"$ & IIf(AliasName = "", $" AS ${ColumnName}"$, $" AS ${AliasName}"$)
 End Sub
 
 ' Pass Columns and set DBStatement with SELECT FROM Table

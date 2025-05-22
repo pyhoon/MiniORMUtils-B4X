@@ -5,10 +5,11 @@ Library1=javaobject
 Library2=jcore
 Library3=jserver
 Library4=jsql
+Library5=json
 Module1=MiniORM
 Module2=ORMConnector
 NumberOfFiles=0
-NumberOfLibraries=4
+NumberOfLibraries=5
 NumberOfModules=2
 Version=10.2
 @EndOfDesignText@
@@ -23,28 +24,131 @@ Version=10.2
 #AdditionalJar: sqlite-jdbc-min-3.49.1.0
 #End If
 Sub Process_Globals
-	
+	Private DB As MiniORM
+	Private Conn As ORMConnector
+	Private Const COLOR_RED As Int = -65536
+	Private Const COLOR_BLUE As Int = -16776961
+	Private Const COLOR_MAGENTA As Int = -65281
 End Sub
 
 Sub AppStart (Args() As String)
 	Log("Version: 2.63")
-	Dim DB As MiniORM
-	Dim Con As ORMConnector
-	Dim Info As ConnectionInfo
+	ConfigureDatabase
 	
-	Info.Initialize
-	Info.DBDir = File.DirApp
-	Info.DBFile = "test.db"
-	Info.DBType = "sqlite"
 	
-	Con.Initialize(Info)
-	DB.Initialize(Con.DBType, Null)
-	If Con.DBExist Then
-		DB.SQL = Con.DBOpen
-	Else
-		Con.DBCreate
-	End If
-	Con.DBClose
-	Log(Con.DBType)
+	
 	StartMessageLoop
+End Sub
+
+Private Sub DBType As String
+	Return Conn.DBType
+End Sub
+
+Private Sub DBOpen As SQL
+	Return Conn.DBOpen
+End Sub
+
+Private Sub DBClose 'ignore
+	Conn.DBClose
+End Sub
+
+Public Sub ConfigureDatabase
+	Dim con As ConnectionInfo
+	con.Initialize
+	con.DBType = "SQLite"
+	con.DBFile = "data.db"
+	
+'	#If B4J
+'	con.DBDir = File.DirApp
+'	#Else
+'	con.DBDir = xui.DefaultFolder 
+'	#End If
+
+	Try
+		Conn.Initialize(con)
+		Dim DBFound As Boolean = Conn.DBExist
+		If DBFound Then
+			LogColor($"${DBType} database found!"$, COLOR_BLUE)
+			DB.Initialize(DBType, DBOpen)
+			'DB.ShowExtraLogs = True
+			'GetCategories
+			GetProducts
+		Else
+			LogColor($"${DBType} database not found!"$, COLOR_RED)
+			CreateDatabase
+		End If
+	Catch
+		Log(LastException.Message)
+		LogColor("Error checking database!", COLOR_RED)
+		Log("Application is terminated.")
+		#If B4J
+		ExitApplication
+		#End If
+	End Try
+End Sub
+
+Private Sub CreateDatabase
+	LogColor("Creating database...", COLOR_MAGENTA)
+	Wait For (Conn.DBCreate) Complete (Success As Boolean)
+	If Not(Success) Then
+		Log("Database creation failed!")
+		Return
+	End If
+	
+	DB.Initialize(DBType, DBOpen)
+	DB.UseTimestamps = True
+	DB.QueryAddToBatch = True
+	
+	DB.Table = "tbl_categories"
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_name")))
+	DB.Create
+	
+	DB.Columns = Array("category_name")
+	DB.Insert2(Array As String("Hardwares"))
+	DB.Insert2(Array As String("Toys"))
+
+	DB.Table = "tbl_products"
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_id", "Type": DB.INTEGER)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
+	DB.Foreign("category_id", "id", "tbl_categories", "", "")
+	DB.Create
+	
+	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
+	DB.Insert2(Array As String(2, "T001", "Teddy Bear", 99.9))
+	DB.Insert2(Array As String(1, "H001", "Hammer", 15.75))
+	DB.Insert2(Array As String(2, "T002", "Optimus Prime", 1000))
+	
+	Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
+	If Success Then
+		LogColor("Database is created successfully!", COLOR_BLUE)
+	Else
+		LogColor("Database creation failed!", COLOR_RED)
+		Log(LastException)
+	End If
+	DB.Close
+	DB.Initialize(DBType, DBOpen)
+	'GetCategories
+	GetProducts
+End Sub
+
+Private Sub GetCategories 'ignore
+	Try
+		DB.Table = "tbl_categories"
+		DB.Query
+		Log(DB.Results.As(JSON).ToString)
+		DBClose
+	Catch
+		Log(LastException.Message)
+	End Try
+End Sub
+
+Private Sub GetProducts
+	DB.Table = "tbl_products p"
+	DB.Select = Array("p.id", "product_code AS code", "product_name AS name", "c.category_name AS category")
+	DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
+	DB.Query
+	Log(DB.Results.As(JSON).ToString)
+	DBClose
 End Sub

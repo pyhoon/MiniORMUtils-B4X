@@ -1,5 +1,5 @@
 # ignore files
-*.b4j*
+*.meta
 
 # ignore ALL files in these directories
 AutoBackups/

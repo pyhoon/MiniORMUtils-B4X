@@ -5,7 +5,7 @@ Type=Class
 Version=9.1
 @EndOfDesignText@
 ' Database Connector class
-' Version 2.63
+' Version 3.00
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
@@ -37,11 +37,6 @@ End Sub
 Public Sub Initialize (Info As ConnectionInfo)
 	mType = Info.DBType.ToUpperCase
 	CN.Initialize
-	#If B4A or B4i
-	Dim xui As XUI
-	CN.DBDir = IIf(Info.DBDir = "", xui.DefaultFolder, Info.DBDir)
-	CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
-	#End If
 	#If B4J
 	If mType = SQLITE Then
 		CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
@@ -58,6 +53,10 @@ Public Sub Initialize (Info As ConnectionInfo)
 		CN.Password = Info.Password
 		CN.DriverClass = Info.DriverClass
 	End If
+	#Else
+	Dim xui As XUI
+	CN.DBDir = IIf(Info.DBDir = "", xui.DefaultFolder, Info.DBDir)
+	CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
 	#End If
 End Sub
 
@@ -98,6 +97,9 @@ End Sub
 Public Sub DBCreate As Boolean
 	Try
 		SQL.Initialize(CN.DBDir, CN.DBFile, True)
+		If mJournalMode.EqualsIgnoreCase("WAL") Then
+		SQL.ExecQuerySingleResult("PRAGMA journal_mode = wal")
+		End If
 	Catch
 		Log(LastException.Message)
 		Return False
@@ -174,11 +176,6 @@ End Sub
 ' Connect to database server
 ' Note: SQLite uses DBDir and DBFile
 Public Sub DBOpen As SQL
-	#If B4A or B4i
-	If DBExist Then
-		SQL.Initialize(CN.DBDir, CN.DBFile, False)
-	End If
-	#End If
 	#If B4J
 	Select mType
 		Case MYSQL
@@ -186,6 +183,10 @@ Public Sub DBOpen As SQL
 		Case SQLITE
 			SQL.InitializeSQLite(CN.DBDir, CN.DBFile, False)
 	End Select
+	#Else
+	If DBExist Then
+		SQL.Initialize(CN.DBDir, CN.DBFile, False)
+	End If	
 	#End If
 	Return SQL
 End Sub
@@ -220,11 +221,9 @@ End Sub
 
 ' Close SQL object
 Public Sub DBClose
-	#If WAL
-	If mType = SQLITE Then
+	If mJournalMode.EqualsIgnoreCase("WAL") Then
 		Return
 	End If
-	#End If
 	If DBOpened Then
 		SQL.Close
 	End If
@@ -241,11 +240,7 @@ End Sub
 
 ' Close SQL object
 Public Sub Close (mSQL As SQL)
-	#If WAL
-	If mType = SQLITE Then
-		Return
-	End If
-	#End If
+	If mJournalMode.EqualsIgnoreCase("WAL") Then Return
 	If mSQL <> Null And mSQL.IsInitialized Then mSQL.Close
 End Sub
 

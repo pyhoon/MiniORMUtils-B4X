@@ -246,7 +246,7 @@ End Sub
 ' Parameters are preserved
 Public Sub setId (mID As Int)
 	DBID = mID
-	WhereParam("id = ?", mID)
+	WhereParams(Array("id = ?"), Array(mID)) ' Use WhereParams to append extra condition
 End Sub
 
 Public Sub getId As Int

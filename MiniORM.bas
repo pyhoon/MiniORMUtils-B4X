@@ -113,10 +113,9 @@ Public Sub getSQL As SQL
 End Sub
 
 Public Sub setTable (mTable As String)
-	Reset
 	DBTable = mTable
 	DBObject = DBTable
-	SelectAllFromDBObject
+	Reset
 End Sub
 
 Public Sub getTable As String
@@ -124,10 +123,9 @@ Public Sub getTable As String
 End Sub
 
 Public Sub setView (mView As String)
-	Reset
 	DBView = mView
 	DBObject = DBView
-	SelectAllFromDBObject
+	Reset
 End Sub
 
 Public Sub getView As String
@@ -199,6 +197,7 @@ Public Sub Reset
 	Reset2
 	ResetParameters
 	DBColumns.Initialize
+	SelectAllFromDBObject
 End Sub
 
 ' Partially reset variables

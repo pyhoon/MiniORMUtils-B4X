@@ -5,6 +5,8 @@ A mini object–relational mapping (ORM) that can be use for creating db schema 
 It is suitable for Web API Template or any database system.
 Currently it supports **SQLite** and **MySQL** (B4J).
 
+<img src="https://github.com/pyhoon/MiniORMUtils-B4X/blob/main/miniorm.png" width="300" />
+
 # Usage example
 
 ## Initialize object

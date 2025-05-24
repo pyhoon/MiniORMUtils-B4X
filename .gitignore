@@ -1,5 +1,9 @@
 # ignore files
-*.meta
+*.b4a.meta
+*.b4i.meta
+*.b4j.meta
+*.otf
+*.ttf
 
 # ignore ALL files in these directories
 AutoBackups/

@@ -31,7 +31,7 @@ Sub Process_Globals
 End Sub
 
 Sub AppStart (Args() As String)
-	Log("Version: 3.00")
+	Log("Version: 3.10")
 	ConfigureDatabase
 	StartMessageLoop
 End Sub
@@ -85,7 +85,7 @@ Private Sub CreateDatabase
 	End If
 	
 	DB.Initialize(DBType, DBOpen)
-	DB.UseTimestamps = True
+	'DB.UseTimestamps = True
 	DB.QueryAddToBatch = True
 	
 	DB.Table = "tbl_categories"
@@ -108,6 +108,26 @@ Private Sub CreateDatabase
 	DB.Insert2(Array As String(2, "T001", "Teddy Bear", 99.9))
 	DB.Insert2(Array As String(1, "H001", "Hammer", 15.75))
 	DB.Insert2(Array As String(2, "T002", "Optimus Prime", 1000))
+	
+	' We can check the list of NonQueryBatch before execute the batch
+	' This info is hidden in SQL object
+	Dim i As Int
+	For Each qry As Map In DB.Batch
+		i = i + 1
+		Dim DBStatement As String= qry.Get("DBStatement")
+		Dim DBParameter() As Object = qry.Get("DBParameters")
+		Dim SB As StringBuilder
+		SB.Initialize
+		SB.Append("[")
+		Dim started As Boolean
+		For Each Param In DBParameter
+			If started Then SB.Append(", ")
+			SB.Append(Param)
+			started = True
+		Next
+		SB.Append("]")
+		Log($"Query #${i}=${DBStatement} @ ${SB.ToString}"$)
+	Next
 	
 	Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
 	If Success Then
@@ -139,8 +159,8 @@ Private Sub GetProducts
 	DB.Select = Array("c.category_name AS category", "product_code AS code", "product_name AS name", "p.id", "c.id as cid")
 	DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
 	DB.Query
-	Log(DB.ORMResult.Columns)
-	Log(ProcessOrderedJsonFromList(DB.Results2, "", "  "))
+	'Log(DB.ORMResult.Columns)
+	'Log(ProcessOrderedJsonFromList(DB.Results2, "", "  "))
 	DBClose
 End Sub
 

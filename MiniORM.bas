@@ -5,10 +5,11 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.00
+' Version 3.10
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
+	Private DBBatch 				As List
 	Private DBColumns 				As List
 	Private DBObject 				As String
 	Private DBTable 				As String
@@ -66,12 +67,13 @@ Sub Class_Globals
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
-'Initialize MiniORM with optional SQL object
+'Initialize MiniORM
 '<code>DB.Initialize("sqlite", Null)</code>
 Public Sub Initialize (mDBType As String, mSQL As SQL)
-	BlnAutoIncrement = True
 	setDBType(mDBType)
 	setSQL(mSQL)
+	DBBatch.Initialize
+	BlnAutoIncrement = True
 End Sub
 
 Public Sub setDBType (mDBType As String)
@@ -130,6 +132,14 @@ End Sub
 
 Public Sub getView As String
 	Return DBView
+End Sub
+
+Public Sub setBatch (mBatch As List)
+	DBBatch = mBatch
+End Sub
+
+Public Sub getBatch As List
+	Return DBBatch
 End Sub
 
 Public Sub setColumns (mColumns As List)
@@ -284,6 +294,8 @@ End Sub
 Private Sub ResetParameters
 	#If B4J
 	DBParameters.Initialize
+	If DBParameters.IsInitialized = False Then DBParameters.Initialize
+	'DBParameters.Clear
 	#Else
 	DBParameters = Array As String()
 	#End If
@@ -490,7 +502,7 @@ Public Sub Create
 	Else
 		If BlnAutoIncrement Then
 			stmt.Append(CRLF)
-			stmt.Append($"PRIMARY KEY(${Pk}) "$)
+			stmt.Append($"PRIMARY KEY(${Pk})"$)
 		Else
 			stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
 		End If
@@ -615,7 +627,15 @@ Public Sub ExecuteBatch As ResumableSub
 End Sub
 
 Public Sub AddNonQueryToBatch
-	DBSQL.AddNonQueryToBatch(DBStatement, DBParameters)
+	Dim paramsize As Int = ParametersCount
+	Dim Args(paramsize) As Object
+	Dim i As Int
+	For Each Param In DBParameters
+		Args(i) = Param
+		i = i + 1
+	Next
+	DBBatch.Add(CreateMap("DBStatement": DBStatement, "DBParameters": Args))
+	DBSQL.AddNonQueryToBatch(DBStatement, Args)
 End Sub
 
 #If B4J
@@ -669,7 +689,7 @@ End Sub
 
 ' Execute Query
 Public Sub Query
-	Try
+'	Try
 		If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
 		If DBGroupBy.Length > 0 Then DBStatement = DBStatement & DBGroupBy
 		If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
@@ -762,11 +782,11 @@ Public Sub Query
 			ORMTable.Last = ORMTable.Results.Get(ORMTable.Results.Size - 1)
 		End If
 		'RS.Close ' test 2023-10-24
-	Catch
-		Log(LastException)
-		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
-		mError = LastException
-	End Try
+'	Catch
+'		Log(LastException)
+'		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
+'		mError = LastException
+'	End Try
 	#If B4J
 	If Initialized(RS) Then RS.Close ' 2025-03-19
 	#Else
@@ -1202,15 +1222,18 @@ End Sub
 
 ' Print current SQL statement and parameters
 Public Sub LogQuery2
-	Log(DBStatement)
-	'Log(DBParameters)
-	Dim Params As String = "["
+	Dim SB As StringBuilder
+	SB.Initialize
+	SB.Append("[")
+	Dim started As Boolean
 	For Each Param In DBParameters
-		If Params <> "[" Then Params = Params & ", "
-		Params = Params & Param
+		If started Then SB.Append(", ")
+		SB.Append(Param)
+		started = True
 	Next
-	Params = Params & "]"
-	Log(Params)
+	SB.Append("]")
+	Log(DBStatement)
+	Log(SB.ToString)
 End Sub
 
 ' Print current SQL statement without parameters

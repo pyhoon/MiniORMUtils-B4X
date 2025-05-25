@@ -1,5 +1,5 @@
 Author=Aeric Poon
-Version=3.20
-B4J.DependsOn=javaobject, jSQL, jServer
-B4i.DependsOn=DBUtils, iJSON
-B4A.DependsOn=DBUtils, JSON
+Version=3.30
+B4A.DependsOn=SQL
+B4i.DependsOn=iSQL
+B4J.DependsOn=jSQL, jServer, javaobject

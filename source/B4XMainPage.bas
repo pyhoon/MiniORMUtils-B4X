@@ -41,6 +41,7 @@ Sub Class_Globals
 	Private Const COLOR_OVERLAY As Int = -2147481048
 	Private Const COLOR_TRANSPARENT As Int = 0
 	Type Category (Id As Int, Name As String)
+	Private Image As B4XImageView
 End Sub
 
 Public Sub Initialize
@@ -197,10 +198,10 @@ Public Sub ConfigureDatabase
 		If DBFound Then
 			LogColor($"${con.DBType} database found!"$, COLOR_BLUE)
 			DB.Initialize(DBType, DBOpen)
-			DB.ShowExtraLogs = True
-			#If B4A or B4i
+			'DB.ShowExtraLogs = True
+			'#If B4A or B4i
 			'DB.ShowDBUtilsJson = True
-			#End If
+			'#End If
 			GetCategories
 		Else
 			LogColor($"${con.DBType} database not found!"$, COLOR_RED)
@@ -229,7 +230,7 @@ Private Sub CreateDatabase
 	End If
 	
 	DB.Initialize(DBType, DBOpen)
-	DB.ShowExtraLogs = True
+	'DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
 	DB.QueryAddToBatch = True
 	
@@ -238,21 +239,22 @@ Private Sub CreateDatabase
 	DB.Create
 	
 	DB.Columns = Array("category_name")
-	DB.Insert2(Array As String("Hardwares"))
-	DB.Insert2(Array As String("Toys"))
+	DB.Insert2(Array As Object("Hardwares"))
+	DB.Insert2(Array As Object("Toys"))
 
 	DB.Table = "tbl_products"
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_id", "Type": DB.INTEGER)))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
 	DB.Foreign("category_id", "id", "tbl_categories", "", "")
 	DB.Create
 	
 	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-	DB.Insert2(Array As String(2, "T001", "Teddy Bear", 99.9))
-	DB.Insert2(Array As String(1, "H001", "Hammer", 15.75))
-	DB.Insert2(Array As String(2, "T002", "Optimus Prime", 1000))
+	DB.Insert2(Array As Object(2, "T001", "Teddy Bear", 99.9))
+	DB.Insert2(Array As Object(1, "H001", "Hammer", 15.75))
+	DB.Insert2(Array As Object(2, "T002", "Optimus Prime", 1000))
 	
 	' We can check the list of NonQueryBatch before execute the batch
 	' This info is hidden in SQL object
@@ -281,6 +283,20 @@ Private Sub CreateDatabase
 		LogColor("Database creation failed!", COLOR_RED)
 		Log(LastException)
 	End If
+	
+	' Adding an image to blob field
+	Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")
+	'DB.Statement = "UPDATE tbl_products SET product_image = ? WHERE id = ?"
+	DB.Table = "tbl_products"
+	DB.Columns = Array("product_image")
+	DB.Parameters = Array(b)
+	DB.Id = 3 ' after setting Columns and Parameters
+	DB.Save
+	'DB.Execute2(Array(b, 3))
+	'DB.Parameters = Array(b, 3)
+	'DB.Execute
+	Log("success")
+	
 	DB.Close
 	DB.Initialize(DBType, DBOpen)
 	GetCategories
@@ -316,15 +332,37 @@ End Sub
 Private Sub GetProducts
 	clvRecord.Clear
 	DB.Table = "tbl_products p"
-	DB.Select = Array("p.*", "c.category_name")
+	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
+	'DB.Select = Array("p.*", "c.category_name")
+	DB.Select = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
 	DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
-	DB.WhereParams(Array("c.id = ?"), Array As String(CategoryId))
+	DB.WhereParams(Array("c.id = ?"), Array As Object(CategoryId))
 	DB.Query
 	Dim Items As List = DB.Results
+	'Log(Items.As(JSON).ToString)
 	For Each Item As Map In Items
 		clvRecord.Add(CreateProductItems(Item.Get("product_code"), GetCategoryName(Item.Get("category_id")), Item.Get("product_name"), NumberFormat2(Item.Get("product_price"), 1, 2, 2, True), clvRecord.AsView.Width), Item.Get("id"))
+		' test image
+		If 3 = Item.Get("id") Then
+			Dim buffer() As Byte = Item.Get("product_image")
+			If buffer.Length > 0 Then
+				Dim in As InputStream
+				in.InitializeFromBytesArray(buffer, 0, buffer.Length)
+				Dim bmx As B4XBitmap
+				#If B4A or B4i
+				Dim bmp As Bitmap
+				bmp.Initialize2(in)
+				bmx = bmp
+			  	#Else If B4J
+				Dim img As Image
+				img.Initialize2(in)
+				bmx = img
+	   			#End If
+				in.Close
+				Image.Bitmap = bmx
+			End If
+		End If
 	Next
-	
 	Viewing = "Product"
 	lblTitle.Text = GetCategoryName(CategoryId)
 	lblBack.Visible = True
@@ -455,12 +493,12 @@ Private Sub ShowDialog1 (Action As String, Item As Map)
 			End If
 			DB.Reset
 			DB.Columns = Array("category_name")
-			DB.Save2(Array As String(Item.Get("Category Name")))
+			DB.Save2(Array As Object(Item.Get("Category Name")))
 			xui.MsgboxAsync("New category created!", $"ID: ${DB.First.Get("id")}"$)
 		Else
 			DB.Table = "tbl_categories"
 			DB.Columns = Array("category_name")
-			DB.Parameters = Array As String(Item.Get("Category Name"))
+			DB.Parameters = Array As Object(Item.Get("Category Name"))
 			DB.Id = Item.Get("id")
 			DB.Save
 			xui.MsgboxAsync("Category updated!", "Edit")
@@ -498,12 +536,12 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 			DB.Reset
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 			Dim SelectedCategory As Int = GetCategoryId(Item.Get("Category"))
-			DB.Save2(Array As String(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price")))
+			DB.Save2(Array As Object(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price")))
 			CategoryId = SelectedCategory
 			xui.MsgboxAsync("New product created!", $"ID: ${DB.First.Get("id")}"$)
 		Else
 			DB.Table = "tbl_products"
-			DB.WhereParams(Array("product_code = ?", "id <> ?"), Array As String(Item.Get("Product Code"), Item.Get("id")))
+			DB.WhereParams(Array("product_code = ?", "id <> ?"), Array As Object(Item.Get("Product Code"), Item.Get("id")))
 			DB.Query
 			If DB.Found Then
 				xui.MsgboxAsync("Product Code already exist", "Error")
@@ -516,7 +554,7 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 			DB.Reset
 			Dim NewCategoryId As Int = GetCategoryId(Item.Get("Category"))
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-			DB.Parameters = Array As String(NewCategoryId, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
+			DB.Parameters = Array As Object(NewCategoryId, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
 			DB.Id = Item.Get("id")
 			DB.Save
 			xui.MsgboxAsync("Product updated!", "Edit")

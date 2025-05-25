@@ -5,12 +5,13 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.20
+' Version 3.30
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
 	Private DBBatch 				As List
 	Private DBColumns 				As List
+	Private DBColumnsType			As Map
 	Private DBObject 				As String
 	Private DBTable 				As String
 	Private DBView					As String
@@ -27,13 +28,8 @@ Sub Class_Globals
 	Private mType 					As String
 	Private mError 					As String
 	Private mJournalMode 			As String = "DELETE" 'ignore
-	#If B4J
-	Private DBParameters 			As List
-	Private BlnUseTimestampsAsTicks As Boolean
-	#Else
-	Private DBParameters() 			As String
-	Private BlnShowDBUtilsJson		As Boolean	
-	#End If
+	Private StrDefaultUserId 		As String = "1"
+	Private DBParameters() 			As Object
 	Private BlnShowExtraLogs 		As Boolean
 	Private BlnUseTimestamps 		As Boolean ' may need to disable when working on view
 	Private BlnAutoIncrement 		As Boolean
@@ -41,10 +37,11 @@ Sub Class_Globals
 	Private BlnUpdateModifiedDate 	As Boolean
 	Private BlnQueryAddToBatch 		As Boolean
 	Private BlnQueryExecute 		As Boolean
-	Private StrDefaultUserId 		As String = "1"
 	#If B4J
+	Private BlnUseTimestampsAsTicks As Boolean
 	Private DateTimeMethods 		As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
 	#End If
+	Public BLOB 					As String
 	Public INTEGER 					As String
 	Public BIG_INT 					As String
 	Public DECIMAL 					As String
@@ -80,6 +77,7 @@ Public Sub setDBType (mDBType As String)
 	mType = mDBType.ToUpperCase
 	Select mType
 		Case MYSQL
+			BLOB = "blob"
 			INTEGER = "int"
 			BIG_INT = "bigint"
 			DECIMAL = "decimal"
@@ -88,6 +86,7 @@ Public Sub setDBType (mDBType As String)
 			DATE_TIME = "datetime"
 			TIMESTAMP = "timestamp"
 		Case SQLITE
+			BLOB = "BLOB"
 			INTEGER = "INTEGER"
 			BIG_INT = "INTEGER"
 			DECIMAL = "NUMERIC"
@@ -150,15 +149,17 @@ Public Sub getColumns As List
 	Return DBColumns
 End Sub
 
+Public Sub setColumnsType (mColumnsType As Map)
+	DBColumnsType = mColumnsType
+End Sub
+
+Public Sub getColumnsType As Map
+	Return DBColumnsType
+End Sub
+
 Public Sub setShowExtraLogs (Value As Boolean)
 	BlnShowExtraLogs = Value
 End Sub
-
-#If B4A or B4i
-Public Sub setShowDBUtilsJson (Value As Boolean)
-	BlnShowDBUtilsJson = Value
-End Sub
-#End If
 
 Public Sub setUpdateModifiedDate (Value As Boolean)
 	BlnUpdateModifiedDate = Value
@@ -253,14 +254,10 @@ Public Sub getError As String
 End Sub
 
 ' Append new Condition WHERE id = mID
-' Parameters are preserved
+' Existing parameters are preserved
 Public Sub setId (mID As Int)
 	DBID = mID
-	#If B4J
 	WhereParams(Array("id = ?"), Array(mID)) ' Use WhereParams to append extra condition
-	#Else
-	WhereParams(Array As String("id = ?"), Array As String(mID))
-	#End If
 End Sub
 
 Public Sub getId As Int
@@ -269,10 +266,10 @@ End Sub
 
 ' Returns first queried row
 Public Sub getFirst As Map
-	If ORMTable.IsInitialized And ORMTable.First.IsInitialized Then
-		Return ORMTable.First
-	End If
-	Return CreateMap("id": 0)
+	'If ORMTable.IsInitialized And ORMTable.First.IsInitialized Then
+	Return ORMTable.First
+	'End If
+	'Return CreateMap("id": 0)
 End Sub
 
 ' Returns new inserted row
@@ -296,13 +293,7 @@ End Sub
 
 ' Clear Parameters
 Private Sub ResetParameters
-	#If B4J
-	DBParameters.Initialize
-	If DBParameters.IsInitialized = False Then DBParameters.Initialize
-	'DBParameters.Clear
-	#Else
-	DBParameters = Array As String()
-	#End If
+	DBParameters = Array As Object()
 End Sub
 
 Private Sub SelectAllFromDBObject
@@ -399,7 +390,7 @@ Public Sub Create
 		Select mType
 			Case MYSQL
 				Select col.ColumnType
-					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT
+					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT, BLOB
 						sb.Append(col.ColumnType)
 					Case Else
 						sb.Append(VARCHAR)
@@ -596,6 +587,35 @@ Public Sub Execute
 	ExecNonQuery
 End Sub
 
+' Execute Non Query with Object type parameters
+Public Sub Execute2 (Parameter() As Object)
+	DBParameters = Parameter
+	If BlnShowExtraLogs Then LogQuery2
+	Execute
+End Sub
+
+Private Sub ExecQuery As ResultSet
+	If ParametersCount = 0 Then
+		If BlnShowExtraLogs Then LogQuery
+		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+	Else
+		If BlnShowExtraLogs Then LogQuery2
+		#If B4A
+		Dim paramsize As Int = ParametersCount
+		Dim Args(paramsize) As String
+		Dim i As Int
+		For Each Param In DBParameters
+			Args(i) = Param
+			i = i + 1
+		Next
+		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Args)
+		#Else
+		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, DBParameters)
+		#End If
+	End If
+	Return RS
+End Sub
+
 Private Sub ExecNonQuery
 	If ParametersCount = 0 Then
 		If BlnShowExtraLogs Then LogQuery
@@ -606,16 +626,12 @@ Private Sub ExecNonQuery
 	End If
 End Sub
 
-Private Sub ExecQuery As ResultSet
-	If ParametersCount = 0 Then
-		If BlnShowExtraLogs Then LogQuery
-		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
-	Else
-		If BlnShowExtraLogs Then LogQuery2
-		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, DBParameters)
-	End If
-	Return RS
-End Sub
+'Private Sub ExecNonQuery2 (Parameter() As Object)
+'	DBParameters = Parameter
+'	If BlnShowExtraLogs Then LogQuery2
+'	'DBSQL.ExecNonQuery2(DBStatement, Parameter)
+'	Execute
+'End Sub
 
 ' Execute Non Query batch <code>
 'Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
@@ -642,18 +658,12 @@ Public Sub AddNonQueryToBatch
 	DBSQL.AddNonQueryToBatch(DBStatement, Args)
 End Sub
 
-#If B4J
 ' Append Parameters at the end
-Public Sub AddParameters (Params As List)
-	DBParameters.AddAll(Params)
-End Sub
-#Else
-' Append Parameters at the end
-Public Sub AddParameters (Params() As String)
+Public Sub AddParameters (Params() As Object)
 	'DBParameters = Merge(DBParameters, Params)
 	If Params.Length = 0 Then Return
 	If DBParameters.Length > 0 Then
-		Dim NewArray(DBParameters.Length + Params.Length) As String
+		Dim NewArray(DBParameters.Length + Params.Length) As Object
 		For i = 0 To DBParameters.Length - 1
 			NewArray(i) = DBParameters(i)
 		Next
@@ -665,20 +675,11 @@ Public Sub AddParameters (Params() As String)
 		DBParameters = Params
 	End If
 End Sub
-#End If
 
-#If B4J
 ' Initialize Parameters
-Public Sub setParameters (Params As List)
-	ResetParameters
-	AddParameters(Params)
-End Sub
-#Else
-' Initialize Parameters
-Public Sub setParameters (Params() As String)
+Public Sub setParameters (Params() As Object)
 	DBParameters = Params
 End Sub
-#End If
 
 ' Example: Limit 10, 10 (second parameter is Offset)
 Public Sub setLimit (Value As String)
@@ -693,41 +694,41 @@ End Sub
 
 ' Execute Query
 Public Sub Query
-'	Try
-	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
-	If DBGroupBy.Length > 0 Then DBStatement = DBStatement & DBGroupBy
-	If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
-	If DBOrderBy.Length > 0 Then DBStatement = DBStatement & DBOrderBy
-	If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
-	Dim RS As ResultSet = ExecQuery
+	Try
+		If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
+		If DBGroupBy.Length > 0 Then DBStatement = DBStatement & DBGroupBy
+		If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
+		If DBOrderBy.Length > 0 Then DBStatement = DBStatement & DBOrderBy
+		If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
+		Dim RS As ResultSet = ExecQuery
 		
-	ORMResult.Initialize
-	ORMResult.Columns.Initialize
-	ORMResult.Rows.Initialize
-	ORMResult.Tag = Null 'without this the Tag properly will not be serializable.
+		ORMResult.Initialize
+		ORMResult.Columns.Initialize
+		ORMResult.Rows.Initialize
+		ORMResult.Tag = Null 'without this the Tag properly will not be serializable.
 		
-	ORMTable.Initialize
-	ORMTable.ResultSet = RS
-	ORMTable.Columns.Initialize
-	ORMTable.Rows.Initialize
-	ORMTable.Results.Initialize
-	ORMTable.Results2.Initialize
+		ORMTable.Initialize
+		ORMTable.ResultSet = RS
+		ORMTable.Columns.Initialize
+		ORMTable.Rows.Initialize
+		ORMTable.Results.Initialize
+		ORMTable.Results2.Initialize
 		
-	Dim cols As Int = RS.ColumnCount
+		Dim cols As Int = RS.ColumnCount
 		#If B4J
-		Dim jrs As JavaObject = RS
-		Dim rsmd As JavaObject = jrs.RunMethod("getMetaData", Null)
 		For i = 0 To cols - 1
 			ORMResult.Columns.Put(RS.GetColumnName(i), i)
 			ORMTable.Columns.Add(RS.GetColumnName(i))
 		Next
+		Dim jrs As JavaObject = RS
+		Dim rsmd As JavaObject = jrs.RunMethod("getMetaData", Null)
 		Do While RS.NextRow
 			Dim Row(cols) As Object ' ORMResult (array of object)
 			Dim Row2 As List 		' ORMTable (list of object)
 			Row2.Initialize
 			For i = 0 To cols - 1
 				Dim ct As Int = rsmd.RunMethod("getColumnType", Array(i + 1))
-	'check whether it is a blob field
+				'check whether it is a blob field
 				If ct = -2 Or ct = 2004 Or ct = -3 Or ct = -4 Then
 					Row(i) = RS.GetBlob2(i)
 				Else if ct = 2 Or ct = 3 Then
@@ -752,84 +753,102 @@ Public Sub Query
 			ORMTable.Rows.Add(Row2)
 		Loop
 		#Else
-		
-	Dim Columns As Map = DBUtils.ExecuteMap(DBSQL, DBStatement, DBParameters)
-	If Columns.IsInitialized Then
-		Dim ColumnTypes(Columns.Size) As String
-		Dim i As Int
-		For i = 0 To Columns.Size - 1
-			ColumnTypes(i) = DBUtils.DB_TEXT
-		Next
-	Else
-		Dim ColumnTypes() As String
-	End If
-	'Dim Columns As Map
-	'Columns.Initialize
-	'Columns = DBUtils.ExecuteMap(DBSQL, DBStatement, DBParameters)
-	ORMResult.Columns = Columns
-	For i = 0 To cols - 1
-		ORMTable.Columns.Add(RS.GetColumnName(i))
-	Next
-	'Dim ColumnTypes(Columns.Size) As String
-	'For i = 0 To Columns.Size - 1
-	'	ColumnTypes(i) = DBUtils.DB_TEXT
-	'Next
-	
-	Dim Rows As Map
-	Rows.Initialize
-	Rows = DBUtils.ExecuteJSON(DBSQL, DBStatement, DBParameters, 0, ColumnTypes)
-	'Log(Rows.Get("root"))
-	If BlnShowDBUtilsJson Then Log(Rows.As(JSON).ToString)
-	ORMResult.Rows = Rows.Get("root")
-	Do While RS.NextRow
-		Dim Row2 As List 		' ORMTable (list of object)
-		Row2.Initialize
-		For i = 0 To cols - 1
-			Row2.Add(RS.GetString2(i))
-		Next
-		ORMTable.Rows.Add(Row2)
-	Loop
+		' Experimental
+		Dim First As Boolean = True
+		Dim Columns As Map
+		Do While RS.NextRow
+			If First Then
+				Columns.Initialize
+			End If
+			Dim Row(cols) As Object ' ORMResult (array of object)
+			Dim Row2 As List 		' ORMTable (list of object)
+			Row2.Initialize
+			For i = 0 To cols - 1
+				' Experimental
+				Dim ColumnName As String = RS.GetColumnName(i)
+				If DBColumnsType.IsInitialized And DBColumnsType.ContainsKey(ColumnName) Then
+					Select DBColumnsType.Get(ColumnName)
+						Case BLOB
+							Row(i) = RS.GetBlob2(i)
+						Case DECIMAL
+							Row(i) = RS.GetDouble2(i)
+						Case INTEGER, BIG_INT
+							Row(i) = RS.GetInt2(i)
+						Case Else
+							Row(i) = RS.GetString2(i)
+					End Select
+				Else
+					' Let's take a risk and make a guess
+					Try
+						Dim s As String = RS.GetString2(i)
+						If s <> Null And IsNumber(s) Then
+							If s.Contains(".") Then ' assume a decimal value
+								Row(i) = RS.GetDouble2(i)
+							Else
+								Dim num As Long = s
+								If num < -2147483648 Or num > 2147483647 Then
+									Row(i) = RS.GetLong2(i)
+								Else
+									Row(i) = RS.GetInt2(i)
+								End If
+							End If
+						Else
+							Row(i) = s
+						End If
+					Catch
+						' Conversion from BLOB to String in Android will fail
+						Log(LastException)
+						Row(i) = RS.GetBlob2(i)
+					End Try
+				End If
+				Row2.Add(Row(i))
+				If First Then
+					Columns.Put(ColumnName, Row(i))
+					ORMTable.Columns.Add(ColumnName)
+				End If
+			Next
+			ORMResult.Rows.Add(Row)
+			ORMTable.Rows.Add(Row2)
+			First = False
+		Loop
+		ORMResult.Columns = Columns
 		#End If
-		
-	For Each ColumnsList As List In ORMTable.Rows
-		Dim Result As Map
-		Dim Result2 As Map
-		Result.Initialize
-		Result2.Initialize
-		Result2.Put("__order", ORMTable.Columns) ' secret is here! LOL
-		For i = 0 To ColumnsList.Size - 1
-			Result.Put(ORMTable.Columns.Get(i), ColumnsList.Get(i))
-			Result2.Put(ORMTable.Columns.Get(i), ColumnsList.Get(i))
+
+		For Each Rows As List In ORMTable.Rows
+			Dim Result As Map
+			Dim Result2 As Map
+			Result.Initialize
+			Result2.Initialize
+			Result2.Put("__order", ORMTable.Columns) ' secret is here! LOL
+			For i = 0 To Rows.Size - 1
+				Result.Put(ORMTable.Columns.Get(i), Rows.Get(i))
+				Result2.Put(ORMTable.Columns.Get(i), Rows.Get(i))
+			Next
+			ORMTable.Results.Add(Result)
+			ORMTable.Results2.Add(Result2)
 		Next
-		ORMTable.Results.Add(Result)
-		ORMTable.Results2.Add(Result2)
-	Next
-	ORMTable.RowCount = ORMTable.Rows.Size
-	If ORMTable.Results.Size > 0 Then
-		ORMTable.First = ORMTable.Results.Get(0)
-		ORMTable.Last = ORMTable.Results.Get(ORMTable.Results.Size - 1)
-	End If
-	'RS.Close ' test 2023-10-24
-'	Catch
-'		Log(LastException)
-'		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
-'		mError = LastException
-'	End Try
+		ORMTable.RowCount = ORMTable.Rows.Size
+		If ORMTable.Results.Size > 0 Then
+			ORMTable.First = ORMTable.Results.Get(0)
+			ORMTable.Last = ORMTable.Results.Get(ORMTable.Results.Size - 1)
+		End If
+		'RS.Close ' test 2023-10-24
+	Catch
+		Log(LastException)
+		'LogColor("Are you missing ' = ?' in query?", COLOR_RED)
+		mError = LastException
+	End Try
 	#If B4J
 	If Initialized(RS) Then RS.Close ' 2025-03-19
 	#Else
-	' B4A and B4i yet support Initialized() function
+	' B4A yet support Initialized() function
 	If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
 	#End If
 	Reset2
 	ResetParameters
 End Sub
 
-#If B4J
-Public Sub Query2 (mParams As List)
-#Else	
-Public Sub Query2 (mParams() As String)	
-#End If
+Public Sub Query2 (mParams() As Object)
 	setParameters(mParams)
 	Query
 End Sub
@@ -845,13 +864,8 @@ Public Sub Scalar As Object
 	End If
 End Sub
 
-#If B4J
 ' Similar to Scalar but passing Params
-Public Sub Scalar2 (mParams As List) As Object
-#Else
-' Similar to Scalar but passing Params
-Public Sub Scalar2 (mParams() As String) As Object
-#End If
+Public Sub Scalar2 (mParams() As Object) As Object
 	setParameters(mParams)
 	Return Scalar
 End Sub
@@ -890,11 +904,7 @@ Public Sub Insert
 	If BlnQueryExecute Then Execute
 End Sub
 
-#If B4J
-Public Sub Insert2 (mParams As List)
-#Else	
-Public Sub Insert2 (mParams() As String)	
-#End If
+Public Sub Insert2 (mParams() As Object)
 	setParameters(mParams)
 	Insert
 End Sub
@@ -973,29 +983,17 @@ Public Sub Save
 		Dim ParamChars As Int = CountChar("?", DBCondition)
 		Dim ParamCount As Int = ParametersCount
 		DBStatement = $"SELECT * FROM ${DBObject}"$
-		#If B4J
-		Dim ConditionParams As List
-		ConditionParams.Initialize
-		For i = 0 To ParamChars - 1
-			ConditionParams.Add(DBParameters.Get(ParamCount - ParamChars + i))
-		Next
-		#Else
-		Dim ConditionParams(ParamChars) As String
+		Dim ConditionParams(ParamChars) As Object
 		For i = 0 To ParamChars - 1
 			ConditionParams(i) = DBParameters(ParamCount - ParamChars + i)
 		Next
-		#End If
 		DBParameters = ConditionParams
 		' Return row after update
 		Query
 	End If
 End Sub
 
-#If B4J
-Public Sub Save2 (mParams As List)
-#Else
-Public Sub Save2 (mParams() As String)
-#End If
+Public Sub Save2 (mParams() As Object)
 	setParameters(mParams)
 	Save
 End Sub
@@ -1074,18 +1072,10 @@ Public Sub Save3 (mColumn As String)
 		Dim ParamChars As Int = CountChar("?", DBCondition)
 		Dim ParamCount As Int = ParametersCount
 		DBStatement = $"SELECT * FROM ${DBObject}"$
-		#If B4J
-		Dim ConditionParams As List
-		ConditionParams.Initialize
-		For i = 0 To ParamChars - 1
-			ConditionParams.Add(DBParameters.Get(ParamCount - ParamChars + i))
-		Next
-		#Else
-		Dim ConditionParams(ParamChars) As String
+		Dim ConditionParams(ParamChars) As Object
 		For i = 0 To ParamChars - 1
 			ConditionParams(i) = DBParameters(ParamCount - ParamChars + i)
 		Next
-		#End If
 		DBParameters = ConditionParams
 		' Return row after update
 		Query
@@ -1118,29 +1108,20 @@ Public Sub setWhere (mStatements As List)
 End Sub
 
 ' Set Condition with single condition and value
-Public Sub WhereParam (mCondition As String, mValue As Object)
+Public Sub WhereParam (mCondition As String, mParam As Object)
 	Dim sb As StringBuilder
 	sb.Initialize
 	sb.Append(" WHERE ")
 	sb.Append(mCondition)
 	DBCondition = sb.ToString
-	#If B4J
-	setParameters(Array As Object(mValue))
-	#Else
-	setParameters(Array As String(mValue))
-	#End If
+	setParameters(Array As Object(mParam))
 End Sub
 
-#If B4J
 ' Append new Conditions and Parameters
-Public Sub WhereParams (mConditions As List, mParams As List)
-#Else
-' Append new Conditions and Parameters
-Public Sub WhereParams (mConditions As List, mParams() As String)
-#End If
+Public Sub WhereParams (mConditions() As Object, mParams() As Object)
 	Dim sb As StringBuilder
 	sb.Initialize
-	For Each condition In mConditions
+	For Each condition As String In mConditions
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
 		sb.Append(condition)
 	Next
@@ -1281,11 +1262,7 @@ Public Sub Split (str As String) As String()
 End Sub
 
 Private Sub ParametersCount As Int
-	#If B4J
-	Return DBParameters.Size
-	#Else
 	Return DBParameters.Length
-	#End If
 End Sub
 
 Private Sub CountChar (c As String, Word As String) As Int

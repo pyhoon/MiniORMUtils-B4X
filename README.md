@@ -36,8 +36,8 @@ DB.Create
 ## Insert rows
 ```b4x
 DB.Columns = Array("category_name")
-DB.Insert2(Array As String("Hardwares"))
-DB.Insert2(Array As String("Toys"))
+DB.Insert2(Array("Hardwares"))
+DB.Insert2(Array("Toys"))
 ```
 
 ## Execute NonQuery Batch
@@ -61,9 +61,9 @@ Dim Items As List = DB.Results
 ## Update row
 ```b4x
 DB.Table = "tbl_products"
-DB.Columns = Array As String("category_id", "product_code", "product_name", "product_price")
+DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 DB.Id = 2
-DB.Save2(Array As String(Category_Id, Product_Code, Product_Name, Product_Price))
+DB.Save2(Array(Category_Id, Product_Code, Product_Name, Product_Price))
 ```
 
 ## Soft delete row
@@ -80,7 +80,7 @@ DB.Delete
 
 ## Batch delete rows
 ```b4x
-DB.Destroy(Array As Int(2, 3))
+DB.Destroy(Array(2, 3))
 ```
 
 ## Return number of rows in query results
@@ -97,7 +97,7 @@ Dim Data As Map = DB.Find(2)
 ```b4x
 DB.Table = "tbl_products"
 DB.Where = Array As String("category_id = ?")
-DB.Parameters = Array As String(2)
+DB.Parameters = Array(2)
 DB.OrderBy = CreateMap("id": "DESC")
 DB.Query
 Dim Data As List = DB.Results

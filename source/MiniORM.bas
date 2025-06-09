@@ -600,18 +600,7 @@ Private Sub ExecQuery As ResultSet
 		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
 	Else
 		If BlnShowExtraLogs Then LogQuery2
-		#If B4A
-		Dim paramsize As Int = ParametersCount
-		Dim Args(paramsize) As String
-		Dim i As Int
-		For Each Param In DBParameters
-			Args(i) = Param
-			i = i + 1
-		Next
-		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Args)
-		#Else
 		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, DBParameters)
-		#End If
 	End If
 	Return RS
 End Sub

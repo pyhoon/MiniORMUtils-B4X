@@ -26,7 +26,7 @@ Module3=|relative|..\ORMConnector
 NumberOfFiles=6
 NumberOfLibraries=7
 NumberOfModules=3
-Version=10.2
+Version=10.3
 @EndOfDesignText@
 ' Version 3.20
 #Region Project Attributes 

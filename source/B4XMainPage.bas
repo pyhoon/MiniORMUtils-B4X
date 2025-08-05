@@ -239,8 +239,8 @@ Private Sub CreateDatabase
 	DB.Create
 	
 	DB.Columns = Array("category_name")
-	DB.Insert2(Array As Object("Hardwares"))
-	DB.Insert2(Array As Object("Toys"))
+	DB.Insert2(Array("Hardwares"))
+	DB.Insert2(Array("Toys"))
 
 	DB.Table = "tbl_products"
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_id", "Type": DB.INTEGER)))
@@ -252,9 +252,9 @@ Private Sub CreateDatabase
 	DB.Create
 	
 	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-	DB.Insert2(Array As Object(2, "T001", "Teddy Bear", 99.9))
-	DB.Insert2(Array As Object(1, "H001", "Hammer", 15.75))
-	DB.Insert2(Array As Object(2, "T002", "Optimus Prime", 1000))
+	DB.Insert2(Array(2, "T001", "Teddy Bear", 99.9))
+	DB.Insert2(Array(1, "H001", "Hammer", 15.75))
+	DB.Insert2(Array(2, "T002", "Optimus Prime", 1000))
 	
 	' We can check the list of NonQueryBatch before execute the batch
 	' This info is hidden in SQL object

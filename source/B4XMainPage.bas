@@ -34,7 +34,7 @@ Sub Class_Globals
 	Private Category() As Category
 	Private Const COLOR_RED As Int = -65536
 	Private Const COLOR_BLUE As Int = -16776961
-	Private Const COLOR_MAGENTA As Int = -65281
+	'Private Const COLOR_MAGENTA As Int = -65281
 	Private Const COLOR_ADD As Int = -13447886
 	Private Const COLOR_EDIT As Int = -12490271
 	Private Const COLOR_DELETE As Int = -2354116
@@ -228,7 +228,7 @@ Public Sub ConfigureDatabase
 End Sub
 
 Private Sub CreateDatabase
-	LogColor("Creating database...", COLOR_MAGENTA)
+	LogColor("Creating database...", COLOR_BLUE)
 	#If B4A or B4i
 	Dim Success As Boolean = Conn.DBCreate
 	#Else
@@ -257,6 +257,7 @@ Private Sub CreateDatabase
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
+	DB.BLOB = "longblob"
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
 	DB.Foreign("category_id", "id", "tbl_categories", "", "")
 	DB.Create
@@ -305,7 +306,7 @@ Private Sub CreateDatabase
 	'DB.Execute2(Array(b, 3))
 	'DB.Parameters = Array(b, 3)
 	'DB.Execute
-	Log("success")
+	'LogColor("Success", COLOR_BLUE)
 	
 	DB.Close
 	DB.Initialize(DBType, DBOpen)

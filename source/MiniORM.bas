@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.40
+' Version 3.50
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -61,7 +61,7 @@ Sub Class_Globals
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMFilter (Column As String, Operator As String, Value As String)
 	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
-	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
+	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
@@ -271,6 +271,11 @@ Public Sub getFirst As Map
 	Return ORMTable.First
 	'End If
 	'Return CreateMap("id": 0)
+End Sub
+
+' Returns first queried row
+Public Sub getFirst2 As Map
+	Return ORMTable.Results2.Get(0)
 End Sub
 
 ' Returns new inserted row
@@ -822,6 +827,7 @@ Public Sub Query
 		ORMTable.RowCount = ORMTable.Rows.Size
 		If ORMTable.Results.Size > 0 Then
 			ORMTable.First = ORMTable.Results.Get(0)
+			ORMTable.First2 = ORMTable.Results2.Get(0)
 			ORMTable.Last = ORMTable.Results.Get(ORMTable.Results.Size - 1)
 		End If
 		'RS.Close ' test 2023-10-24

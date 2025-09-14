@@ -1,9 +1,9 @@
 # MiniORMUtils-B4X
-Version: 3.30
+Version: 3.40
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
-Currently it supports **SQLite** and **MySQL** (B4J).
+Currently it supports **SQLite** for all platforms, **MariaDB** and **MySQL** (B4J only).
 
 <img src="https://github.com/pyhoon/MiniORMUtils-B4X/blob/main/miniorm.png" width="300" />
 
@@ -11,16 +11,16 @@ Currently it supports **SQLite** and **MySQL** (B4J).
 
 ## Initialize object
 ```b4x
-Dim Info As ConnectionInfo
-Info.Initialize
+Dim info As ConnectionInfo
+info.Initialize
 info.DBType = "SQLite"
-Info.DBFile = "data.db"
+info.DBFile = "data.db"
 
-Dim Conn As ORMConnector
-Conn.Initialize(Info)
+Dim conn As ORMConnector
+conn.Initialize(info)
 
 Dim DB As MiniORM
-DB.Initialize(Conn.DBType, Conn.DBOpen)
+DB.Initialize(conn.DBType, conn.DBOpen)
 DB.UseTimestamps = True
 DB.QueryAddToBatch = True
 ```

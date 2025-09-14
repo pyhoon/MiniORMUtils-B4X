@@ -171,42 +171,42 @@ Private Sub DBClose
 End Sub
 
 Public Sub ConfigureDatabase
-	Dim con As ConnectionInfo
-	con.Initialize
-	'con.DBType = "SQLite"
-	'con.DBFile = "Data.db"
+	Dim info As ConnectionInfo
+	info.Initialize
+	'info.DBType = "SQLite"
+	'info.DBFile = "Data.db"
 	
 	#If B4J
-	con.DBDir = File.DirApp
+	info.DBDir = File.DirApp
 	#Else
-	con.DBDir = xui.DefaultFolder 
+	info.DBDir = xui.DefaultFolder 
 	#End If
 
 	#If B4J
-	'con.DBType = "MySQL"
-	'con.DBName = "miniorm"
-	'con.DbHost = "localhost"
-	'con.User = "root"
-	'con.Password = "password"
-	'con.DriverClass = "com.mysql.cj.jdbc.Driver"
-	'con.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+	'info.DBType = "MySQL"
+	'info.DBName = "miniorm"
+	'info.DbHost = "localhost"
+	'info.User = "root"
+	'info.Password = "password"
+	'info.DriverClass = "com.mysql.cj.jdbc.Driver"
+	'info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
 	
-	con.DBType = "MariaDB"
-	con.DBName = "miniorm"
-	con.DbHost = "localhost"
-	con.User = "root"
-	con.Password = "password"
-	con.DriverClass = "org.mariadb.jdbc.Driver"
-	con.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+	info.DBType = "MariaDB"
+	info.DBName = "miniorm"
+	info.DbHost = "localhost"
+	info.User = "root"
+	info.Password = "password"
+	info.DriverClass = "org.mariadb.jdbc.Driver"
+	info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
 	#End If
 
 	Try
-		Conn.Initialize(con)
+		Conn.Initialize(info)
 		Conn.InitPool
 		'Dim DBFound As Boolean = Conn.DBExist
 		Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
 		If DBFound Then
-			LogColor($"${con.DBType} database found!"$, COLOR_BLUE)
+			LogColor($"${info.DBType} database found!"$, COLOR_BLUE)
 			DB.Initialize(DBType, DBOpen)
 			'DB.ShowExtraLogs = True
 			'#If B4A or B4i
@@ -214,7 +214,7 @@ Public Sub ConfigureDatabase
 			'#End If
 			GetCategories
 		Else
-			LogColor($"${con.DBType} database not found!"$, COLOR_RED)
+			LogColor($"${info.DBType} database not found!"$, COLOR_RED)
 			CreateDatabase
 		End If
 	Catch

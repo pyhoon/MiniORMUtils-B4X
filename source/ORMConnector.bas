@@ -111,7 +111,7 @@ End Sub
 #End If
 
 #If B4J
-' Connect to database name (MySQL Or MariaDB)
+' Connect to database name (MySQL, MariaDB)
 Public Sub InitPool
 	Try
 		Dim JdbcUrl As String = CN.JdbcUrl

@@ -5,7 +5,7 @@ Type=Class
 Version=9.71
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.30
+' Version 3.40
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -53,6 +53,7 @@ Sub Class_Globals
 	Public ORMResult 				As ORMResult
 	Public Const MYSQL 				As String = "MYSQL"
 	Public Const SQLITE 			As String = "SQLITE"
+	Public Const MARIADB 			As String = "MARIADB"
 	Private Const COLOR_RED 		As Int = -65536		'ignore
 	Private Const COLOR_GREEN 		As Int = -16711936	'ignore
 	Private Const COLOR_BLUE 		As Int = -16776961	'ignore
@@ -76,8 +77,8 @@ End Sub
 Public Sub setDBType (mDBType As String)
 	mType = mDBType.ToUpperCase
 	Select mType
-		Case MYSQL
-			BLOB = "blob"
+		Case MYSQL, MARIADB
+			BLOB = "mediumblob"
 			INTEGER = "int"
 			BIG_INT = "bigint"
 			DECIMAL = "decimal"
@@ -388,7 +389,7 @@ Public Sub Create
 		sb.Append(col.ColumnName)
 		sb.Append(" ")
 		Select mType
-			Case MYSQL
+			Case MYSQL, MARIADB
 				Select col.ColumnType
 					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT, BLOB
 						sb.Append(col.ColumnType)
@@ -419,7 +420,7 @@ Public Sub Create
 		If col.Unique Then sb.Append(" UNIQUE")
 		If col.AutoIncrement Then
 			Select mType
-				Case MYSQL
+				Case MYSQL, MARIADB
 					sb.Append(" AUTO_INCREMENT")
 				Case SQLITE
 					sb.Append(" AUTOINCREMENT")
@@ -429,7 +430,7 @@ Public Sub Create
 	Next
 	
 	Select mType
-		Case MYSQL
+		Case MYSQL, MARIADB
 			If BlnUseDataAuditUserId Then
 				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
 				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
@@ -469,7 +470,7 @@ Public Sub Create
 		Pk = DBPrimaryKey
 	End If
 	Select mType
-		Case MYSQL
+		Case MYSQL, MARIADB
 			If BlnAutoIncrement Then
 				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
 			Else
@@ -485,7 +486,7 @@ Public Sub Create
 	If DBPrimaryKey.Length > 0 Then
 		stmt.Append(CRLF)
 		Select mType
-			Case MYSQL
+			Case MYSQL, MARIADB
 				stmt.Append($"PRIMARY KEY(${Pk})"$)
 			Case SQLITE
 				If BlnAutoIncrement Then
@@ -630,6 +631,7 @@ End Sub
 '    Log("error")
 'End If</code>
 Public Sub ExecuteBatch As ResumableSub
+	If BlnShowExtraLogs Then LogQuery3
 	Dim SenderFilter As Object = DBSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
 	Return Success
@@ -645,6 +647,7 @@ Public Sub AddNonQueryToBatch
 	Next
 	DBBatch.Add(CreateMap("DBStatement": DBStatement, "DBParameters": Args))
 	DBSQL.AddNonQueryToBatch(DBStatement, Args)
+	'If BlnShowExtraLogs Then LogQuery2
 End Sub
 
 ' Append Parameters at the end
@@ -882,7 +885,7 @@ Public Sub Insert
 		End If
 		sb.Append("created_date")
 		Select mType
-			Case MYSQL
+			Case MYSQL, MARIADB
 				vb.Append("NOW()")
 			Case SQLITE
 				vb.Append("DATETIME('now')")
@@ -922,7 +925,7 @@ Public Sub Save
 		' To handle varchar timestamps
 		If BlnUpdateModifiedDate And Not(md) Then
 			Select mType
-				Case MYSQL
+				Case MYSQL, MARIADB
 					DBStatement = DBStatement & ", modified_date = NOW()"
 				Case SQLITE
 					DBStatement = DBStatement & ", modified_date = DATETIME('now')"
@@ -951,7 +954,7 @@ Public Sub Save
 			End If
 			sb.Append("created_date")
 			Select mType
-				Case MYSQL
+				Case MYSQL, MARIADB
 					vb.Append("NOW()")
 				Case SQLITE
 					vb.Append("DATETIME('now')")
@@ -1011,7 +1014,7 @@ Public Sub Save3 (mColumn As String)
 		' To handle varchar timestamps
 		If BlnUpdateModifiedDate And Not(md) Then
 			Select mType
-				Case MYSQL
+				Case MYSQL, MARIADB
 					DBStatement = DBStatement & ", modified_date = NOW()"
 				Case SQLITE
 					DBStatement = DBStatement & ", modified_date = DATETIME('now')"
@@ -1040,7 +1043,7 @@ Public Sub Save3 (mColumn As String)
 			End If
 			sb.Append("created_date")
 			Select mType
-				Case MYSQL
+				Case MYSQL, MARIADB
 					vb.Append("NOW()")
 				Case SQLITE
 					vb.Append("DATETIME('now')")
@@ -1073,7 +1076,7 @@ End Sub
 
 Public Sub getLastInsertID As Object
 	Select mType
-		Case MYSQL
+		Case MYSQL, MARIADB
 			DBStatement = "SELECT LAST_INSERT_ID()"
 		Case SQLITE
 			DBStatement = "SELECT LAST_INSERT_ROWID()"
@@ -1139,7 +1142,7 @@ End Sub
 
 Public Sub SoftDelete
 	Select mType
-		Case MYSQL
+		Case MYSQL, MARIADB
 			DBStatement = $"UPDATE ${DBObject} SET deleted_date = now()"$
 		Case SQLITE
 			DBStatement = $"UPDATE ${DBObject} SET deleted_date = strftime('%s000', 'now')"$
@@ -1232,6 +1235,25 @@ Public Sub LogQuery2
 	SB.Append("]")
 	Log(DBStatement)
 	Log(SB.ToString)
+End Sub
+
+' Print SQL statements and parameters in DBBatch
+Public Sub LogQuery3
+	For Each DBMap As Map In DBBatch
+		Dim SB As StringBuilder
+		SB.Initialize
+		SB.Append("[")
+		Dim started As Boolean
+		Dim Params() As Object = DBMap.Get("DBParameters") 
+		For Each Param In Params
+			If started Then SB.Append(", ")
+			SB.Append(Param)
+			started = True
+		Next
+		SB.Append("]")
+		Log(DBMap.Get("DBStatement"))
+		If Params.Length > 0 Then Log(SB.ToString)
+	Next
 End Sub
 
 ' Print current SQL statement without parameters

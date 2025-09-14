@@ -28,14 +28,14 @@ NumberOfLibraries=7
 NumberOfModules=3
 Version=10.3
 @EndOfDesignText@
-' Version 3.20
+' Version 3.40
 #Region Project Attributes 
 	#MainFormWidth: 600
 	#MainFormHeight: 600 
 #End Region
-#AdditionalJar: sqlite-jdbc-3.7.2
-'#AdditionalJar: mysql-connector-java-8.0.30
-
+'#AdditionalJar: sqlite-jdbc-3.7.2
+'#AdditionalJar: mysql-connector-j-9.3.0
+#AdditionalJar: mariadb-java-client-3.5.6
 Sub Process_Globals
 	Private fx As JFX
 	Private MainForm As Form

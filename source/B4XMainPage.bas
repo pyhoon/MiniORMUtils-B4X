@@ -6,9 +6,9 @@ Version=9.85
 @EndOfDesignText@
 #Region Shared Files
 '#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
-'Ctrl + click to sync files: ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
+#Macro: Title, Export, ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
+#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
 #End Region
-'Ctrl + click to export as zip: ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
 
 Sub Class_Globals
 	Private Root As B4XView
@@ -173,8 +173,8 @@ End Sub
 Public Sub ConfigureDatabase
 	Dim con As ConnectionInfo
 	con.Initialize
-	con.DBType = "SQLite"
-	con.DBFile = "Data.db"
+	'con.DBType = "SQLite"
+	'con.DBFile = "Data.db"
 	
 	#If B4J
 	con.DBDir = File.DirApp
@@ -190,11 +190,21 @@ Public Sub ConfigureDatabase
 	'con.Password = "password"
 	'con.DriverClass = "com.mysql.cj.jdbc.Driver"
 	'con.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+	
+	con.DBType = "MariaDB"
+	con.DBName = "miniorm"
+	con.DbHost = "localhost"
+	con.User = "root"
+	con.Password = "password"
+	con.DriverClass = "org.mariadb.jdbc.Driver"
+	con.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
 	#End If
 
 	Try
 		Conn.Initialize(con)
-		Dim DBFound As Boolean = Conn.DBExist
+		Conn.InitPool
+		'Dim DBFound As Boolean = Conn.DBExist
+		Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
 		If DBFound Then
 			LogColor($"${con.DBType} database found!"$, COLOR_BLUE)
 			DB.Initialize(DBType, DBOpen)
@@ -261,7 +271,7 @@ Private Sub CreateDatabase
 	Dim i As Int
 	For Each qry As Map In DB.Batch
 		i = i + 1
-		Dim DBStatement As String= qry.Get("DBStatement")
+		Dim DBStatement As String = qry.Get("DBStatement")
 		Dim DBParameter() As Object = qry.Get("DBParameters")
 		Dim SB As StringBuilder
 		SB.Initialize
@@ -286,12 +296,12 @@ Private Sub CreateDatabase
 	
 	' Adding an image to blob field
 	Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")
-	'DB.Statement = "UPDATE tbl_products SET product_image = ? WHERE id = ?"
 	DB.Table = "tbl_products"
 	DB.Columns = Array("product_image")
 	DB.Parameters = Array(b)
 	DB.Id = 3 ' after setting Columns and Parameters
 	DB.Save
+	'DB.Statement = "UPDATE tbl_products SET product_image = ? WHERE id = ?"
 	'DB.Execute2(Array(b, 3))
 	'DB.Parameters = Array(b, 3)
 	'DB.Execute

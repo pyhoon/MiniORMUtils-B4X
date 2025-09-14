@@ -66,18 +66,12 @@ End Sub
 Public Sub DBCreate As ResumableSub
 	Try
 		Select mType
-			Case MYSQL
+			Case MYSQL, MARIADB
 				If SQL.IsInitialized = False Then
 					Wait For (InitSchema) Complete (Success As Boolean)
 					If Success = False Then
 						Return False
 					End If
-				End If
-				Dim qry As String = $"CREATE DATABASE ${CN.DBName} CHARACTER SET ${mCharacterSet} COLLATE ${mCollate}"$
-				SQL.ExecNonQuery(qry)
-			Case MARIADB
-				If SQL.IsInitialized = False Then
-					InitSchema2
 				End If
 				Dim qry As String = $"CREATE DATABASE ${CN.DBName} CHARACTER SET ${mCharacterSet} COLLATE ${mCollate}"$
 				SQL.ExecNonQuery(qry)
@@ -130,7 +124,7 @@ Public Sub InitPool
 	End Try
 End Sub
 
-' Connect to database schema (MySQL Or MariaDB)
+' Asynchronously initialize database schema (MySQL, MariaDB)
 Public Sub InitSchema As ResumableSub
 	Dim JdbcUrl As String = CN.JdbcUrl
 	JdbcUrl = JdbcUrl.Replace("{DbHost}", CN.DBHost)
@@ -145,7 +139,7 @@ Public Sub InitSchema As ResumableSub
 	Return Success
 End Sub
 
-' Connect to database schema (MySQL Or MariaDB)
+' Initialize database schema (MySQL, MariaDB)
 Public Sub InitSchema2
 	Dim JdbcUrl As String = CN.JdbcUrl
 	JdbcUrl = JdbcUrl.Replace("{DbHost}", CN.DBHost)

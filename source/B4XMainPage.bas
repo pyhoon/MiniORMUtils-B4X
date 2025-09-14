@@ -269,23 +269,23 @@ Private Sub CreateDatabase
 	
 	' We can check the list of NonQueryBatch before execute the batch
 	' This info is hidden in SQL object
-	Dim i As Int
-	For Each qry As Map In DB.Batch
-		i = i + 1
-		Dim DBStatement As String = qry.Get("DBStatement")
-		Dim DBParameter() As Object = qry.Get("DBParameters")
-		Dim SB As StringBuilder
-		SB.Initialize
-		SB.Append("[")
-		Dim started As Boolean
-		For Each Param In DBParameter
-			If started Then SB.Append(", ")
-			SB.Append(Param)
-			started = True
-		Next
-		SB.Append("]")
-		Log($"Query #${i}=${DBStatement} @ ${SB.ToString}"$)
-	Next
+	'Dim i As Int
+	'For Each qry As Map In DB.Batch
+	'	i = i + 1
+	'	Dim DBStatement As String = qry.Get("DBStatement")
+	'	Dim DBParameter() As Object = qry.Get("DBParameters")
+	'	Dim SB As StringBuilder
+	'	SB.Initialize
+	'	SB.Append("[")
+	'	Dim started As Boolean
+	'	For Each Param In DBParameter
+	'		If started Then SB.Append(", ")
+	'		SB.Append(Param)
+	'		started = True
+	'	Next
+	'	SB.Append("]")
+	'	Log($"Query #${i}=${DBStatement} @ ${SB.ToString}"$)
+	'Next
 	
 	Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
 	If Success Then

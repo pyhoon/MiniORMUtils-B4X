@@ -191,7 +191,7 @@ Public Sub ConfigureDatabase
 	'info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
 	
 	info.DBType = "MariaDB"
-	info.DBName = "pakai"
+	info.DBName = "miniorm"
 	info.DbHost = "localhost"
 	info.User = "root"
 	info.Password = "password"

@@ -5,27 +5,28 @@ Type=Class
 Version=9.85
 @EndOfDesignText@
 #Region Shared Files
-'#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
 #Macro: Title, Export, ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
 #Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
+'#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
 #End Region
 
 Sub Class_Globals
-	Private Root As B4XView
 	Private xui As XUI
 	Private DB As MiniORM
 	Private Conn As ORMConnector
-	Private lblTitle As B4XView
+	Private Root As B4XView
 	Private lblBack As B4XView
-	Private clvRecord As CustomListView
+	Private lblCode As B4XView
+	Private lblName As B4XView
+	Private lblPrice As B4XView
+	Private lblTitle As B4XView
+	Private lblStatus As B4XView
+	Private lblCategory As B4XView
+	Private btnNew As B4XView
 	Private btnEdit As B4XView
 	Private btnDelete As B4XView
-	Private btnNew As B4XView
-	Private lblName As B4XView
-	Private lblCategory As B4XView
-	Private lblCode As B4XView
-	Private lblPrice As B4XView
-	Private lblStatus As B4XView
+	Private Image As B4XImageView
+	Private clvRecord As CustomListView
 	Private PrefDialog1 As PreferencesDialog
 	Private PrefDialog2 As PreferencesDialog
 	Private PrefDialog3 As PreferencesDialog
@@ -34,14 +35,12 @@ Sub Class_Globals
 	Private Category() As Category
 	Private Const COLOR_RED As Int = -65536
 	Private Const COLOR_BLUE As Int = -16776961
-	'Private Const COLOR_MAGENTA As Int = -65281
 	Private Const COLOR_ADD As Int = -13447886
 	Private Const COLOR_EDIT As Int = -12490271
 	Private Const COLOR_DELETE As Int = -2354116
-	Private Const COLOR_OVERLAY As Int = -2147481048
 	Private Const COLOR_TRANSPARENT As Int = 0
+	Private Const COLOR_OVERLAY As Int = -2147481048
 	Type Category (Id As Int, Name As String)
-	Private Image As B4XImageView
 End Sub
 
 Public Sub Initialize
@@ -173,8 +172,8 @@ End Sub
 Public Sub ConfigureDatabase
 	Dim info As ConnectionInfo
 	info.Initialize
-	'info.DBType = "SQLite"
-	'info.DBFile = "Data.db"
+	info.DBType = "SQLite"
+	info.DBFile = "Data.db"
 	
 	#If B4J
 	info.DBDir = File.DirApp
@@ -192,7 +191,7 @@ Public Sub ConfigureDatabase
 	'info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
 	
 	info.DBType = "MariaDB"
-	info.DBName = "miniorm"
+	info.DBName = "pakai"
 	info.DbHost = "localhost"
 	info.User = "root"
 	info.Password = "password"
@@ -203,8 +202,8 @@ Public Sub ConfigureDatabase
 	Try
 		Conn.Initialize(info)
 		Conn.InitPool
-		'Dim DBFound As Boolean = Conn.DBExist
 		Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
+		'Dim DBFound As Boolean = Conn.DBExist
 		If DBFound Then
 			LogColor($"${info.DBType} database found!"$, COLOR_BLUE)
 			DB.Initialize(DBType, DBOpen)
@@ -257,7 +256,7 @@ Private Sub CreateDatabase
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
-	DB.BLOB = "longblob"
+	'DB.BLOB = "longblob"
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
 	DB.Foreign("category_id", "id", "tbl_categories", "", "")
 	DB.Create
@@ -266,33 +265,13 @@ Private Sub CreateDatabase
 	DB.Insert2(Array(2, "T001", "Teddy Bear", 99.9))
 	DB.Insert2(Array(1, "H001", "Hammer", 15.75))
 	DB.Insert2(Array(2, "T002", "Optimus Prime", 1000))
-	
-	' We can check the list of NonQueryBatch before execute the batch
-	' This info is hidden in SQL object
-	'Dim i As Int
-	'For Each qry As Map In DB.Batch
-	'	i = i + 1
-	'	Dim DBStatement As String = qry.Get("DBStatement")
-	'	Dim DBParameter() As Object = qry.Get("DBParameters")
-	'	Dim SB As StringBuilder
-	'	SB.Initialize
-	'	SB.Append("[")
-	'	Dim started As Boolean
-	'	For Each Param In DBParameter
-	'		If started Then SB.Append(", ")
-	'		SB.Append(Param)
-	'		started = True
-	'	Next
-	'	SB.Append("]")
-	'	Log($"Query #${i}=${DBStatement} @ ${SB.ToString}"$)
-	'Next
-	
+
 	Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
 	If Success Then
 		LogColor("Database is created successfully!", COLOR_BLUE)
 	Else
 		LogColor("Database creation failed!", COLOR_RED)
-		Log(LastException)
+		Log(LastException.Message)
 	End If
 	
 	' Adding an image to blob field
@@ -302,11 +281,6 @@ Private Sub CreateDatabase
 	DB.Parameters = Array(b)
 	DB.Id = 3 ' after setting Columns and Parameters
 	DB.Save
-	'DB.Statement = "UPDATE tbl_products SET product_image = ? WHERE id = ?"
-	'DB.Execute2(Array(b, 3))
-	'DB.Parameters = Array(b, 3)
-	'DB.Execute
-	'LogColor("Success", COLOR_BLUE)
 	
 	DB.Close
 	DB.Initialize(DBType, DBOpen)
@@ -353,26 +327,28 @@ Private Sub GetProducts
 	'Log(Items.As(JSON).ToString)
 	For Each Item As Map In Items
 		clvRecord.Add(CreateProductItems(Item.Get("product_code"), GetCategoryName(Item.Get("category_id")), Item.Get("product_name"), NumberFormat2(Item.Get("product_price"), 1, 2, 2, True), clvRecord.AsView.Width), Item.Get("id"))
-		' test image
-		If 3 = Item.Get("id") Then
-			Dim buffer() As Byte = Item.Get("product_image")
-			If buffer.Length > 0 Then
-				Dim in As InputStream
-				in.InitializeFromBytesArray(buffer, 0, buffer.Length)
-				Dim bmx As B4XBitmap
-				#If B4A or B4i
-				Dim bmp As Bitmap
-				bmp.Initialize2(in)
-				bmx = bmp
-			  	#Else If B4J
-				Dim img As Image
-				img.Initialize2(in)
-				bmx = img
-	   			#End If
-				in.Close
-				Image.Bitmap = bmx
-			End If
-		End If
+		' Test blob field
+		'If 3 = Item.Get("id") Then
+		'	Dim buffer() As Byte = Item.GetDefault("product_image", Array As Byte())
+		'	If buffer.Length > 0 Then
+		'		Dim in As InputStream
+		'		in.InitializeFromBytesArray(buffer, 0, buffer.Length)
+		'		Dim bmx As B4XBitmap
+		'		#If B4A or B4i
+		'		Dim bmp As Bitmap
+		'		bmp.Initialize2(in)
+		'		bmx = bmp
+		'	  	#Else If B4J
+		'		Dim img As Image
+		'		img.Initialize2(in)
+		'		bmx = img
+		'		#End If
+		'		in.Close
+		'		Image.Bitmap = bmx
+		'	End If
+		'Else
+		'	Image.Clear
+		'End If
 	Next
 	Viewing = "Product"
 	lblTitle.Text = GetCategoryName(CategoryId)
@@ -474,7 +450,7 @@ Private Sub AdjustDialogText (Pref As PreferencesDialog)
 			btnOk.Left = btnCancel.Left - btnOk.Width
 		End If
 	Catch
-		Log(LastException)
+		Log(LastException.Message)
 	End Try
 End Sub
 

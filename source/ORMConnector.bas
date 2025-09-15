@@ -87,7 +87,7 @@ Public Sub DBCreate As ResumableSub
 				End Select
 		End Select
 	Catch
-		Log(LastException)
+		Log(LastException.Message)
 		Return False
 	End Try
 	DBClose
@@ -215,7 +215,7 @@ Public Sub DBOpen2 As ResumableSub
 				SQL.InitializeAsync("DB", CN.DriverClass, CN.JdbcUrl, CN.User, CN.Password)
 				Wait For DB_Ready (Success As Boolean)
 				If Success = False Then
-					Log(LastException)
+					Log(LastException.Message)
 				End If
 		End Select
 	Catch

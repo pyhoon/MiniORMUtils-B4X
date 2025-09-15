@@ -267,15 +267,12 @@ End Sub
 
 ' Returns first queried row
 Public Sub getFirst As Map
-	'If ORMTable.IsInitialized And ORMTable.First.IsInitialized Then
 	Return ORMTable.First
-	'End If
-	'Return CreateMap("id": 0)
 End Sub
 
 ' Returns first queried row
 Public Sub getFirst2 As Map
-	Return ORMTable.Results2.Get(0)
+	Return ORMTable.First2
 End Sub
 
 ' Returns new inserted row
@@ -621,20 +618,8 @@ Private Sub ExecNonQuery
 	End If
 End Sub
 
-'Private Sub ExecNonQuery2 (Parameter() As Object)
-'	DBParameters = Parameter
-'	If BlnShowExtraLogs Then LogQuery2
-'	'DBSQL.ExecNonQuery2(DBStatement, Parameter)
-'	Execute
-'End Sub
-
 ' Execute Non Query batch <code>
-'Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
-'If Success Then
-'    Log("success")
-'Else
-'    Log("error")
-'End If</code>
+'Wait For (DB.ExecuteBatch) Complete (Success As Boolean)</code>
 Public Sub ExecuteBatch As ResumableSub
 	If BlnShowExtraLogs Then LogQuery3
 	Dim SenderFilter As Object = DBSQL.ExecNonQueryBatch("SQL")
@@ -832,7 +817,7 @@ Public Sub Query
 		End If
 		'RS.Close ' test 2023-10-24
 	Catch
-		Log(LastException)
+		Log(LastException.Message)
 		'LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
 	End Try
@@ -1268,13 +1253,11 @@ Public Sub LogQueryWithArg (Arg As Object)
 End Sub
 
 Public Sub Split (str As String) As String()
-	Log(str)
 	Dim ss() As String
 	ss = Regex.Split(",", str)
 	For Each s As String In ss
 		s = s.Trim
 	Next
-	Log(ss)
 	Return ss
 End Sub
 

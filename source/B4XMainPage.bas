@@ -70,7 +70,7 @@ Private Sub B4XPage_CloseRequest As ResumableSub
 End Sub
 
 Private Sub B4XPage_Appear
-	'GetCategories
+
 End Sub
 
 Private Sub B4XPage_Resize(Width As Int, Height As Int)

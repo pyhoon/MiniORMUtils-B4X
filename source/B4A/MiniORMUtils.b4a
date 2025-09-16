@@ -26,12 +26,12 @@ Module4=Starter
 NumberOfFiles=6
 NumberOfLibraries=6
 NumberOfModules=4
-Version=13.1
+Version=13.4
 @EndOfDesignText@
 #Region  Project Attributes 
-	#ApplicationLabel: MiniORM
-	#VersionCode: 4
-	#VersionName: 3.30
+	#ApplicationLabel: MiniORMUtils
+	#VersionCode: 6
+	#VersionName: 3.60
 	'SupportedOrientations possible values: unspecified, landscape or portrait.
 	#SupportedOrientations: portrait
 	#CanInstallToExternalStorage: False

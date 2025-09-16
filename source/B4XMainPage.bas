@@ -190,20 +190,20 @@ Public Sub ConfigureDatabase
 	'info.DriverClass = "com.mysql.cj.jdbc.Driver"
 	'info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
 	
-	info.DBType = "MariaDB"
-	info.DBName = "miniorm"
-	info.DbHost = "localhost"
-	info.User = "root"
-	info.Password = "password"
-	info.DriverClass = "org.mariadb.jdbc.Driver"
-	info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+	'info.DBType = "MariaDB"
+	'info.DBName = "miniorm"
+	'info.DbHost = "localhost"
+	'info.User = "root"
+	'info.Password = "password"
+	'info.DriverClass = "org.mariadb.jdbc.Driver"
+	'info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
 	#End If
 
 	Try
 		Conn.Initialize(info)
-		Conn.InitPool
-		Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
-		'Dim DBFound As Boolean = Conn.DBExist
+		'Conn.InitPool
+		'Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
+		Dim DBFound As Boolean = Conn.DBExist
 		If DBFound Then
 			LogColor($"${info.DBType} database found!"$, COLOR_BLUE)
 			DB.Initialize(DBType, DBOpen)

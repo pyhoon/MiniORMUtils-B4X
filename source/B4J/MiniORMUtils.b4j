@@ -33,9 +33,9 @@ Version=10.3
 	#MainFormWidth: 600
 	#MainFormHeight: 600 
 #End Region
-'#AdditionalJar: sqlite-jdbc-3.7.2
+#AdditionalJar: sqlite-jdbc-3.7.2
 '#AdditionalJar: mysql-connector-j-9.3.0
-#AdditionalJar: mariadb-java-client-3.5.6
+'#AdditionalJar: mariadb-java-client-3.5.6
 Sub Process_Globals
 	Private fx As JFX
 	Private MainForm As Form

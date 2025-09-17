@@ -599,13 +599,12 @@ End Sub
 
 Private Sub ExecQuery As ResultSet
 	Try
-		Dim RS As ResultSet
 		If ParametersCount = 0 Then
 			If BlnShowExtraLogs Then LogQuery
-			RS = DBSQL.ExecQuery(DBStatement)
+			Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
 		Else
 			If BlnShowExtraLogs Then LogQuery2
-			RS = DBSQL.ExecQuery2(DBStatement, DBParameters)
+			Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, DBParameters)
 		End If
 	Catch
 		Log(LastException)
@@ -695,6 +694,7 @@ Public Sub Query
 		If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
 		Dim RS As ResultSet = ExecQuery
 		If mError.IsInitialized Then
+			If Initialized(RS) Then RS.Close
 			Return
 		End If
 		
@@ -809,7 +809,8 @@ Public Sub Query
 		Loop
 		ORMResult.Columns = Columns
 		#End If
-
+		RS.Close ' test 2025-09-18
+		
 		For Each Rows As List In ORMTable.Rows
 			Dim Result As Map
 			Dim Result2 As Map
@@ -835,12 +836,12 @@ Public Sub Query
 		'LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
 	End Try
-	#If B4J
-	If Initialized(RS) Then RS.Close ' 2025-03-19
-	#Else
-	' B4A yet support Initialized() function
-	If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
-	#End If
+	'#If B4J
+	'If Initialized(RS) Then RS.Close ' 2025-03-19
+	'#Else
+	'' B4A yet support Initialized() function
+	'If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
+	'#End If
 	Reset2
 	ResetParameters
 End Sub

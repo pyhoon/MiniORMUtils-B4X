@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 3.60
+Version: 3.61
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.

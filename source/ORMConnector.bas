@@ -360,8 +360,8 @@ Public Sub GetDateTime2 As ResumableSub
 	Return str
 End Sub
 
-Public Sub setError (NewError As Exception)
-	mError = NewError
+Public Sub setError (mMessage As Exception)
+	mError = mMessage
 End Sub
 
 Public Sub getError As Exception

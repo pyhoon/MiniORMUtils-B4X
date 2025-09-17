@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.60
+' Version 3.61
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -608,7 +608,7 @@ Private Sub ExecQuery As ResultSet
 			RS = DBSQL.ExecQuery2(DBStatement, DBParameters)
 		End If
 	Catch
-		'Log(LastException.Message)
+		Log(LastException)
 		mError = LastException
 	End Try
 	Return RS
@@ -624,7 +624,7 @@ Private Sub ExecNonQuery
 			DBSQL.ExecNonQuery2(DBStatement, DBParameters)
 		End If
 	Catch
-		'Log(LastException.Message)
+		Log(LastException)
 		mError = LastException
 	End Try
 End Sub
@@ -694,6 +694,9 @@ Public Sub Query
 		If DBOrderBy.Length > 0 Then DBStatement = DBStatement & DBOrderBy
 		If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
 		Dim RS As ResultSet = ExecQuery
+		If mError.IsInitialized Then
+			Return
+		End If
 		
 		ORMResult.Initialize
 		ORMResult.Columns.Initialize
@@ -828,7 +831,7 @@ Public Sub Query
 		End If
 		'RS.Close ' test 2023-10-24
 	Catch
-		'Log(LastException.Message)
+		Log(LastException)
 		'LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
 	End Try

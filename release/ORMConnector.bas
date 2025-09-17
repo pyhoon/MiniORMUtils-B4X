@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Database Connector class
-' Version 3.60
+' Version 3.61
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
@@ -87,7 +87,8 @@ Public Sub DBCreate As ResumableSub
 				End Select
 		End Select
 	Catch
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 		Return False
 	End Try
 	DBClose
@@ -102,7 +103,8 @@ Public Sub DBCreate As Boolean
 		SQL.ExecQuerySingleResult("PRAGMA journal_mode = wal")
 		End If
 	Catch
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 		Return False
 	End Try
 	DBClose
@@ -121,6 +123,7 @@ Public Sub InitPool
 		Pool.Initialize(CN.DriverClass, JdbcUrl, CN.User, CN.Password)
 	Catch
 		LogError(LastException)
+		mError = LastException
 	End Try
 End Sub
 
@@ -133,7 +136,8 @@ Public Sub InitSchema As ResumableSub
 	SQL.InitializeAsync("DB", CN.DriverClass, JdbcUrl, CN.User, CN.Password)
 	Wait For DB_Ready (Success As Boolean)
 	If Success = False Then
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 		Return False
 	End If
 	Return Success
@@ -177,6 +181,7 @@ Public Sub DBExist2 As ResumableSub
 		RS.Close
 	Catch
 		LogError(LastException)
+		mError = LastException
 	End Try
 	DBClose
 	Return DBFound
@@ -215,11 +220,13 @@ Public Sub DBOpen2 As ResumableSub
 				SQL.InitializeAsync("DB", CN.DriverClass, CN.JdbcUrl, CN.User, CN.Password)
 				Wait For DB_Ready (Success As Boolean)
 				If Success = False Then
-					Log(LastException.Message)
+					Log(LastException)
+					mError = LastException
 				End If
 		End Select
 	Catch
-		LogError(LastException.Message)
+		LogError(LastException)
+		mError = LastException
 	End Try
 	Return SQL
 End Sub
@@ -276,7 +283,8 @@ Public Sub GetDate As String
 		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 	End Try
 	DBClose
 	Return str
@@ -301,7 +309,8 @@ Public Sub GetDate2 As ResumableSub
 		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 	End Try
 	DBClose
 	Return str
@@ -329,7 +338,8 @@ Public Sub GetDateTime As String
 		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 	End Try
 	DBClose
 	Return str
@@ -354,14 +364,15 @@ Public Sub GetDateTime2 As ResumableSub
 		End If
 		Dim str As String = SQL.ExecQuerySingleResult(qry)
 	Catch
-		Log(LastException.Message)
+		Log(LastException)
+		mError = LastException
 	End Try
 	DBClose
 	Return str
 End Sub
 
-Public Sub setError (NewError As Exception)
-	mError = NewError
+Public Sub setError (mMessage As Exception)
+	mError = mMessage
 End Sub
 
 Public Sub getError As Exception

@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Database Connector class
-' Version 3.61
+' Version 3.70
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
@@ -122,7 +122,7 @@ Public Sub InitPool
 		JdbcUrl = IIf(CN.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", CN.DBPort))
 		Pool.Initialize(CN.DriverClass, JdbcUrl, CN.User, CN.Password)
 	Catch
-		LogError(LastException)
+		Log(LastException)
 		mError = LastException
 	End Try
 End Sub
@@ -180,7 +180,7 @@ Public Sub DBExist2 As ResumableSub
 		Loop
 		RS.Close
 	Catch
-		LogError(LastException)
+		Log(LastException)
 		mError = LastException
 	End Try
 	DBClose
@@ -225,7 +225,7 @@ Public Sub DBOpen2 As ResumableSub
 				End If
 		End Select
 	Catch
-		LogError(LastException)
+		Log(LastException)
 		mError = LastException
 	End Try
 	Return SQL

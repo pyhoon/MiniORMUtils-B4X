@@ -6,9 +6,10 @@ Version=9.85
 @EndOfDesignText@
 #Region Shared Files
 #Macro: Title, Export, ide://run?file=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
-'#Macro: Title, Release, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
-'#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
+#Macro: Title, Release, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
+#Macro: Title, Copy, ide://run?file=%WINDIR%\System32\cmd.exe&Args=/c&Args=copy&Args=%PROJECT%\..\*ORM*.bas&Args=%PROJECT%\..\..\release\
 #Macro: Title, Publish, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=..\..\..\release&Args=-cMf&Args=%ADDITIONAL%\..\B4X\%PROJECT_NAME%.b4xlib&Args=*
+'#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
 '#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
 #End Region
 

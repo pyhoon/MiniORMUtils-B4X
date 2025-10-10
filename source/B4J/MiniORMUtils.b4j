@@ -22,13 +22,14 @@ Library6=xui views
 Library7=jsql
 Module1=|relative|..\B4XMainPage
 Module2=|relative|..\MiniORM
-Module3=|relative|..\ORMConnector
+Module3=|relative|..\MiniORMUtils
+Module4=|relative|..\ORMConnector
 NumberOfFiles=6
 NumberOfLibraries=7
-NumberOfModules=3
+NumberOfModules=4
 Version=10.3
 @EndOfDesignText@
-' Version 3.70
+' Version 3.80
 #Region Project Attributes 
 	#MainFormWidth: 600
 	#MainFormHeight: 600 

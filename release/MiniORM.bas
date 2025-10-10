@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.70
+' Version 3.80
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -51,9 +51,9 @@ Sub Class_Globals
 	Public TEXT 					As String
 	Public ORMTable 				As ORMTable
 	Public ORMResult 				As ORMResult
-	Public Const MYSQL 				As String = "MYSQL"
-	Public Const SQLITE 			As String = "SQLITE"
-	Public Const MARIADB 			As String = "MARIADB"
+	Public Const MYSQL 				As String = MiniORMUtils.MYSQL
+	Public Const SQLITE 			As String = MiniORMUtils.SQLITE
+	Public Const MARIADB 			As String = MiniORMUtils.MARIADB
 	Private Const COLOR_RED 		As Int = -65536		'ignore
 	Private Const COLOR_GREEN 		As Int = -16711936	'ignore
 	Private Const COLOR_BLUE 		As Int = -16776961	'ignore

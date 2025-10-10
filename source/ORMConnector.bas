@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Database Connector class
-' Version 3.70
+' Version 3.80
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
@@ -16,10 +16,10 @@ Sub Class_Globals
 	Private Pool 			As ConnectionPool
 	Private mCharacterSet 	As String = "utf8mb4"
 	Private mCollate 		As String = "utf8mb4_unicode_ci"
-	Private Const MYSQL 	As String = "MYSQL"
-	Private Const MARIADB 	As String = "MARIADB"
+	Private Const MYSQL 	As String = MiniORMUtils.MYSQL
+	Private Const MARIADB 	As String = MiniORMUtils.MARIADB
 	#End If
-	Private Const SQLITE 	As String = "SQLITE"
+	Private Const SQLITE 	As String = MiniORMUtils.SQLITE
 	Type ConnectionInfo ( _
 	DBDir As String, _
 	DBFile As String, _

@@ -62,7 +62,7 @@ Sub Class_Globals
 	Type ORMFilter (Column As String, Operator As String, Value As String)
 	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
 	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
-	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
+	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
 'Initialize MiniORM
@@ -407,17 +407,36 @@ Public Sub Create
 			Case SQLITE
 				sb.Append(col.ColumnType)
 		End Select
-
-		Select col.ColumnType
-			Case INTEGER, BIG_INT, TIMESTAMP, DATE_TIME
-				If mType = SQLITE And col.ColumnType.EqualsIgnoreCase("TEXT") Then
-					If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
-				Else
-					If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append(col.DefaultValue)
-				End If
-			Case Else
-				If col.DefaultValue.Length > 0 Then sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
-		End Select
+		
+		If col.DefaultValue.Length > 0 Then
+			Select col.ColumnType
+				Case INTEGER, BIG_INT, TIMESTAMP, DATE_TIME
+					If mType = SQLITE Then
+						If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
+							sb.Append(" DEFAULT ").Append(col.DefaultValue)
+						Else
+							sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
+						End If
+					Else
+						sb.Append(" DEFAULT ").Append(col.DefaultValue)
+					End If
+				Case Else
+					If col.UseFunction Then
+						If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
+							sb.Append(" DEFAULT ").Append(col.DefaultValue)
+						Else
+							If mType = SQLITE Then
+								sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
+							Else
+								sb.Append(" DEFAULT ").Append(col.DefaultValue)
+							End If
+						End If
+					Else
+						sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
+					End If
+			End Select
+		End If
+		
 		If col.AllowNull Then sb.Append(" NULL") Else sb.Append(" NOT NULL")
 		If col.Unique Then sb.Append(" UNIQUE")
 		If col.AutoIncrement Then
@@ -451,7 +470,7 @@ Public Sub Create
 				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
 			If BlnUseTimestamps Then
-				sb.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
+				sb.Append("created_date " & VARCHAR & " DEFAULT datetime('now'),").Append(CRLF)
 				sb.Append("modified_date " & VARCHAR & ",").Append(CRLF)
 				sb.Append("deleted_date " & VARCHAR & ",")
 			End If
@@ -475,11 +494,13 @@ Public Sub Create
 		Case MYSQL, MARIADB
 			If BlnAutoIncrement Then
 				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
-			Else
-				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL,"$).Append(CRLF)
+				'Else
+				'stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL,"$).Append(CRLF)
 			End If
 		Case SQLITE
-			stmt.Append($"${Pk} ${INTEGER},"$).Append(CRLF)
+			If BlnAutoIncrement Then
+				stmt.Append($"${Pk} ${INTEGER},"$).Append(CRLF)
+			End If
 	End Select
 
 	' Put the columns here
@@ -1290,7 +1311,7 @@ Private Sub CountChar (c As String, Word As String) As Int
 	Return count
 End Sub
 
-Public Sub CreateColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, AllowNull As Boolean, IsUnique As Boolean, AutoIncrement As Boolean) As ORMColumn
+Public Sub CreateColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, IsUnique As Boolean, AutoIncrement As Boolean) As ORMColumn
 	Dim t1 As ORMColumn
 	t1.Initialize
 	t1.ColumnName = ColumnName
@@ -1298,13 +1319,13 @@ Public Sub CreateColumn (ColumnName As String, ColumnType As String, ColumnLengt
 	t1.ColumnLength = ColumnLength
 	t1.Collation = Collation
 	t1.DefaultValue = DefaultValue
+	t1.UseFunction = UseFunction
 	t1.AllowNull = AllowNull
 	t1.Unique = IsUnique
 	t1.AutoIncrement = AutoIncrement
 	If t1.ColumnType = "" Then t1.ColumnType = VARCHAR
 	If t1.ColumnType = VARCHAR And t1.ColumnLength = "" Then t1.ColumnLength = "255"
 	If t1.ColumnType = BIG_INT And t1.ColumnLength = "" Then t1.ColumnLength = "20"
-	'If t1.ColumnType = INTEGER Or t1.ColumnType = TIMESTAMP Or t1.ColumnLength = "0" Then t1.ColumnLength = ""
 	If t1.ColumnType = INTEGER Then t1.ColumnLength = "11"
 	If t1.ColumnType = TIMESTAMP Then t1.ColumnLength = ""
 	If t1.ColumnLength = "0" Then t1.ColumnLength = ""
@@ -1315,7 +1336,8 @@ End Sub
 ' Type - Column Type (String) e.g INTEGER/DECIMAL/VARCHAR/TIMESTAMP
 ' Size - Column Length (String) e.g 255/10,2
 ' Collation - Collation for char (String) e.g COLLATE utf8mb4_unicode_ci
-' Default - Default Value (String) e.g CURRENT_TIMESTAMP/now()/1
+' Default - Default Value (String) e.g "Unknown", 0
+' DefaultUseFunction - Not String Value e.g utc_timestamp(), datetime('now')
 ' Null - Allow Null (Boolean)
 ' Unique - Is Unique (Boolean)
 ' AutoIncrement - Auto increment (Boolean)
@@ -1327,6 +1349,7 @@ Public Sub CreateColumn2 (Props As Map) As ORMColumn
 	t1.ColumnLength = ""
 	t1.Collation = ""
 	t1.DefaultValue = ""
+	t1.UseFunction = False
 	t1.AllowNull = True
 	t1.Unique = False
 	t1.AutoIncrement = False
@@ -1342,6 +1365,8 @@ Public Sub CreateColumn2 (Props As Map) As ORMColumn
 				t1.Collation = Props.Get(Key)
 			Case "DefaultValue".ToLowerCase, "Default".ToLowerCase
 				t1.DefaultValue = Props.Get(Key)
+			Case "UseFunction".ToLowerCase, "Function".ToLowerCase
+				t1.UseFunction = Props.Get(Key)
 			Case "Nullable".ToLowerCase, "Null".ToLowerCase, "AllowNull".ToLowerCase
 				t1.AllowNull = Props.Get(Key)
 			Case "Unique".ToLowerCase

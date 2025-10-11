@@ -322,10 +322,10 @@ Public Sub GetDateTime As String
 		Select mType
 			#If B4J
 			Case MYSQL, MARIADB
-				Dim qry As String = $"SELECT NOW()"$
+				Dim qry As String = $"SELECT now()"$
 			#End If
 			Case SQLITE
-				Dim qry As String = $"SELECT DATETIME('now')"$
+				Dim qry As String = $"SELECT datetime('now')"$
 			Case Else	
 				Dim CurrentDateFormat As String = DateTime.DateFormat
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
@@ -351,10 +351,10 @@ Public Sub GetDateTime2 As ResumableSub
 		Select mType
 			#If B4J
 			Case MYSQL, MARIADB
-				Dim qry As String = $"SELECT NOW()"$
+				Dim qry As String = $"SELECT now()"$
 			#End If
 			Case SQLITE
-				Dim qry As String = $"SELECT DATETIME('now')"$
+				Dim qry As String = $"SELECT datetime('now')"$
 			Case Else
 				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
 				Return DateTime.Date(DateTime.Now)

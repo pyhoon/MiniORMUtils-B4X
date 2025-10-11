@@ -77,15 +77,6 @@ End Sub
 Public Sub setDBType (mDBType As String)
 	mType = mDBType.ToUpperCase
 	Select mType
-		Case MYSQL, MARIADB
-			BLOB = "mediumblob"
-			INTEGER = "int"
-			BIG_INT = "bigint"
-			DECIMAL = "decimal"
-			VARCHAR = "varchar"
-			TEXT = "text"
-			DATE_TIME = "datetime"
-			TIMESTAMP = "timestamp"
 		Case SQLITE
 			BLOB = "BLOB"
 			INTEGER = "INTEGER"
@@ -95,6 +86,15 @@ Public Sub setDBType (mDBType As String)
 			TEXT = "TEXT"
 			DATE_TIME = "TEXT"
 			TIMESTAMP = "TEXT"
+		Case MYSQL, MARIADB
+			BLOB = "mediumblob"
+			INTEGER = "int"
+			BIG_INT = "bigint"
+			DECIMAL = "decimal"
+			VARCHAR = "varchar"
+			TEXT = "text"
+			DATE_TIME = "datetime"
+			TIMESTAMP = "timestamp"
 	End Select
 End Sub
 
@@ -391,6 +391,8 @@ Public Sub Create
 		sb.Append(col.ColumnName)
 		sb.Append(" ")
 		Select mType
+			Case SQLITE
+				sb.Append(col.ColumnType)			
 			Case MYSQL, MARIADB
 				Select col.ColumnType
 					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT, BLOB
@@ -404,8 +406,6 @@ Public Sub Create
 				If col.Collation.Length > 0 Then
 					sb.Append(" ").Append(col.Collation)
 				End If
-			Case SQLITE
-				sb.Append(col.ColumnType)
 		End Select
 		
 		If col.DefaultValue.Length > 0 Then
@@ -441,16 +441,27 @@ Public Sub Create
 		If col.Unique Then sb.Append(" UNIQUE")
 		If col.AutoIncrement Then
 			Select mType
+				Case SQLITE
+					sb.Append(" AUTOINCREMENT")				
 				Case MYSQL, MARIADB
 					sb.Append(" AUTO_INCREMENT")
-				Case SQLITE
-					sb.Append(" AUTOINCREMENT")
 			End Select
 		End If
 		sb.Append(",").Append(CRLF)
 	Next
 	
 	Select mType
+		Case SQLITE
+			If BlnUseDataAuditUserId Then
+				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
+				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
+				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
+			End If
+			If BlnUseTimestamps Then
+				sb.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
+				sb.Append("modified_date " & VARCHAR & ",").Append(CRLF)
+				sb.Append("deleted_date " & VARCHAR & ",")
+			End If		
 		Case MYSQL, MARIADB
 			If BlnUseDataAuditUserId Then
 				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
@@ -462,17 +473,6 @@ Public Sub Create
 				sb.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
 				sb.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
 				sb.Append("deleted_date " & DATE_TIME & " DEFAULT NULL,")
-			End If
-		Case SQLITE
-			If BlnUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
-				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
-				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
-			End If
-			If BlnUseTimestamps Then
-				sb.Append("created_date " & VARCHAR & " DEFAULT datetime('now'),").Append(CRLF)
-				sb.Append("modified_date " & VARCHAR & ",").Append(CRLF)
-				sb.Append("deleted_date " & VARCHAR & ",")
 			End If
 	End Select
 
@@ -912,10 +912,10 @@ Public Sub Insert
 		End If
 		sb.Append("created_date")
 		Select mType
-			Case MYSQL, MARIADB
-				vb.Append("NOW()")
 			Case SQLITE
-				vb.Append("DATETIME('now')")
+				vb.Append("(datetime('now'))")			
+			Case MYSQL, MARIADB
+				vb.Append("now()")
 		End Select
 	End If
 	DBStatement = $"INSERT INTO ${DBObject} (${sb.ToString}) VALUES (${vb.ToString})"$
@@ -953,9 +953,9 @@ Public Sub Save
 		If BlnUpdateModifiedDate And Not(md) Then
 			Select mType
 				Case MYSQL, MARIADB
-					DBStatement = DBStatement & ", modified_date = NOW()"
+					DBStatement = DBStatement & ", modified_date = now()"
 				Case SQLITE
-					DBStatement = DBStatement & ", modified_date = DATETIME('now')"
+					DBStatement = DBStatement & ", modified_date = (datetime('now'))"
 			End Select
 		End If
 		DBStatement = DBStatement & DBCondition
@@ -981,10 +981,10 @@ Public Sub Save
 			End If
 			sb.Append("created_date")
 			Select mType
-				Case MYSQL, MARIADB
-					vb.Append("NOW()")
 				Case SQLITE
-					vb.Append("DATETIME('now')")
+					vb.Append("(datetime('now'))")				
+				Case MYSQL, MARIADB
+					vb.Append("now()")
 			End Select
 		End If
 		DBStatement = $"INSERT INTO ${DBObject} (${sb.ToString}) VALUES (${vb.ToString})"$
@@ -1042,9 +1042,9 @@ Public Sub Save3 (mColumn As String)
 		If BlnUpdateModifiedDate And Not(md) Then
 			Select mType
 				Case MYSQL, MARIADB
-					DBStatement = DBStatement & ", modified_date = NOW()"
+					DBStatement = DBStatement & ", modified_date = now()"
 				Case SQLITE
-					DBStatement = DBStatement & ", modified_date = DATETIME('now')"
+					DBStatement = DBStatement & ", modified_date = (datetime('now'))"
 			End Select
 		End If
 		DBStatement = DBStatement & DBCondition
@@ -1071,9 +1071,9 @@ Public Sub Save3 (mColumn As String)
 			sb.Append("created_date")
 			Select mType
 				Case MYSQL, MARIADB
-					vb.Append("NOW()")
+					vb.Append("now()")
 				Case SQLITE
-					vb.Append("DATETIME('now')")
+					vb.Append("(datetime('now'))")
 			End Select
 		End If
 		DBStatement = $"INSERT INTO ${DBObject} (${sb.ToString}) VALUES (${vb.ToString})"$

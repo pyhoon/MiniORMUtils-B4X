@@ -75,9 +75,8 @@ Public Sub Initialize (mDBType As String, mSQL As SQL)
 End Sub
 
 Public Sub setDBType (mDBType As String)
-	mType = mDBType.ToUpperCase
-	Select mType
-		Case SQLITE
+	Select mDBType.ToUpperCase
+		Case SQLITE.ToUpperCase
 			BLOB = "BLOB"
 			INTEGER = "INTEGER"
 			BIG_INT = "INTEGER"
@@ -86,7 +85,8 @@ Public Sub setDBType (mDBType As String)
 			TEXT = "TEXT"
 			DATE_TIME = "TEXT"
 			TIMESTAMP = "TEXT"
-		Case MYSQL, MARIADB
+			mType = SQLITE
+		Case MYSQL.ToUpperCase, MARIADB.ToUpperCase
 			BLOB = "mediumblob"
 			INTEGER = "int"
 			BIG_INT = "bigint"
@@ -95,6 +95,7 @@ Public Sub setDBType (mDBType As String)
 			TEXT = "text"
 			DATE_TIME = "datetime"
 			TIMESTAMP = "timestamp"
+			If mDBType.EqualsIgnoreCase(MYSQL) Then mType = SQLITE Else mType = MARIADB
 	End Select
 End Sub
 
@@ -392,7 +393,7 @@ Public Sub Create
 		sb.Append(" ")
 		Select mType
 			Case SQLITE
-				sb.Append(col.ColumnType)			
+				sb.Append(col.ColumnType)
 			Case MYSQL, MARIADB
 				Select col.ColumnType
 					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT, BLOB
@@ -411,25 +412,27 @@ Public Sub Create
 		If col.DefaultValue.Length > 0 Then
 			Select col.ColumnType
 				Case INTEGER, BIG_INT, TIMESTAMP, DATE_TIME
-					If mType = SQLITE Then
-						If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
+					Select mType
+						Case SQLITE
+							If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
+								sb.Append(" DEFAULT ").Append(col.DefaultValue)
+							Else
+								sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
+							End If
+						Case MYSQL, MARIADB
 							sb.Append(" DEFAULT ").Append(col.DefaultValue)
-						Else
-							sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
-						End If
-					Else
-						sb.Append(" DEFAULT ").Append(col.DefaultValue)
-					End If
+					End Select
 				Case Else
 					If col.UseFunction Then
 						If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
 							sb.Append(" DEFAULT ").Append(col.DefaultValue)
 						Else
-							If mType = SQLITE Then
-								sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
-							Else
-								sb.Append(" DEFAULT ").Append(col.DefaultValue)
-							End If
+							Select mType
+								Case SQLITE
+									sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
+								Case MYSQL, MARIADB
+									sb.Append(" DEFAULT ").Append(col.DefaultValue)
+							End Select
 						End If
 					Else
 						sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
@@ -442,7 +445,7 @@ Public Sub Create
 		If col.AutoIncrement Then
 			Select mType
 				Case SQLITE
-					sb.Append(" AUTOINCREMENT")				
+					sb.Append(" AUTOINCREMENT")
 				Case MYSQL, MARIADB
 					sb.Append(" AUTO_INCREMENT")
 			End Select
@@ -461,7 +464,7 @@ Public Sub Create
 				sb.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
 				sb.Append("modified_date " & VARCHAR & ",").Append(CRLF)
 				sb.Append("deleted_date " & VARCHAR & ",")
-			End If		
+			End If
 		Case MYSQL, MARIADB
 			If BlnUseDataAuditUserId Then
 				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
@@ -992,8 +995,8 @@ Public Sub Save
 	End If
 	ExecNonQuery
 	If BlnNew Then
-		' View does not support auto-increment id
-		If DBObject = DBView Then Return
+		' View does not support auto-increment id or ID is not autoincrement
+		If DBObject = DBView Or BlnAutoIncrement = False Then Return
 		Dim NewID As Int = getLastInsertID
 		' Return new row
 		Find(NewID)

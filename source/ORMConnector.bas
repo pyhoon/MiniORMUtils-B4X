@@ -36,24 +36,25 @@ Sub Class_Globals
 End Sub
 
 Public Sub Initialize (Info As ConnectionInfo)
-	mType = Info.DBType.ToUpperCase
 	CN.Initialize
 	#If B4J
-	If mType = SQLITE Then
-		CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
-		CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
-		CN.JdbcUrl = Info.JdbcUrl.Replace("{DbDir}", Info.DBDir)
-		CN.JdbcUrl = CN.JdbcUrl.Replace("{DbFile}", CN.DBFile)
-	End If
-	If mType = MYSQL Or mType = MARIADB Then
-		CN.User = Info.User
-		CN.DBHost = Info.DBHost
-		CN.DBPort = Info.DBPort
-		CN.DBName = Info.DBName
-		CN.JdbcUrl = Info.JdbcUrl
-		CN.Password = Info.Password
-		CN.DriverClass = Info.DriverClass
-	End If
+	Select Info.DBType.ToUpperCase
+		Case SQLITE.ToUpperCase
+			CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
+			CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
+			CN.JdbcUrl = Info.JdbcUrl.Replace("{DbDir}", Info.DBDir)
+			CN.JdbcUrl = CN.JdbcUrl.Replace("{DbFile}", CN.DBFile)
+			mType = SQLITE
+		Case MYSQL.ToUpperCase, MARIADB.ToUpperCase
+			CN.User = Info.User
+			CN.DBHost = Info.DBHost
+			CN.DBPort = Info.DBPort
+			CN.DBName = Info.DBName
+			CN.JdbcUrl = Info.JdbcUrl
+			CN.Password = Info.Password
+			CN.DriverClass = Info.DriverClass
+			If Info.DBType.EqualsIgnoreCase(MYSQL) Then mType = SQLITE Else mType = MARIADB
+	End Select
 	#Else
 	Dim xui As XUI
 	CN.DBDir = IIf(Info.DBDir = "", xui.DefaultFolder, Info.DBDir)

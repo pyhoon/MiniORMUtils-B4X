@@ -1,5 +1,7 @@
 ﻿AppType=JavaFX
-Build1=Default,b4j.miniorm
+Build1=Default,pyhoon.miniormutils,SQLite
+Build2=MariaDB,pyhoon.miniormutils,MariaDB
+Build3=MySQL,pyhoon.miniormutils,MySQL
 File1=CategoryItem.bjl
 File2=icon.png
 File3=MainPage.bjl
@@ -22,11 +24,10 @@ Library6=xui views
 Library7=jsql
 Module1=|relative|..\B4XMainPage
 Module2=|relative|..\MiniORM
-Module3=|relative|..\MiniORMUtils
-Module4=|relative|..\ORMConnector
+Module3=|relative|..\ORMConnector
 NumberOfFiles=6
 NumberOfLibraries=7
-NumberOfModules=4
+NumberOfModules=3
 Version=10.3
 @EndOfDesignText@
 ' Version 3.80
@@ -34,9 +35,13 @@ Version=10.3
 	#MainFormWidth: 600
 	#MainFormHeight: 600 
 #End Region
+#If SQLite
 #AdditionalJar: sqlite-jdbc-3.7.2
-'#AdditionalJar: mysql-connector-j-9.3.0
-'#AdditionalJar: mariadb-java-client-3.5.6
+#Else If MySQL
+#AdditionalJar: mysql-connector-j-9.3.0
+#Else If MariaDB
+#AdditionalJar: mariadb-java-client-3.5.6
+#End If
 Sub Process_Globals
 	Private fx As JFX
 	Private MainForm As Form

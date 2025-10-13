@@ -175,40 +175,44 @@ End Sub
 Public Sub ConfigureDatabase
 	Dim info As ConnectionInfo
 	info.Initialize
-	info.DBType = "SQLite"
-	info.DBFile = "Data.db"
-	
-	#If B4J
-	info.DBDir = File.DirApp
-	#Else
-	info.DBDir = xui.DefaultFolder 
+	#If SQLite
+		info.DBType = "SQLite"
+		info.DBFile = "Data.db"
+		#If B4J
+		info.DBDir = File.DirApp
+		#Else
+		info.DBDir = xui.DefaultFolder
+		#End If
+	#Else If MySQL
+		info.DBType = "MySQL"
+		info.DBName = "pakai"
+		info.DbHost = "localhost"
+		info.User = "root"
+		info.Password = "password"
+		info.DriverClass = "com.mysql.cj.jdbc.Driver"
+		info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+	#Else If MariaDB
+		info.DBType = "MariaDB"
+		info.DBName = "pakai"
+		info.DbHost = "localhost"
+		info.User = "root"
+		info.Password = "password"
+		info.DriverClass = "org.mariadb.jdbc.Driver"
+		info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
 	#End If
-
-	#If B4J
-	'info.DBType = "MySQL"
-	'info.DBName = "miniorm"
-	'info.DbHost = "localhost"
-	'info.User = "root"
-	'info.Password = "password"
-	'info.DriverClass = "com.mysql.cj.jdbc.Driver"
-	'info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
-	
-	'info.DBType = "MariaDB"
-	'info.DBName = "miniorm"
-	'info.DbHost = "localhost"
-	'info.User = "root"
-	'info.Password = "password"
-	'info.DriverClass = "org.mariadb.jdbc.Driver"
-	'info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
-	#End If
-
 	Try
 		Conn.Initialize(info)
-		'Conn.InitPool
-		'Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
-		Dim DBFound As Boolean = Conn.DBExist
+		Select DBType
+			Case "SQLite"
+				Dim DBFound As Boolean = Conn.DBExist
+			Case "MySQL", "MariaDB"
+				Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
+		End Select
 		If DBFound Then
 			LogColor($"${info.DBType} database found!"$, COLOR_BLUE)
+			If DBType.EqualsIgnoreCase("MySQL") Or DBType.EqualsIgnoreCase("MariaDB") Then
+				Conn.InitPool
+			End If
 			DB.Initialize(DBType, DBOpen)
 			'DB.ShowExtraLogs = True
 			'#If B4A or B4i
@@ -231,10 +235,10 @@ End Sub
 
 Private Sub CreateDatabase
 	LogColor("Creating database...", COLOR_BLUE)
-	#If B4A or B4i
-	Dim Success As Boolean = Conn.DBCreate
-	#Else
+	#If B4J
 	Wait For (Conn.DBCreate) Complete (Success As Boolean)
+	#Else
+	Dim Success As Boolean = Conn.DBCreate
 	#End If
 	If Not(Success) Then
 		Log("Database creation failed!")
@@ -315,6 +319,13 @@ Private Sub GetCategories
 	Catch
 		xui.MsgboxAsync(LastException.Message, "Error")
 	End Try
+	
+	If DBType.EqualsIgnoreCase("MySQL") Or DBType.EqualsIgnoreCase("MariaDB") Then
+		Dim s As String = DB.ShowCreateTable2(DB.Table)
+	Else
+		Dim s As String = DB.ShowCreateTable(DB.Table)
+	End If
+	Log(s)
 End Sub
 
 Private Sub GetProducts

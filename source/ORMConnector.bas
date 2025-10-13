@@ -9,17 +9,17 @@ Version=10.3
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo
+	Private mJournalMode 	As String = "DELETE" 'ignore
 	Private mType			As String
 	Private mError			As Exception
-	Private mJournalMode 	As String = "DELETE" 'ignore
 	#If B4J
 	Private Pool 			As ConnectionPool
 	Private mCharacterSet 	As String = "utf8mb4"
 	Private mCollate 		As String = "utf8mb4_unicode_ci"
-	Private Const MYSQL 	As String = MiniORMUtils.MYSQL
-	Private Const MARIADB 	As String = MiniORMUtils.MARIADB
+	Private Const MYSQL 	As String = "MySQL"
+	Private Const MARIADB 	As String = "MariaDB"
 	#End If
-	Private Const SQLITE 	As String = MiniORMUtils.SQLITE
+	Private Const SQLITE 	As String = "SQLite"
 	Type ConnectionInfo ( _
 	DBDir As String, _
 	DBFile As String, _
@@ -38,14 +38,14 @@ End Sub
 Public Sub Initialize (Info As ConnectionInfo)
 	CN.Initialize
 	#If B4J
-	Select Info.DBType.ToUpperCase
-		Case SQLITE.ToUpperCase
+	Select True
+		Case Info.DBType.EqualsIgnoreCase(SQLITE)
 			CN.DBDir = IIf(Info.DBDir = "", File.DirApp, Info.DBDir)
 			CN.DBFile = IIf(Info.DBFile = "", "data.db", Info.DBFile)
 			CN.JdbcUrl = Info.JdbcUrl.Replace("{DbDir}", Info.DBDir)
 			CN.JdbcUrl = CN.JdbcUrl.Replace("{DbFile}", CN.DBFile)
 			mType = SQLITE
-		Case MYSQL.ToUpperCase, MARIADB.ToUpperCase
+		Case Info.DBType.EqualsIgnoreCase(MYSQL), Info.DBType.EqualsIgnoreCase(MARIADB)
 			CN.User = Info.User
 			CN.DBHost = Info.DBHost
 			CN.DBPort = Info.DBPort
@@ -53,7 +53,7 @@ Public Sub Initialize (Info As ConnectionInfo)
 			CN.JdbcUrl = Info.JdbcUrl
 			CN.Password = Info.Password
 			CN.DriverClass = Info.DriverClass
-			If Info.DBType.EqualsIgnoreCase(MYSQL) Then mType = SQLITE Else mType = MARIADB
+			If Info.DBType.EqualsIgnoreCase(MYSQL) Then mType = MYSQL Else mType = MARIADB
 	End Select
 	#Else
 	Dim xui As XUI
@@ -194,10 +194,10 @@ End Sub
 Public Sub DBOpen As SQL
 	#If B4J
 	Select mType
+		Case SQLITE
+			SQL.InitializeSQLite(CN.DBDir, CN.DBFile, False)		
 		Case MYSQL, MARIADB
 			Return Pool.GetConnection
-		Case SQLITE
-			SQL.InitializeSQLite(CN.DBDir, CN.DBFile, False)
 	End Select
 	#Else
 	If DBExist Then

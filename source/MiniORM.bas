@@ -51,13 +51,10 @@ Sub Class_Globals
 	Public TEXT 					As String
 	Public ORMTable 				As ORMTable
 	Public ORMResult 				As ORMResult
-	Public Const MYSQL 				As String = MiniORMUtils.MYSQL
-	Public Const SQLITE 			As String = MiniORMUtils.SQLITE
-	Public Const MARIADB 			As String = MiniORMUtils.MARIADB
-	Private Const COLOR_RED 		As Int = -65536		'ignore
-	Private Const COLOR_GREEN 		As Int = -16711936	'ignore
-	Private Const COLOR_BLUE 		As Int = -16776961	'ignore
-	Private Const COLOR_MAGENTA 	As Int = -65281		'ignore
+	Public Const MYSQL 				As String = "MySQL"
+	Public Const SQLITE 			As String = "SQLite"
+	Public Const MARIADB 			As String = "MariaDB"
+	Private Const COLOR_RED 		As Int = -65536
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMFilter (Column As String, Operator As String, Value As String)
 	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
@@ -76,7 +73,7 @@ End Sub
 
 Public Sub setDBType (mDBType As String)
 	Select mDBType.ToUpperCase
-		Case SQLITE.ToUpperCase
+		Case "SQLITE"
 			BLOB = "BLOB"
 			INTEGER = "INTEGER"
 			BIG_INT = "INTEGER"
@@ -86,7 +83,7 @@ Public Sub setDBType (mDBType As String)
 			DATE_TIME = "TEXT"
 			TIMESTAMP = "TEXT"
 			mType = SQLITE
-		Case MYSQL.ToUpperCase, MARIADB.ToUpperCase
+		Case "MYSQL", "MARIADB"
 			BLOB = "mediumblob"
 			INTEGER = "int"
 			BIG_INT = "bigint"
@@ -95,7 +92,7 @@ Public Sub setDBType (mDBType As String)
 			TEXT = "text"
 			DATE_TIME = "datetime"
 			TIMESTAMP = "timestamp"
-			If mDBType.EqualsIgnoreCase(MYSQL) Then mType = SQLITE Else mType = MARIADB
+			If mDBType.EqualsIgnoreCase(MYSQL) Then mType = MYSQL Else mType = MARIADB
 	End Select
 End Sub
 
@@ -490,41 +487,34 @@ Public Sub Create
 	
 	' id column added by default
 	Dim Pk As String = "id"
-	If DBPrimaryKey.Length > 0 Then
+	If DBPrimaryKey.Length > 0 And Not(DBPrimaryKey.Contains(",")) Then
 		Pk = DBPrimaryKey
 	End If
-	Select mType
-		Case MYSQL, MARIADB
-			If BlnAutoIncrement Then
+	If BlnAutoIncrement Then
+		Select mType
+			Case MYSQL, MARIADB
 				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
-				'Else
-				'stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL,"$).Append(CRLF)
-			End If
-		Case SQLITE
-			If BlnAutoIncrement Then
+			Case SQLITE
 				stmt.Append($"${Pk} ${INTEGER},"$).Append(CRLF)
-			End If
-	End Select
+		End Select
+	End If
 
 	' Put the columns here
 	stmt.Append(sb.ToString)
-	
-	If DBPrimaryKey.Length > 0 Then
-		stmt.Append(CRLF)
+
+	If BlnAutoIncrement Then
 		Select mType
-			Case MYSQL, MARIADB
-				stmt.Append($"PRIMARY KEY(${Pk})"$)
 			Case SQLITE
-				If BlnAutoIncrement Then
-					stmt.Append($"PRIMARY KEY(${Pk}${IIf(BlnAutoIncrement, " AUTOINCREMENT", "")})"$)
-				Else
-					stmt.Append($"PRIMARY KEY(${Pk})"$)
-				End If
+				stmt.Append(CRLF)
+				stmt.Append($"PRIMARY KEY(${Pk} AUTOINCREMENT)"$)
+			Case MYSQL, MARIADB
+				stmt.Append(CRLF)
+				stmt.Append($"PRIMARY KEY(${Pk})"$)
 		End Select
 	Else
-		If BlnAutoIncrement Then
+		If DBPrimaryKey.Length > 0 Then
 			stmt.Append(CRLF)
-			stmt.Append($"PRIMARY KEY(${Pk})"$)
+			stmt.Append($"PRIMARY KEY(${DBPrimaryKey})"$)
 		Else
 			stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
 		End If
@@ -1228,6 +1218,76 @@ Public Sub ViewExists2 (ViewName As String, DatabaseName As String) As Boolean
 		mError = LastException
 		Return False
 	End Try
+End Sub
+
+' List tables (SQLite)
+Public Sub ListTables As List
+	Try
+		Dim lst As List
+		lst.Initialize
+		DBStatement = "SELECT name FROM sqlite_master WHERE type = 'table'"
+		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+		Do While RS.NextRow
+			lst.Add(RS.GetString("name"))
+		Loop
+	Catch
+		LogColor(LastException, COLOR_RED)
+		mError = LastException
+	End Try
+	RS.Close
+	Return lst
+End Sub
+
+' List tables (MySQL, MariaDB)
+Public Sub ListTables2 (DatabaseName As String) As List
+	Try
+		Dim lst As List
+		lst.Initialize
+		DBStatement = "SELECT TABLE_NAME FROM TABLES WHERE TABLE_SCHEMA = ?"
+		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(DatabaseName))
+		Do While RS.NextRow
+			lst.Add(RS.GetString("TABLE_NAME"))
+		Loop
+	Catch
+		LogColor(LastException, COLOR_RED)
+		mError = LastException
+	End Try
+	RS.Close
+	Return lst
+End Sub
+
+' Show Create Table query (SQLite)
+Public Sub ShowCreateTable (TableName As String) As String
+	Try
+		DBStatement = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
+		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(TableName))
+		Do While RS.NextRow
+			Return RS.GetString("sql")
+		Loop
+	Catch
+		LogColor(LastException, COLOR_RED)
+		mError = LastException
+	End Try
+	RS.Close
+	Return ""
+End Sub
+
+' Show Create Table query (MySQL, MariaDB)
+Public Sub ShowCreateTable2 (TableName As String) As String
+	Try
+		Dim lst As List
+		lst.Initialize
+		DBStatement = $"SHOW CREATE TABLE ${TableName}"$
+		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+		Do While RS.NextRow
+			Return RS.GetString("CREATE TABLE")
+		Loop
+	Catch
+		LogColor(LastException, COLOR_RED)
+		mError = LastException
+	End Try
+	RS.Close
+	Return ""
 End Sub
 
 ' Append to the end of SQL statement

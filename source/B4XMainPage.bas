@@ -319,13 +319,6 @@ Private Sub GetCategories
 	Catch
 		xui.MsgboxAsync(LastException.Message, "Error")
 	End Try
-	
-	If DBType.EqualsIgnoreCase("MySQL") Or DBType.EqualsIgnoreCase("MariaDB") Then
-		Dim s As String = DB.ShowCreateTable2(DB.Table)
-	Else
-		Dim s As String = DB.ShowCreateTable(DB.Table)
-	End If
-	Log(s)
 End Sub
 
 Private Sub GetProducts

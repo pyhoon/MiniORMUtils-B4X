@@ -205,14 +205,18 @@ Public Sub ConfigureDatabase
 		Select DBType
 			Case "SQLite"
 				Dim DBFound As Boolean = Conn.DBExist
+			#If B4J			
 			Case "MySQL", "MariaDB"
 				Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
+			#End If
 		End Select
 		If DBFound Then
 			LogColor($"${info.DBType} database found!"$, COLOR_BLUE)
+			#If B4J			
 			If DBType.EqualsIgnoreCase("MySQL") Or DBType.EqualsIgnoreCase("MariaDB") Then
 				Conn.InitPool
 			End If
+			#End If
 			DB.Initialize(DBType, DBOpen)
 			'DB.ShowExtraLogs = True
 			'#If B4A or B4i

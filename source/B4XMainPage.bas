@@ -6,8 +6,8 @@ Version=9.85
 @EndOfDesignText@
 #Region Macros
 '#Macro: Title, Export as zip, ide://run?file=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
-#Macro: Title, Update Version, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=3.80
-#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\%PROJECT_NAME%.b4xlib&args=*ORM*.bas&args=..\..&args=manifest.txt&args=LICENSE
+#Macro: Title, Update Version, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=3.90
+#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\%PROJECT_NAME%.b4xlib&args=*ORM*.bas&args=..\manifest.txt&args=..\LICENSE
 #Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
 '#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
@@ -330,7 +330,7 @@ Private Sub GetProducts
 	DB.Table = "tbl_products p"
 	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 	'DB.Select = Array("p.*", "c.category_name")
-	DB.Select = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
+	DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
 	DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
 	DB.WhereParams(Array("c.id = ?"), Array As Object(CategoryId))
 	DB.Query

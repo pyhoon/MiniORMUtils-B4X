@@ -30,8 +30,8 @@ Version=13.4
 @EndOfDesignText@
 #Region  Project Attributes 
 	#ApplicationLabel: MiniORMUtils
-	#VersionCode: 8
-	#VersionName: 3.80
+	#VersionCode: 9
+	#VersionName: 4.00 Beta
 	'SupportedOrientations possible values: unspecified, landscape or portrait.
 	#SupportedOrientations: portrait
 	#CanInstallToExternalStorage: False

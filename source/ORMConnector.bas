@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Database Connector class
-' Version 3.90
+' Version 4.00
 Sub Class_Globals
 	Private SQL 			As SQL
 	Private CN 				As ConnectionInfo

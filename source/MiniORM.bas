@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 3.90
+' Version 4.00
 Sub Class_Globals
 	Private DBSQL 					As SQL
 	Private DBID 					As Int
@@ -484,9 +484,9 @@ Public Sub Create
 	stmt.Initialize
 	Select DBObject
 		Case DBTable
-			stmt.Append($"CREATE TABLE ${DBTable} ("$)
+			stmt.Append($"CREATE TABLE IF NOT EXISTS ${DBTable} ("$)
 		Case DBView
-			stmt.Append($"CREATE VIEW ${DBView} ("$)
+			stmt.Append($"CREATE VIEW IF NOT EXISTS ${DBView} AS "$)
 	End Select
 	
 	' id column added by default
@@ -542,7 +542,7 @@ Public Sub Create
 		stmt.Append(DBConstraint)
 	End If
 	
-	stmt.Append(")")
+	If DBObject = DBTable Then stmt.Append(")")
 	DBStatement = stmt.ToString
 	If BlnQueryAddToBatch Then AddNonQueryToBatch
 	If BlnQueryExecute Then Execute
@@ -1079,7 +1079,8 @@ Public Sub Save3 (mColumn As String)
 	ExecNonQuery
 	If BlnNew Then
 		' View does not support auto-increment id
-		If DBObject = DBView Then Return
+		'If DBObject = DBView Then Return
+		If DBObject = DBView Or BlnAutoIncrement = False Then Return
 		Dim NewID As Int = getLastInsertID
 		' Return new row
 		Find2(mColumn & " = ?", NewID)
@@ -1148,6 +1149,17 @@ End Sub
 Public Sub Delete
 	DBStatement = $"DELETE FROM ${DBObject}"$
 	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
+	ExecNonQuery
+	DBCondition = ""
+End Sub
+
+Public Sub Drop
+	Select DBObject
+		Case DBTable
+			DBStatement = $"DROP TABLE IF EXISTS ${DBObject}"$
+		Case DBView
+			DBStatement = $"DROP VIEW IF EXISTS ${DBObject}"$
+	End Select
 	ExecNonQuery
 	DBCondition = ""
 End Sub

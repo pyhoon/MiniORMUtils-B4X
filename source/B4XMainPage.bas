@@ -7,7 +7,7 @@ Version=9.85
 #Region Macros
 '#Macro: Title, Export as zip, ide://run?file=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
 #Macro: Title, Update Version, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=4.00
-#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\%PROJECT_NAME%.b4xlib&args=*ORM*.bas&args=..\manifest.txt&args=..\LICENSE
+#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\%PROJECT_NAME%4.b4xlib&args=*ORM*.bas&args=..\manifest.txt&args=..\LICENSE
 #Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
 '#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
@@ -176,29 +176,29 @@ Public Sub ConfigureDatabase
 	Dim info As ConnectionInfo
 	info.Initialize
 	#If SQLite
-		info.DBType = "SQLite"
-		info.DBFile = "Data.db"
-		#If B4J
-		info.DBDir = File.DirApp
-		#Else
-		info.DBDir = xui.DefaultFolder
-		#End If
+	info.DBType = "SQLite"
+	info.DBFile = "Data.db"
+	#If B4J
+	info.DBDir = File.DirApp
+	#Else
+	info.DBDir = xui.DefaultFolder
+	#End If
 	#Else If MySQL
-		info.DBType = "MySQL"
-		info.DBName = "pakai"
-		info.DbHost = "localhost"
-		info.User = "root"
-		info.Password = "password"
-		info.DriverClass = "com.mysql.cj.jdbc.Driver"
-		info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+	info.DBType = "MySQL"
+	info.DBName = "pakai"
+	info.DbHost = "localhost"
+	info.User = "root"
+	info.Password = "password"
+	info.DriverClass = "com.mysql.cj.jdbc.Driver"
+	info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
 	#Else If MariaDB
-		info.DBType = "MariaDB"
-		info.DBName = "pakai"
-		info.DbHost = "localhost"
-		info.User = "root"
-		info.Password = "password"
-		info.DriverClass = "org.mariadb.jdbc.Driver"
-		info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+	info.DBType = "MariaDB"
+	info.DBName = "pakai"
+	info.DbHost = "localhost"
+	info.User = "root"
+	info.Password = "password"
+	info.DriverClass = "org.mariadb.jdbc.Driver"
+	info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
 	#End If
 	Try
 		Conn.Initialize(info)
@@ -217,11 +217,8 @@ Public Sub ConfigureDatabase
 				Conn.InitPool
 			End If
 			#End If
-			DB.Initialize(DBType, DBOpen)
-			'DB.ShowExtraLogs = True
-			'#If B4A or B4i
-			'DB.ShowDBUtilsJson = True
-			'#End If
+			DB.Initialize(DBType)
+			DB.Open(DBOpen)
 			GetCategories
 		Else
 			LogColor($"${info.DBType} database not found!"$, COLOR_RED)
@@ -249,7 +246,8 @@ Private Sub CreateDatabase
 		Return
 	End If
 	
-	DB.Initialize(DBType, DBOpen)
+	DB.Initialize(DBType)
+	DB.Open(DBOpen)
 	'DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
 	DB.QueryAddToBatch = True
@@ -293,8 +291,10 @@ Private Sub CreateDatabase
 	DB.Id = 3 ' after setting Columns and Parameters
 	DB.Save
 	
-	DB.Close
-	DB.Initialize(DBType, DBOpen)
+	'DB.Close
+	'DB.Initialize
+	'DB.DBType = DBType
+	'DB.SQL = DBOpen
 	GetCategories
 End Sub
 

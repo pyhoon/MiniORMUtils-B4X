@@ -164,7 +164,7 @@ Public Sub DBExist As Boolean
 End Sub
 
 #If B4J
-' Check database exists (MySQL)
+' Check database exists (MySQL, MariaDB)
 Public Sub DBExist2 As ResumableSub
 	Dim DBFound As Boolean
 	Try

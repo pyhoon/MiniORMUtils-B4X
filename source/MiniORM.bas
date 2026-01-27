@@ -16,6 +16,7 @@ Sub Class_Globals
 	Private DBTable 				As String
 	Private DBView					As String
 	Private DBStatement 			As String
+	Private DBDatabaseName 			As String
 	Private DBPrimaryKey 			As String
 	Private DBUniqueKey 			As String
 	Private DBForeignKey 			As String
@@ -32,11 +33,12 @@ Sub Class_Globals
 	Private mJournalMode 			As String = "DELETE"
 	Private BlnShowExtraLogs 		As Boolean
 	Private BlnUseTimestamps 		As Boolean ' may need to disable when working on view
-	Private BlnAutoIncrement 		As Boolean
+	Private BlnAutoIncrement 		As Boolean = True
 	Private BlnUseDataAuditUserId 	As Boolean
 	Private BlnUpdateModifiedDate 	As Boolean
 	Private BlnQueryAddToBatch 		As Boolean
 	Private BlnQueryExecute 		As Boolean
+	Private BlnQueryClearParameters As Boolean = True
 	#If B4J
 	Private BlnUseTimestampsAsTicks As Boolean
 	Private DateTimeMethods 		As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
@@ -62,16 +64,19 @@ Sub Class_Globals
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 End Sub
 
-'Initialize MiniORM
-'<code>DB.Initialize("sqlite", Null)</code>
-Public Sub Initialize (DBType As String, SQL As SQL)
-	setDBType(DBType)
-	setSQL(SQL)
+'<code>DB.Initialize("SQLite")</code>
+Public Sub Initialize (DBType As String)
+	Clear
+	DBView = ""
+	DBTable = ""
+	DBObject = ""
+	DBStatement = ""
+	DBDatabaseName = ""
 	DBBatch.Initialize
-	BlnAutoIncrement = True
+	setDBType(DBType)
 End Sub
 
-'Set DB Type to SQLite, MySQL or MariaDB
+'Set DBType to SQLite, MySQL or MariaDB
 Public Sub getDBType As String
 	Return mType
 End Sub
@@ -195,32 +200,49 @@ Public Sub setQueryExecute (Value As Boolean)
 	BlnQueryExecute = Value
 End Sub
 
+' Clear Parameters after Query
+Public Sub setQueryClearParameters (Value As Boolean)
+	BlnQueryClearParameters = Value
+End Sub
+
 Public Sub setAutoIncrement (Value As Boolean)
 	BlnAutoIncrement = Value
 End Sub
 
+'Pass SQL object to MiniORM
+Public Sub Open (SQL As SQL)
+	setSQL(SQL)
+End Sub
+
+'Close SQL object
 Public Sub Close
 	If mJournalMode.EqualsIgnoreCase("WAL") Then Return
 	If DBSQL <> Null And DBSQL.IsInitialized Then DBSQL.Close
 End Sub
 
 Public Sub Reset
-	Reset2
-	ResetParameters
+	Clear
+	ClearParameters
 	DBColumns.Initialize
 	SelectAllFromDBObject
 End Sub
 
-' Partially reset variables
-' DBStatement is not reset
-Private Sub Reset2
+'Clear some query related String variables but continue to reuse table/view
+Private Sub Clear
+	DBLimit = ""
 	DBHaving = ""
+	DBGroupBy = ""
 	DBOrderBy = ""
 	DBCondition = ""
 	DBUniqueKey = ""
 	DBPrimaryKey = ""
 	DBForeignKey = ""
 	DBConstraint = ""
+End Sub
+
+' Clear Parameters
+Private Sub ClearParameters
+	DBParameters = Array As Object()
 End Sub
 
 Public Sub Results As List
@@ -253,7 +275,7 @@ Public Sub getError As Exception
 	Return mError
 End Sub
 
-' Append new Condition WHERE id = mID
+' Append new Condition WHERE/AND id = mID
 ' Existing parameters are preserved
 Public Sub setId (mID As Int)
 	DBID = mID
@@ -311,11 +333,6 @@ Public Sub getFound As Boolean
 	Return ORMTable.RowCount > 0
 End Sub
 
-' Clear Parameters
-Private Sub ResetParameters
-	DBParameters = Array As Object()
-End Sub
-
 Private Sub SelectAllFromDBObject
 	DBStatement = $"SELECT * FROM ${DBObject}"$
 End Sub
@@ -337,12 +354,6 @@ End Sub
 
 Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As String) As String
 	Return $"IFNULL(${ColumnName}, '${DefaultValue}')"$ & IIf(AliasName = "", $" AS ${ColumnName}"$, $" AS ${AliasName}"$)
-End Sub
-
-' Deprecated: Will be removed in future version
-' SelectFromTableOrView with specified Columns
-Public Sub setSelect (mColumns As List)
-	setColumns(mColumns)
 End Sub
 
 Public Sub setGroupBy (Columns As List)
@@ -548,9 +559,10 @@ Public Sub Create
 	If BlnQueryExecute Then Execute
 End Sub
 
+'Create using raw SQL statement
 Public Sub Create2 (CreateStatement As String)
+	ClearParameters
 	DBStatement = CreateStatement
-	ResetParameters
 	If BlnQueryAddToBatch Then AddNonQueryToBatch
 	If BlnQueryExecute Then Execute
 End Sub
@@ -568,6 +580,7 @@ Public Sub Primary (mKeys() As String)
 End Sub
 
 ' Add foreign key
+'<code>DB.Foreign("category_id", "id", "tbl_categories", "", "")</code>
 Public Sub Foreign (mKey As String, mReferences As String, mOnTable As String, mOnDelete As String, mOnUpdate As String)
 	Dim sb As StringBuilder
 	sb.Initialize
@@ -665,12 +678,10 @@ Public Sub AddNonQueryToBatch
 	Next
 	DBBatch.Add(CreateMap("DBStatement": DBStatement, "DBParameters": Args))
 	DBSQL.AddNonQueryToBatch(DBStatement, Args)
-	'If BlnShowExtraLogs Then LogQuery2
 End Sub
 
 ' Append Parameters at the end
 Public Sub AddParameters (Params() As Object)
-	'DBParameters = Merge(DBParameters, Params)
 	If Params.Length = 0 Then Return
 	If DBParameters.Length > 0 Then
 		Dim NewArray(DBParameters.Length + Params.Length) As Object
@@ -860,8 +871,8 @@ Public Sub Query
 	'' B4A yet support Initialized() function
 	'If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
 	'#End If
-	Reset2
-	ResetParameters
+	Clear
+	If BlnQueryClearParameters Then ClearParameters
 End Sub
 
 Public Sub Query2 (mParams() As Object)
@@ -1106,7 +1117,7 @@ Public Sub getLastInsertID As Object
 		Case SQLITE
 			DBStatement = "SELECT LAST_INSERT_ROWID()"
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DB Type")
+			If BlnShowExtraLogs Then Log("Unknown DBType")
 			Return -1
 	End Select
 	If BlnShowExtraLogs Then LogQuery
@@ -1183,7 +1194,7 @@ Public Sub SoftDelete
 		Case SQLITE
 			DBStatement = $"UPDATE ${DBObject} SET deleted_date = strftime('%s000', 'now')"$
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DB Type")
+			If BlnShowExtraLogs Then Log("Unknown DBType")
 			Return
 	End Select
 	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
@@ -1191,30 +1202,52 @@ Public Sub SoftDelete
 	DBSQL.ExecNonQuery(DBStatement)
 End Sub
 
-' Tests whether the table exists (SQLite)
+' Tests whether the table exists
 Public Sub TableExists (TableName As String) As Boolean
-	' SQLite code extracted from DBUtils
-	DBStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
-	If BlnShowExtraLogs Then LogQueryWithArg(TableName)
-	Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(TableName))
-	Return count > 0
+	Select mType
+		Case SQLITE
+			' SQLite code extracted from DBUtils
+			DBStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
+			If BlnShowExtraLogs Then LogQueryWithArg(TableName)
+			Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(TableName))
+			Return count > 0
+		Case MYSQL, MARIADB
+			If DBDatabaseName = "" Then
+				If BlnShowExtraLogs Then Log("Unknown DatabaseName")
+				Return False
+			End If
+			DBStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
+			If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DBDatabaseName, TableName))
+			Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DBDatabaseName, TableName))
+			Return count > 0
+		Case Else
+			If BlnShowExtraLogs Then Log("Unknown DBType")
+			Return False
+	End Select
 End Sub
 
-' Tests whether the table exists in the given database (MySQL)
-Public Sub TableExists2 (TableName As String, DatabaseName As String) As Boolean
-	DBStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-	If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DatabaseName, TableName))
-	Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DatabaseName, TableName))
-	Return count > 0
-End Sub
-
-' Tests whether the view exists (SQLite)
+' Tests whether the view exists
 Public Sub ViewExists (ViewName As String) As Boolean
 	Try
-		DBStatement = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
-		If BlnShowExtraLogs Then LogQueryWithArg(ViewName)
-		Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(ViewName))
-		Return count > 0
+		Select mType
+			Case SQLITE
+				DBStatement = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
+				If BlnShowExtraLogs Then LogQueryWithArg(ViewName)
+				Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(ViewName))
+				Return count > 0
+			Case MYSQL, MARIADB
+				If DBDatabaseName = "" Then
+					If BlnShowExtraLogs Then Log("Unknown DatabaseName")
+					Return False
+				End If
+				DBStatement = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
+				If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DBDatabaseName, ViewName))
+				Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DBDatabaseName, ViewName))
+				Return count > 0
+			Case Else
+				If BlnShowExtraLogs Then Log("Unknown DBType")
+				Return False
+		End Select
 	Catch
 		LogColor(LastException, COLOR_RED)
 		mError = LastException
@@ -1222,30 +1255,28 @@ Public Sub ViewExists (ViewName As String) As Boolean
 	End Try
 End Sub
 
-' Tests whether the view exists in the given database (MySQL)
-Public Sub ViewExists2 (ViewName As String, DatabaseName As String) As Boolean
-	Try
-		DBStatement = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-		If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DatabaseName, ViewName))
-		Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DatabaseName, ViewName))
-		Return count > 0
-	Catch
-		LogColor(LastException, COLOR_RED)
-		mError = LastException
-		Return False
-	End Try
-End Sub
-
-' List tables (SQLite)
+' List tables
 Public Sub ListTables As List
 	Try
 		Dim lst As List
 		lst.Initialize
-		DBStatement = "SELECT name FROM sqlite_master WHERE type = 'table'"
-		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
-		Do While RS.NextRow
-			lst.Add(RS.GetString("name"))
-		Loop
+		Select mType
+			Case SQLITE
+				DBStatement = "SELECT name FROM sqlite_master WHERE type = 'table'"
+				Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+				Do While RS.NextRow
+					lst.Add(RS.GetString("name"))
+				Loop
+			Case MYSQL, MARIADB
+				DBStatement = "SELECT TABLE_NAME FROM TABLES WHERE TABLE_SCHEMA = ?"
+				Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(DBDatabaseName))
+				Do While RS.NextRow
+					lst.Add(RS.GetString("TABLE_NAME"))
+				Loop
+			Case Else
+				If BlnShowExtraLogs Then Log("Unknown DBType")
+				Return lst
+		End Select
 	Catch
 		LogColor(LastException, COLOR_RED)
 		mError = LastException
@@ -1254,50 +1285,26 @@ Public Sub ListTables As List
 	Return lst
 End Sub
 
-' List tables (MySQL, MariaDB)
-Public Sub ListTables2 (DatabaseName As String) As List
-	Try
-		Dim lst As List
-		lst.Initialize
-		DBStatement = "SELECT TABLE_NAME FROM TABLES WHERE TABLE_SCHEMA = ?"
-		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(DatabaseName))
-		Do While RS.NextRow
-			lst.Add(RS.GetString("TABLE_NAME"))
-		Loop
-	Catch
-		LogColor(LastException, COLOR_RED)
-		mError = LastException
-	End Try
-	RS.Close
-	Return lst
-End Sub
-
-' Show Create Table query (SQLite)
+' Show Create Table query
 Public Sub ShowCreateTable (TableName As String) As String
 	Try
-		DBStatement = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
-		Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(TableName))
-		Do While RS.NextRow
-			Return RS.GetString("sql")
-		Loop
-	Catch
-		LogColor(LastException, COLOR_RED)
-		mError = LastException
-	End Try
-	RS.Close
-	Return ""
-End Sub
-
-' Show Create Table query (MySQL, MariaDB)
-Public Sub ShowCreateTable2 (TableName As String) As String
-	Try
-		Dim lst As List
-		lst.Initialize
-		DBStatement = $"SHOW CREATE TABLE ${TableName}"$
-		Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
-		Do While RS.NextRow
-			Return RS.GetString("CREATE TABLE")
-		Loop
+		Select mType
+			Case SQLITE
+				DBStatement = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
+				Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(TableName))
+				Do While RS.NextRow
+					Return RS.GetString("sql")
+				Loop
+			Case MYSQL, MARIADB
+				DBStatement = $"SHOW CREATE TABLE ${TableName}"$
+				Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+				Do While RS.NextRow
+					Return RS.GetString("CREATE TABLE")
+				Loop
+			Case Else
+				If BlnShowExtraLogs Then Log("Unknown DBType")
+				Return ""
+		End Select
 	Catch
 		LogColor(LastException, COLOR_RED)
 		mError = LastException
@@ -1322,12 +1329,22 @@ Public Sub getStatement As String
 	Return DBStatement
 End Sub
 
+' Set DatabaseName
+Public Sub setDatabaseName (DatabaseName As String)
+	DBDatabaseName = DatabaseName
+End Sub
+
+Public Sub getDatabaseName As String
+	Return DBDatabaseName
+End Sub
+
 ' Print current SQL statement without parameters
 Public Sub LogQuery
 	Log(DBStatement)
 End Sub
 
-' Print current SQL statement and parameters
+' Print current SQL statement on first line
+' Print current parameters as list on second line
 Public Sub LogQuery2
 	Dim SB As StringBuilder
 	SB.Initialize
@@ -1343,7 +1360,7 @@ Public Sub LogQuery2
 	Log(SB.ToString)
 End Sub
 
-' Print SQL statements and parameters in DBBatch
+' Print batch SQL statements and parameters
 Public Sub LogQuery3
 	For Each DBMap As Map In DBBatch
 		Dim SB As StringBuilder
@@ -1362,7 +1379,7 @@ Public Sub LogQuery3
 	Next
 End Sub
 
-' Print current SQL statement without parameters
+' Print current SQL statement and parameters on one line
 Public Sub LogQueryWithArg (Arg As Object)
 	Log($"${DBStatement} [${Arg}]"$)
 End Sub

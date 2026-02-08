@@ -2,4 +2,4 @@ Author=Aeric Poon
 Version=4.00
 B4A.DependsOn=SQL
 B4i.DependsOn=iSQL
-B4J.DependsOn=jSQL, jServer, javaobject
+B4J.DependsOn=jSQL,jServer,JavaObject

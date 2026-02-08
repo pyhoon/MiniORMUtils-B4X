@@ -7,42 +7,49 @@ Version=10.3
 ' Mini Object-Relational Mapper (ORM) class
 ' Version 4.00
 Sub Class_Globals
-	Private DBSQL 					As SQL
-	Private DBID 					As Int
-	Private DBBatch 				As List
-	Private DBColumns 				As List
-	Private DBColumnsType			As Map
-	Private DBObject 				As String
-	Private DBTable 				As String
-	Private DBView					As String
-	Private DBStatement 			As String
-	Private DBDatabaseName 			As String
-	Private DBPrimaryKey 			As String
-	Private DBUniqueKey 			As String
-	Private DBForeignKey 			As String
-	Private DBConstraint 			As String
-	Private DBGroupBy 				As String
-	Private DBOrderBy 				As String
-	Private DBLimit 				As String
-	Private DBCondition 			As String
-	Private DBHaving 				As String
-	Private DBParameters() 			As Object
+	Private mSQL 					As SQL
+	Private mID 					As Int
+	Private mBatch 					As List
+	Private mColumns 				As List
+	Private mColumnsType			As Map
+	Private mObject 				As String
+	Private mTable 					As String
+	Private mView					As String
+	Private mStatement 				As String
+	Private mDatabaseName 			As String
+	Private mPrimaryKey 			As String
+	Private mUniqueKey 				As String
+	Private mForeignKey 			As String
+	Private mConstraint 			As String
+	Private mGroupBy 				As String
+	Private mOrderBy 				As String
+	Private mLimit 					As String
+	Private mCondition 				As String
+	Private mHaving 				As String
+	Private mParameters() 			As Object
 	Private mError 					As Exception
 	Private mType 					As String
-	Private StrDefaultUserId 		As String = "1"
 	Private mJournalMode 			As String = "DELETE"
-	Private BlnShowExtraLogs 		As Boolean
-	Private BlnUseTimestamps 		As Boolean ' may need to disable when working on view
-	Private BlnAutoIncrement 		As Boolean = True
-	Private BlnUseDataAuditUserId 	As Boolean
-	Private BlnUpdateModifiedDate 	As Boolean
-	Private BlnQueryAddToBatch 		As Boolean
-	Private BlnQueryExecute 		As Boolean
-	Private BlnQueryClearParameters As Boolean = True
+	Private mDefaultUserId 			As String = "1"
+	Private mShowExtraLogs 			As Boolean
+	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
+	Private mAutoIncrement 			As Boolean = True
+	Private mUseDataAuditUserId 	As Boolean
+	Private mUpdateModifiedDate 	As Boolean
+	Private mQueryAddToBatch 		As Boolean
+	Private mQueryExecute 			As Boolean
+	Private mQueryClearParameters 	As Boolean = True
+	Private mUseTimestampsAsTicks 	As Boolean
+	Private mDateTimeMethods 		As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
 	#If B4J
-	Private BlnUseTimestampsAsTicks As Boolean
-	Private DateTimeMethods 		As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
+	Private mPool 					As ConnectionPool
 	#End If
+	Private mCharSet 				As String = "utf8mb4"
+	Private mCollate 				As String = "utf8mb4_unicode_ci"
+	Private mJournalMode 			As String = "DELETE"
+	Private Const SQLITE 			As String = "SQLite"
+	Private Const MYSQL 			As String = "MySQL"
+	Private Const MARIADB 			As String = "MariaDB"
 	Public BLOB 					As String
 	Public INTEGER 					As String
 	Public BIG_INT 					As String
@@ -53,35 +60,376 @@ Sub Class_Globals
 	Public TEXT 					As String
 	Public ORMTable 				As ORMTable
 	Public ORMResult 				As ORMResult
+	Public Settings					As ORMSettings
 	Public Const MYSQL 				As String = "MySQL"
 	Public Const SQLITE 			As String = "SQLite"
 	Public Const MARIADB 			As String = "MariaDB"
-	Private Const COLOR_RED 		As Int = -65536
+	Public Const COLOR_RED 			As Int = -65536
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMFilter (Column As String, Operator As String, Value As String)
 	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
 	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
+	Type ORMSettings (DBDir As String, _
+	DBFile As String, _
+	DBType As String, _
+	DBHost As String, _
+	DBPort As String, _
+	DBName As String, _
+	DriverClass As String, _
+	JdbcUrl As String, _
+	User As String, _
+	Password As String, _
+	JournalMode As String, _
+	MaxPoolSize As Int)
 End Sub
 
-'<code>DB.Initialize("SQLite")</code>
-Public Sub Initialize (DBType As String)
+'<code>DB.Initialize</code>
+Public Sub Initialize
 	Clear
-	DBView = ""
-	DBTable = ""
-	DBObject = ""
-	DBStatement = ""
-	DBDatabaseName = ""
-	DBBatch.Initialize
-	setDBType(DBType)
+	mView = ""
+	mTable = ""
+	mObject = ""
+	mStatement = ""
+	mDatabaseName = ""
+	mBatch.Initialize
+	Settings.Initialize
 End Sub
+
+' Create SQLite database
+Public Sub InitializeSQLite As Boolean
+	Try
+		#If B4J
+		mSQL.InitializeSQLite(Settings.DBDir, Settings.DBFile, True)
+		#End If
+		#If B4A or B4i
+		mSQL.Initialize(Settings.DBDir, Settings.DBFile, True)
+		#End If
+		If mJournalMode.EqualsIgnoreCase("WAL") Then
+			mSQL.ExecQuerySingleResult("PRAGMA journal_mode = wal")
+		End If
+		Return True
+	Catch
+		Log(LastException)
+		mError = LastException
+		Return False
+	End Try
+End Sub
+
+' Create MySQL or MariaDB database
+Public Sub CreateDatabaseAsync As ResumableSub
+	Try
+		If mSQL.IsInitialized = False Then
+			Wait For (InitSchemaAsync) Complete (Success As Boolean)
+			If Success = False Then
+				Return False
+			End If
+		End If
+		Dim qry As String = $"CREATE DATABASE ${Settings.DBName} CHARACTER SET ${mCharSet} COLLATE ${mCollate}"$
+		mSQL.ExecNonQuery(qry)
+		Return True
+	Catch
+		Log(LastException)
+		mError = LastException
+		Return False
+	End Try
+End Sub
+
+#If B4J
+' Connect to database name (MySQL, MariaDB)
+Public Sub InitPool
+	Try
+		Dim JdbcUrl As String = Settings.JdbcUrl
+		JdbcUrl = JdbcUrl.Replace("{DbHost}", Settings.DBHost)
+		JdbcUrl = JdbcUrl.Replace("{DbName}", Settings.DBName)
+		JdbcUrl = IIf(Settings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", Settings.DBPort))
+		mPool.Initialize(Settings.DriverClass, JdbcUrl, Settings.User, Settings.Password)
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+End Sub
+
+' Asynchronously initialize database schema (MySQL, MariaDB)
+Public Sub InitSchemaAsync As ResumableSub
+	Dim JdbcUrl As String = Settings.JdbcUrl
+	JdbcUrl = JdbcUrl.Replace("{DbHost}", Settings.DBHost)
+	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
+	JdbcUrl = IIf(Settings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", Settings.DBPort))
+	mSQL.InitializeAsync("DB", Settings.DriverClass, JdbcUrl, Settings.User, Settings.Password)
+	Wait For DB_Ready (Success As Boolean)
+	If Success = False Then
+		Log(LastException)
+		mError = LastException
+		Return False
+	End If
+	Return Success
+End Sub
+
+' Initialize database schema (MySQL, MariaDB)
+Public Sub InitSchema
+	Dim JdbcUrl As String = Settings.JdbcUrl
+	JdbcUrl = JdbcUrl.Replace("{DbHost}", Settings.DBHost)
+	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
+	JdbcUrl = IIf(Settings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", Settings.DBPort))
+	mSQL.Initialize2(Settings.DriverClass, JdbcUrl, Settings.User, Settings.Password)
+End Sub
+#End If
+
+' Check database file exists (SQLite)
+Public Sub Exist As Boolean
+	Dim DBFound As Boolean
+	If File.Exists(Settings.DBDir, Settings.DBFile) Then
+		DBFound = True
+	End If
+	Return DBFound
+End Sub
+
+#If B4J
+' Check database exists (MySQL, MariaDB)
+Public Sub ExistAsync As ResumableSub
+	Dim DBFound As Boolean
+	Try
+		If mSQL.IsInitialized = False Then
+			Wait For (InitSchemaAsync) Complete (Success As Boolean)
+			If Success = False Then
+				Return False
+			End If
+		End If
+		Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
+		Dim RS As ResultSet = mSQL.ExecQuery2(qry, Array As String(Settings.DBName))
+		Do While RS.NextRow
+			DBFound = True
+		Loop
+		RS.Close
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+	Close
+	Return DBFound
+End Sub
+#End If
+
+' Connect to database server
+' Note: SQLite uses DBDir and DBFile
+Public Sub Open As SQL
+	#If B4J
+	Select Settings.DBType
+		Case SQLITE
+			mSQL.InitializeSQLite(Settings.DBDir, Settings.DBFile, False)
+		Case MYSQL, MARIADB
+			Return mPool.GetConnection
+	End Select
+	#Else
+	SQL.Initialize(Settings.DBDir, Settings.DBFile, False)
+	#End If
+	Return mSQL
+End Sub
+
+#If B4J
+' Connect to database server (asynchronously connection)
+' Note: SQLite uses JdbcUrl
+Public Sub OpenAsync As ResumableSub
+	Try
+		Select Settings.DBType
+			Case MYSQL, MARIADB
+				mPool.GetConnectionAsync("Pool")
+				Wait For Pool_ConnectionReady (DB1 As SQL)
+				mSQL = DB1
+			Case SQLITE
+				mSQL.InitializeAsync("DB", Settings.DriverClass, Settings.JdbcUrl, Settings.User, Settings.Password)
+				Wait For DB_Ready (Success As Boolean)
+				If Success = False Then
+					Log(LastException)
+					mError = LastException
+				End If
+		End Select
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+	Return mSQL
+End Sub
+#End If
+
+Public Sub Opened As Boolean
+	Return mSQL <> Null And mSQL.IsInitialized
+End Sub
+
+' Close SQL object
+Public Sub Close
+	If mJournalMode.EqualsIgnoreCase("WAL") Then Return
+	If Opened Then mSQL.Close
+End Sub
+
+' Check database can be connected
+Public Sub Test As Boolean
+	If Opened Then
+		'DBClose
+		Close
+		Return True
+	End If
+	Return False
+End Sub
+
+' Return server date
+Public Sub GetDate As String
+	Try
+		Select Settings.DBType
+			#If B4J
+			Case MYSQL, MARIADB
+				Dim qry As String = $"SELECT CURDATE()"$
+			#End If
+			Case SQLITE
+				Dim qry As String = $"SELECT DATE('now')"$
+			Case Else
+				Dim CurrentDateFormat As String = DateTime.DateFormat
+				DateTime.DateFormat = "yyyy-MM-dd"
+				Dim DateValue As String = DateTime.Date(DateTime.Now)
+				DateTime.DateFormat = CurrentDateFormat
+				Return DateValue
+		End Select
+		If mSQL.IsInitialized = False Then
+			mSQL = Open
+		End If
+		Dim str As String = mSQL.ExecQuerySingleResult(qry)
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+	Close
+	Return str
+End Sub
+
+' Return server date (ascynchronous connection)
+Public Sub GetDate2 As ResumableSub
+	Try
+		Select Settings.DBType
+			#If B4J
+			Case MYSQL, MARIADB
+				Dim qry As String = $"SELECT CURDATE()"$
+			#End If
+			Case SQLITE
+				Dim qry As String = $"SELECT DATE('now')"$
+			Case Else
+				DateTime.DateFormat = "yyyy-MM-dd"
+				Return DateTime.Date(DateTime.Now)
+		End Select
+		If mSQL.IsInitialized = False Then
+			mSQL = Open
+		End If
+		Dim str As String = mSQL.ExecQuerySingleResult(qry)
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+	Close
+	Return str
+End Sub
+
+' Return server timestamp
+Public Sub GetDateTime As String
+	Try
+		Select Settings.DBType
+			#If B4J
+			Case MYSQL, MARIADB
+				Dim qry As String = $"SELECT now()"$
+			#End If
+			Case SQLITE
+				Dim qry As String = $"SELECT datetime('now')"$
+			Case Else	
+				Dim CurrentDateFormat As String = DateTime.DateFormat
+				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
+				Dim DateValue As String = DateTime.Date(DateTime.Now)
+				DateTime.DateFormat = CurrentDateFormat
+				Return DateValue
+		End Select
+		If mSQL.IsInitialized = False Then
+			mSQL = Open
+		End If
+		Dim str As String = mSQL.ExecQuerySingleResult(qry)
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+	Close
+	Return str
+End Sub
+
+' Return server timestamp (ascynchronous connection)
+Public Sub GetDateTime2 As ResumableSub
+	Try
+		Select Settings.DBType
+			#If B4J
+			Case MYSQL, MARIADB
+				Dim qry As String = $"SELECT now()"$
+			#End If
+			Case SQLITE
+				Dim qry As String = $"SELECT datetime('now')"$
+			Case Else
+				DateTime.DateFormat = "yyyy-MM-dd HH:mm:ss"
+				Return DateTime.Date(DateTime.Now)
+		End Select
+		If mSQL.IsInitialized = False Then
+			mSQL = Open
+		End If
+		Dim str As String = mSQL.ExecQuerySingleResult(qry)
+	Catch
+		Log(LastException)
+		mError = LastException
+	End Try
+	Close
+	Return str
+End Sub
+
+Public Sub setError (mMessage As Exception)
+	mError = mMessage
+End Sub
+
+Public Sub getError As Exception
+	Return mError
+End Sub
+
+#If B4J
+Public Sub setCharSet (NewCharSet As String)
+	mCharSet = NewCharSet
+End Sub
+
+Public Sub setCollate (NewCollate As String)
+	mCollate = NewCollate
+End Sub
+#End If
+
+Public Sub setJournalMode (Mode As String)
+	mJournalMode = Mode
+End Sub
+
+' Return SQL query for Last Insert ID based on DBType
+Public Sub getLastInsertIDQuery As String
+	Select Settings.DBType
+		#If B4J
+		Case MYSQL, MARIADB
+			Dim qry As String = "SELECT LAST_INSERT_ID()"
+		#End If
+		Case SQLITE
+			Dim qry As String = "SELECT LAST_INSERT_ROWID()"
+		Case Else
+			Dim qry As String = "SELECT 0"
+	End Select
+	Return qry
+End Sub
+
+
+
+
 
 'Set DBType to SQLite, MySQL or MariaDB
-Public Sub getDBType As String
+Public Sub getDbType As String
 	Return mType
 End Sub
-Public Sub setDBType (DBType As String)
-	Select DBType.ToUpperCase
+Public Sub setDbType (Name As String)
+	Select Name.ToUpperCase
 		Case "SQLITE"
 			BLOB = "BLOB"
 			INTEGER = "INTEGER"
@@ -101,148 +449,133 @@ Public Sub setDBType (DBType As String)
 			TEXT = "text"
 			DATE_TIME = "datetime"
 			TIMESTAMP = "timestamp"
-			If DBType.EqualsIgnoreCase(MYSQL) Then mType = MYSQL Else mType = MARIADB
+			If Name.EqualsIgnoreCase(MYSQL) Then mType = MYSQL Else mType = MARIADB
 	End Select
 End Sub
 
-Public Sub setJournalMode (Mode As String)
-	mJournalMode = Mode
-End Sub
-
 Public Sub setSQL (SQL As SQL)
-	DBSQL = SQL
+	mSQL = SQL
 End Sub
 
 Public Sub getSQL As SQL
-	Return DBSQL
+	Return mSQL
 End Sub
 
-Public Sub setTable (mTable As String)
-	DBTable = mTable
-	DBObject = DBTable
+Public Sub setTable (Table As String)
+	mTable = Table
+	mObject = mTable
 	Reset
 End Sub
 
 Public Sub getTable As String
-	Return DBTable
+	Return mTable
 End Sub
 
-Public Sub setView (mView As String)
-	DBView = mView
-	DBObject = DBView
+Public Sub setView (View As String)
+	mView = View
+	mObject = mView
 	Reset
 End Sub
 
 Public Sub getView As String
-	Return DBView
+	Return mView
 End Sub
 
-Public Sub setBatch (mBatch As List)
-	DBBatch = mBatch
+Public Sub setBatch (Batch As List)
+	mBatch = Batch
 End Sub
 
 Public Sub getBatch As List
-	Return DBBatch
+	Return mBatch
 End Sub
 
-Public Sub setColumns (mColumns As List)
-	DBColumns = mColumns
+Public Sub setColumns (Columns As List)
+	mColumns = Columns
 	SelectFromTableOrView
 End Sub
 
 Public Sub getColumns As List
-	Return DBColumns
+	Return mColumns
 End Sub
 
-Public Sub setColumnsType (mColumnsType As Map)
-	DBColumnsType = mColumnsType
+Public Sub setColumnsType (ColumnsType As Map)
+	mColumnsType = ColumnsType
 End Sub
 
 Public Sub getColumnsType As Map
-	Return DBColumnsType
+	Return mColumnsType
 End Sub
 
 Public Sub setShowExtraLogs (Value As Boolean)
-	BlnShowExtraLogs = Value
+	mShowExtraLogs = Value
 End Sub
 
 Public Sub setUpdateModifiedDate (Value As Boolean)
-	BlnUpdateModifiedDate = Value
+	mUpdateModifiedDate = Value
 End Sub
 
 Public Sub setUseTimestamps (Value As Boolean)
-	BlnUseTimestamps = Value
+	mUseTimestamps = Value
 End Sub
 
 Public Sub getUseTimestamps As Boolean
-	Return BlnUseTimestamps
+	Return mUseTimestamps
 End Sub
 
 #If B4J
 Public Sub setUseTimestampsAsTicks (Value As Boolean)
-	BlnUseTimestampsAsTicks = Value
+	mUseTimestampsAsTicks = Value
 End Sub
 #End If
 
 Public Sub setUseDataAuditUserId (Value As Boolean)
-	BlnUseDataAuditUserId = Value
+	mUseDataAuditUserId = Value
 End Sub
 
 Public Sub setDefaultUserId (Value As String)
-	StrDefaultUserId = Value
+	mDefaultUserId = Value
 End Sub
 
 Public Sub setQueryAddToBatch (Value As Boolean)
-	BlnQueryAddToBatch = Value
+	mQueryAddToBatch = Value
 End Sub
 
 Public Sub setQueryExecute (Value As Boolean)
-	BlnQueryExecute = Value
+	mQueryExecute = Value
 End Sub
 
 ' Clear Parameters after Query
 Public Sub setQueryClearParameters (Value As Boolean)
-	BlnQueryClearParameters = Value
+	mQueryClearParameters = Value
 End Sub
 
 Public Sub setAutoIncrement (Value As Boolean)
-	BlnAutoIncrement = Value
-End Sub
-
-'Pass SQL object to MiniORM
-Public Sub Open (SQL As SQL)
-	setSQL(SQL)
-End Sub
-
-'Close SQL object
-Public Sub Close
-	If mJournalMode.EqualsIgnoreCase("WAL") Then Return
-	If DBSQL <> Null And DBSQL.IsInitialized Then DBSQL.Close
+	mAutoIncrement = Value
 End Sub
 
 Public Sub Reset
 	Clear
 	ClearParameters
-	DBColumns.Initialize
-	SelectAllFromDBObject
+	mColumns.Initialize
+	SelectAllFromObject
 End Sub
 
 'Clear some query related String variables but continue to reuse table/view
 Private Sub Clear
-	DBLimit = ""
-	DBHaving = ""
-	DBGroupBy = ""
-	DBOrderBy = ""
-	DBCondition = ""
-	DBUniqueKey = ""
-	DBPrimaryKey = ""
-	DBForeignKey = ""
-	DBConstraint = ""
+	mLimit = ""
+	mHaving = ""
+	mGroupBy = ""
+	mOrderBy = ""
+	mCondition = ""
+	mUniqueKey = ""
+	mPrimaryKey = ""
+	mForeignKey = ""
+	mConstraint = ""
 End Sub
 
 ' Clear Parameters
 Private Sub ClearParameters
-	DBParameters = Array As Object()
+	mParameters = Array As Object()
 End Sub
 
 Public Sub Results As List
@@ -254,36 +587,28 @@ Public Sub Results2 As List
 End Sub
 
 ' Query column id
-Public Sub Find (mID As Int)
+Public Sub Find (ID As Int)
 	Reset
-	WhereParam("id = ?", mID)
+	WhereParam("id = ?", ID)
 	Query
 End Sub
 
 ' Query by single condition
-Public Sub Find2 (mCondition As String, mValue As Object)
+Public Sub Find2 (Condition As String, Value As Object)
 	Reset
-	WhereParam(mCondition, mValue)
+	WhereParam(Condition, Value)
 	Query
 End Sub
 
-Public Sub setError (mMessage As Exception)
-	mError = mMessage
-End Sub
-
-Public Sub getError As Exception
-	Return mError
-End Sub
-
-' Append new Condition WHERE/AND id = mID
+' Append new Condition WHERE/AND id = ID
 ' Existing parameters are preserved
-Public Sub setId (mID As Int)
-	DBID = mID
-	WhereParams(Array("id = ?"), Array(mID)) ' Use WhereParams to append extra condition
+Public Sub setId (ID As Int)
+	mID = ID
+	WhereParams(Array("id = ?"), Array(ID)) ' Use WhereParams to append extra condition
 End Sub
 
 Public Sub getId As Int
-	Return DBID
+	Return mID
 End Sub
 
 ' Returns first queried row
@@ -298,10 +623,10 @@ End Sub
 
 ' (formerly known as SelectOnly)
 ' Return first queried row with specified columns
-Public Sub FirstPick (mColumns As List) As Map
+Public Sub FirstPick (Columns As List) As Map
 	Dim NewMap As Map
 	NewMap.Initialize
-	For Each Col In mColumns
+	For Each Col In Columns
 		If ORMTable.First.ContainsKey(Col) Then
 			NewMap.Put(Col, ORMTable.First.Get(Col))
 		End If
@@ -310,8 +635,8 @@ Public Sub FirstPick (mColumns As List) As Map
 End Sub
 
 ' Deprecated: Will be removed in future version
-Public Sub SelectOnly (mColumns As List) As Map
-	Return FirstPick(mColumns)
+Public Sub SelectOnly (Columns As List) As Map
+	Return FirstPick(Columns)
 End Sub
 
 ' Returns new inserted row
@@ -333,23 +658,23 @@ Public Sub getFound As Boolean
 	Return ORMTable.RowCount > 0
 End Sub
 
-Private Sub SelectAllFromDBObject
-	DBStatement = $"SELECT * FROM ${DBObject}"$
+Private Sub SelectAllFromObject
+	mStatement = $"SELECT * FROM ${mObject}"$
 End Sub
 
 Private Sub SelectFromTableOrView
 	Dim ac As Boolean ' Add Comma
 	Dim sb As StringBuilder
 	sb.Initialize
-	If DBColumns.IsInitialized Then
-		For Each Col In DBColumns
+	If mColumns.IsInitialized Then
+		For Each Col In mColumns
 			If ac Then sb.Append(", ")
 			sb.Append(Col)
 			ac = True
 		Next
 	End If
 	Dim Cols As String = sb.ToString
-	DBStatement = $"SELECT ${IIf(Cols = "", "*", Cols)} FROM ${DBObject}"$
+	mStatement = $"SELECT ${IIf(Cols = "", "*", Cols)} FROM ${mObject}"$
 End Sub
 
 Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As String) As String
@@ -363,17 +688,17 @@ Public Sub setGroupBy (Columns As List)
 		If sb.Length > 0 Then sb.Append(", ") Else sb.Append(" GROUP BY ")
 		sb.Append(Column)
 	Next
-	DBGroupBy = sb.ToString
+	mGroupBy = sb.ToString
 End Sub
 
-Public Sub setHaving (mStatements As List)
+Public Sub setHaving (Statements As List)
 	Dim sb As StringBuilder
 	sb.Initialize
-	For Each statement In mStatements
+	For Each statement In Statements
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" HAVING ")
 		sb.Append(statement)
 	Next
-	DBHaving = sb.ToString
+	mHaving = sb.ToString
 End Sub
 
 Public Sub setOrderBy (Col As Map)
@@ -389,18 +714,18 @@ Public Sub setOrderBy (Col As Map)
 				sb.Append(key)
 			End If
 		Next
-		DBOrderBy = $" ORDER BY ${sb.ToString}"$
+		mOrderBy = $" ORDER BY ${sb.ToString}"$
 	End If
 End Sub
 
 Public Sub SortByLastId
-	DBOrderBy = $" ORDER BY id DESC"$
+	mOrderBy = $" ORDER BY id DESC"$
 End Sub
 
 Public Sub Create
 	Dim sb As StringBuilder
 	sb.Initialize
-	For Each col As ORMColumn In DBColumns
+	For Each col As ORMColumn In mColumns
 		sb.Append(col.ColumnName)
 		sb.Append(" ")
 		Select mType
@@ -467,23 +792,23 @@ Public Sub Create
 	
 	Select mType
 		Case SQLITE
-			If BlnUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
+			If mUseDataAuditUserId Then
+				sb.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
 				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
 				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
-			If BlnUseTimestamps Then
+			If mUseTimestamps Then
 				sb.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
 				sb.Append("modified_date " & VARCHAR & ",").Append(CRLF)
 				sb.Append("deleted_date " & VARCHAR & ",")
 			End If
 		Case MYSQL, MARIADB
-			If BlnUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT " & StrDefaultUserId & ",").Append(CRLF)
+			If mUseDataAuditUserId Then
+				sb.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
 				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
 				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
-			If BlnUseTimestamps Then
+			If mUseTimestamps Then
 				' Use timestamp and datetime
 				sb.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
 				sb.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
@@ -493,19 +818,19 @@ Public Sub Create
 
 	Dim stmt As StringBuilder
 	stmt.Initialize
-	Select DBObject
-		Case DBTable
-			stmt.Append($"CREATE TABLE IF NOT EXISTS ${DBTable} ("$)
-		Case DBView
-			stmt.Append($"CREATE VIEW IF NOT EXISTS ${DBView} AS "$)
+	Select mObject
+		Case mTable
+			stmt.Append($"CREATE TABLE IF NOT EXISTS ${mTable} ("$)
+		Case mView
+			stmt.Append($"CREATE VIEW IF NOT EXISTS ${mView} AS "$)
 	End Select
 	
 	' id column added by default
 	Dim Pk As String = "id"
-	If DBPrimaryKey.Length > 0 And Not(DBPrimaryKey.Contains(",")) Then
-		Pk = DBPrimaryKey
+	If mPrimaryKey.Length > 0 And Not(mPrimaryKey.Contains(",")) Then
+		Pk = mPrimaryKey
 	End If
-	If BlnAutoIncrement Then
+	If mAutoIncrement Then
 		Select mType
 			Case MYSQL, MARIADB
 				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
@@ -517,7 +842,7 @@ Public Sub Create
 	' Put the columns here
 	stmt.Append(sb.ToString)
 
-	If BlnAutoIncrement Then
+	If mAutoIncrement Then
 		Select mType
 			Case SQLITE
 				stmt.Append(CRLF)
@@ -527,44 +852,44 @@ Public Sub Create
 				stmt.Append($"PRIMARY KEY(${Pk})"$)
 		End Select
 	Else
-		If DBPrimaryKey.Length > 0 Then
+		If mPrimaryKey.Length > 0 Then
 			stmt.Append(CRLF)
-			stmt.Append($"PRIMARY KEY(${DBPrimaryKey})"$)
+			stmt.Append($"PRIMARY KEY(${mPrimaryKey})"$)
 		Else
 			stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
 		End If
 	End If
 	
-	If DBUniqueKey.Length > 0 Then
+	If mUniqueKey.Length > 0 Then
 		stmt.Append(",")
 		stmt.Append(CRLF)
-		stmt.Append(DBUniqueKey)
+		stmt.Append(mUniqueKey)
 	End If
 	
-	If DBForeignKey.Length > 0 Then
+	If mForeignKey.Length > 0 Then
 		stmt.Append(",")
 		stmt.Append(CRLF)
-		stmt.Append(DBForeignKey)
+		stmt.Append(mForeignKey)
 	End If
 	
-	If DBConstraint.Length > 0 Then
+	If mConstraint.Length > 0 Then
 		stmt.Append(",")
 		stmt.Append(CRLF)
-		stmt.Append(DBConstraint)
+		stmt.Append(mConstraint)
 	End If
 	
-	If DBObject = DBTable Then stmt.Append(")")
-	DBStatement = stmt.ToString
-	If BlnQueryAddToBatch Then AddNonQueryToBatch
-	If BlnQueryExecute Then Execute
+	If mObject = mTable Then stmt.Append(")")
+	mStatement = stmt.ToString
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then Execute
 End Sub
 
 'Create using raw SQL statement
 Public Sub Create2 (CreateStatement As String)
 	ClearParameters
-	DBStatement = CreateStatement
-	If BlnQueryAddToBatch Then AddNonQueryToBatch
-	If BlnQueryExecute Then Execute
+	mStatement = CreateStatement
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then Execute
 End Sub
 
 ' Replace default primary key
@@ -576,7 +901,7 @@ Public Sub Primary (mKeys() As String)
 		If i > 0 Then keys.Append(", ")
 		keys.Append(mKeys(i))
 	Next
-	DBPrimaryKey = keys.ToString
+	mPrimaryKey = keys.ToString
 End Sub
 
 ' Add foreign key
@@ -587,7 +912,7 @@ Public Sub Foreign (mKey As String, mReferences As String, mOnTable As String, m
 	sb.Append( $"FOREIGN KEY (${mKey}) REFERENCES ${mOnTable} (${mReferences})"$ )
 	If mOnDelete.Length > 0 Then sb.Append( " ON DELETE " & mOnDelete )
 	If mOnUpdate.Length > 0 Then sb.Append( " ON UPDATE " & mOnUpdate )
-	DBForeignKey = sb.ToString
+	mForeignKey = sb.ToString
 End Sub
 
 ' Add unique key
@@ -599,7 +924,7 @@ Public Sub Unique (mKey As String, mAlias As String)
 	sb.Append("UNIQUE KEY")
 	If mAlias.Length > 0 Then sb.Append(" " & mAlias)
 	sb.Append($" (${mKey})"$)
-	DBUniqueKey = sb.ToString
+	mUniqueKey = sb.ToString
 End Sub
 
 ' Add constraint
@@ -613,7 +938,7 @@ Public Sub Constraint (mKeyType As String, mKeys As String, mAlias As String)
 	If mAlias.Length > 0 Then sb.Append(" " & mAlias)
 	sb.Append(" " & mKeyType)
 	sb.Append($"(${mKeys})"$)
-	DBConstraint = sb.ToString
+	mConstraint = sb.ToString
 End Sub
 
 ' Execute Non Query
@@ -623,35 +948,35 @@ End Sub
 
 ' Execute Non Query with Object type parameters
 Public Sub Execute2 (Parameter() As Object)
-	DBParameters = Parameter
-	If BlnShowExtraLogs Then LogQuery2
+	mParameters = Parameter
+	If mShowExtraLogs Then LogQuery2
 	Execute
 End Sub
 
 Private Sub ExecQuery As ResultSet
-	Try
+	'Try
 		If ParametersCount = 0 Then
-			If BlnShowExtraLogs Then LogQuery
-			Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+			If mShowExtraLogs Then LogQuery
+			Dim RS As ResultSet = mSQL.ExecQuery(mStatement)
 		Else
-			If BlnShowExtraLogs Then LogQuery2
-			Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, DBParameters)
+			If mShowExtraLogs Then LogQuery2
+			Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, mParameters)
 		End If
-	Catch
-		Log(LastException)
-		mError = LastException
-	End Try
+	'Catch
+	'	Log(LastException.Message)
+	'	mError = LastException
+	'End Try
 	Return RS
 End Sub
 
 Private Sub ExecNonQuery
 	Try
 		If ParametersCount = 0 Then
-			If BlnShowExtraLogs Then LogQuery
-			DBSQL.ExecNonQuery(DBStatement)
+			If mShowExtraLogs Then LogQuery
+			mSQL.ExecNonQuery(mStatement)
 		Else
-			If BlnShowExtraLogs Then LogQuery2
-			DBSQL.ExecNonQuery2(DBStatement, DBParameters)
+			If mShowExtraLogs Then LogQuery2
+			mSQL.ExecNonQuery2(mStatement, mParameters)
 		End If
 	Catch
 		Log(LastException)
@@ -661,9 +986,9 @@ End Sub
 
 ' Execute Non Query batch <code>
 'Wait For (DB.ExecuteBatch) Complete (Success As Boolean)</code>
-Public Sub ExecuteBatch As ResumableSub
-	If BlnShowExtraLogs Then LogQuery3
-	Dim SenderFilter As Object = DBSQL.ExecNonQueryBatch("SQL")
+Public Sub ExecuteBatchAsync As ResumableSub
+	If mShowExtraLogs Then LogQuery3
+	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
 	Return Success
 End Sub
@@ -672,39 +997,39 @@ Public Sub AddNonQueryToBatch
 	Dim paramsize As Int = ParametersCount
 	Dim Args(paramsize) As Object
 	Dim i As Int
-	For Each Param In DBParameters
+	For Each Param In mParameters
 		Args(i) = Param
 		i = i + 1
 	Next
-	DBBatch.Add(CreateMap("DBStatement": DBStatement, "DBParameters": Args))
-	DBSQL.AddNonQueryToBatch(DBStatement, Args)
+	mBatch.Add(CreateMap("DB_Statement": mStatement, "DB_Parameters": Args))
+	mSQL.AddNonQueryToBatch(mStatement, Args)
 End Sub
 
 ' Append Parameters at the end
 Public Sub AddParameters (Params() As Object)
 	If Params.Length = 0 Then Return
-	If DBParameters.Length > 0 Then
-		Dim NewArray(DBParameters.Length + Params.Length) As Object
-		For i = 0 To DBParameters.Length - 1
-			NewArray(i) = DBParameters(i)
+	If mParameters.Length > 0 Then
+		Dim NewArray(mParameters.Length + Params.Length) As Object
+		For i = 0 To mParameters.Length - 1
+			NewArray(i) = mParameters(i)
 		Next
 		For i = 0 To Params.Length - 1
-			NewArray(DBParameters.Length + i) = Params(i)
+			NewArray(mParameters.Length + i) = Params(i)
 		Next
-		DBParameters = NewArray
+		mParameters = NewArray
 	Else
-		DBParameters = Params
+		mParameters = Params
 	End If
 End Sub
 
 ' Initialize Parameters
 Public Sub setParameters (Params() As Object)
-	DBParameters = Params
+	mParameters = Params
 End Sub
 
 ' Example: Limit 10, 10 (second parameter is Offset)
 Public Sub setLimit (Value As String)
-	DBLimit = Value
+	mLimit = Value
 End Sub
 
 Public Sub setJoin (OJoin As ORMJoin)
@@ -716,11 +1041,11 @@ End Sub
 ' Execute Query
 Public Sub Query
 	Try
-		If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
-		If DBGroupBy.Length > 0 Then DBStatement = DBStatement & DBGroupBy
-		If DBHaving.Length > 0 Then DBStatement = DBStatement & DBHaving
-		If DBOrderBy.Length > 0 Then DBStatement = DBStatement & DBOrderBy
-		If DBLimit.Length > 0 Then DBStatement = DBStatement & $" LIMIT ${DBLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
+		If mCondition.Length > 0 Then mStatement = mStatement & mCondition
+		If mGroupBy.Length > 0 Then mStatement = mStatement & mGroupBy
+		If mHaving.Length > 0 Then mStatement = mStatement & mHaving
+		If mOrderBy.Length > 0 Then mStatement = mStatement & mOrderBy
+		If mLimit.Length > 0 Then mStatement = mStatement & $" LIMIT ${mLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
 		Dim RS As ResultSet = ExecQuery
 		If mError.IsInitialized Then
 			If Initialized(RS) Then RS.Close
@@ -758,9 +1083,9 @@ Public Sub Query
 					Row(i) = RS.GetBlob2(i)
 				Else if ct = 2 Or ct = 3 Then
 					Row(i) = RS.GetDouble2(i)
-				Else If DateTimeMethods.ContainsKey(ct) Then
-					If BlnUseTimestampsAsTicks Then
-						Dim SQLTime As JavaObject = jrs.RunMethodJO(DateTimeMethods.Get(ct), Array(i + 1))
+				Else If mDateTimeMethods.ContainsKey(ct) Then
+					If mUseTimestampsAsTicks Then
+						Dim SQLTime As JavaObject = jrs.RunMethodJO(mDateTimeMethods.Get(ct), Array(i + 1))
 						If SQLTime.IsInitialized Then
 							Row(i) = SQLTime.RunMethod("getTime", Null)
 						Else
@@ -791,8 +1116,8 @@ Public Sub Query
 			For i = 0 To cols - 1
 				' Experimental
 				Dim ColumnName As String = RS.GetColumnName(i)
-				If DBColumnsType.IsInitialized And DBColumnsType.ContainsKey(ColumnName) Then
-					Select DBColumnsType.Get(ColumnName)
+				If mColumnsType.IsInitialized And mColumnsType.ContainsKey(ColumnName) Then
+					Select mColumnsType.Get(ColumnName)
 						Case BLOB
 							Row(i) = RS.GetBlob2(i)
 						Case DECIMAL
@@ -862,38 +1187,32 @@ Public Sub Query
 		'RS.Close ' test 2023-10-24
 	Catch
 		Log(LastException)
-		'LogColor("Are you missing ' = ?' in query?", COLOR_RED)
+		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
 	End Try
-	'#If B4J
-	'If Initialized(RS) Then RS.Close ' 2025-03-19
-	'#Else
-	'' B4A yet support Initialized() function
-	'If RS <> Null Or RS.IsInitialized Then RS.Close ' 2025-04-24
-	'#End If
 	Clear
-	If BlnQueryClearParameters Then ClearParameters
+	If mQueryClearParameters Then ClearParameters
 End Sub
 
-Public Sub Query2 (mParams() As Object)
-	setParameters(mParams)
+Public Sub Query2 (Params() As Object)
+	setParameters(Params)
 	Query
 End Sub
 
 ' Return an object without calling Query
 ' Note: ORMTable and ORMResults are not affected
 Public Sub Scalar As Object
-	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
+	If mCondition.Length > 0 Then mStatement = mStatement & mCondition
 	If ParametersCount = 0 Then
-		Return DBSQL.ExecQuerySingleResult(DBStatement)
+		Return mSQL.ExecQuerySingleResult(mStatement)
 	Else	
-		Return DBSQL.ExecQuerySingleResult2(DBStatement, DBParameters)
+		Return mSQL.ExecQuerySingleResult2(mStatement, mParameters)
 	End If
 End Sub
 
 ' Similar to Scalar but passing Params
-Public Sub Scalar2 (mParams() As Object) As Object
-	setParameters(mParams)
+Public Sub Scalar2 (Params() As Object) As Object
+	setParameters(Params)
 	Return Scalar
 End Sub
 
@@ -903,7 +1222,7 @@ Public Sub Insert
 	Dim vb As StringBuilder
 	sb.Initialize
 	vb.Initialize
-	For Each col As String In DBColumns
+	For Each col As String In mColumns
 		If sb.Length > 0 Then
 			sb.Append(", ")
 			vb.Append(", ")
@@ -913,7 +1232,7 @@ Public Sub Insert
 		If col.EqualsIgnoreCase("created_date") Then cd = True
 	Next
 	' To handle varchar timestamps
-	If BlnUseTimestamps And Not(cd) Then
+	If mUseTimestamps And Not(cd) Then
 		If sb.Length > 0 Then
 			sb.Append(", ")
 			vb.Append(", ")
@@ -926,25 +1245,25 @@ Public Sub Insert
 				vb.Append("now()")
 		End Select
 	End If
-	DBStatement = $"INSERT INTO ${DBObject} (${sb.ToString}) VALUES (${vb.ToString})"$
-	If BlnQueryAddToBatch Then AddNonQueryToBatch
-	If BlnQueryExecute Then Execute
+	mStatement = $"INSERT INTO ${mObject} (${sb.ToString}) VALUES (${vb.ToString})"$
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then Execute
 End Sub
 
-Public Sub Insert2 (mParams() As Object)
-	setParameters(mParams)
+Public Sub Insert2 (Params() As Object)
+	setParameters(Params)
 	Insert
 End Sub
 
 ' Update must have at least 1 condition
 Public Sub Save
 	Dim BlnNew As Boolean
-	If DBCondition.Length > 0 Then
+	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim sb As StringBuilder
 		sb.Initialize
-		DBStatement = $"UPDATE ${DBObject} SET "$
-		For Each col As String In DBColumns
+		mStatement = $"UPDATE ${mObject} SET "$
+		For Each col As String In mColumns
 			If sb.Length > 0 Then sb.Append(", ")
 			If col.EqualsIgnoreCase("modified_date") Then md = True
 			If col.Contains("=") Then
@@ -956,23 +1275,23 @@ Public Sub Save
 				sb.Append(col & " = ?")
 			End If
 		Next
-		DBStatement = DBStatement & sb.ToString
+		mStatement = mStatement & sb.ToString
 		' To handle varchar timestamps
-		If BlnUpdateModifiedDate And Not(md) Then
+		If mUpdateModifiedDate And Not(md) Then
 			Select mType
 				Case MYSQL, MARIADB
-					DBStatement = DBStatement & ", modified_date = now()"
+					mStatement = mStatement & ", modified_date = now()"
 				Case SQLITE
-					DBStatement = DBStatement & ", modified_date = (datetime('now'))"
+					mStatement = mStatement & ", modified_date = (datetime('now'))"
 			End Select
 		End If
-		DBStatement = DBStatement & DBCondition
+		mStatement = mStatement & mCondition
 	Else
 		Dim cd As Boolean ' contains created_date
 		Dim sb, vb As StringBuilder
 		sb.Initialize
 		vb.Initialize
-		For Each col As String In DBColumns
+		For Each col As String In mColumns
 			If sb.Length > 0 Then
 				sb.Append(", ")
 				vb.Append(", ")
@@ -982,7 +1301,7 @@ Public Sub Save
 			If col.EqualsIgnoreCase("created_date") Then cd = True
 		Next
 		' To handle varchar timestamps
-		If BlnUseTimestamps And Not(cd) Then
+		If mUseTimestamps And Not(cd) Then
 			If sb.Length > 0 Then
 				sb.Append(", ")
 				vb.Append(", ")
@@ -995,45 +1314,45 @@ Public Sub Save
 					vb.Append("now()")
 			End Select
 		End If
-		DBStatement = $"INSERT INTO ${DBObject} (${sb.ToString}) VALUES (${vb.ToString})"$
+		mStatement = $"INSERT INTO ${mObject} (${sb.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
 	ExecNonQuery
 	If BlnNew Then
 		' View does not support auto-increment id or ID is not autoincrement
-		If DBObject = DBView Or BlnAutoIncrement = False Then Return
+		If mObject = mView Or mAutoIncrement = False Then Return
 		Dim NewID As Int = getLastInsertID
 		' Return new row
 		Find(NewID)
 	Else
 		' Count numbers of ?
-		Dim ParamChars As Int = CountChar("?", DBCondition)
+		Dim ParamChars As Int = CountChar("?", mCondition)
 		Dim ParamCount As Int = ParametersCount
-		SelectAllFromDBObject
+		SelectAllFromObject
 		Dim ConditionParams(ParamChars) As Object
 		For i = 0 To ParamChars - 1
-			ConditionParams(i) = DBParameters(ParamCount - ParamChars + i)
+			ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
 		Next
-		DBParameters = ConditionParams
+		mParameters = ConditionParams
 		' Return row after update
 		Query
 	End If
 End Sub
 
-Public Sub Save2 (mParams() As Object)
-	setParameters(mParams)
+Public Sub Save2 (Params() As Object)
+	setParameters(Params)
 	Save
 End Sub
 
 ' Same as Save but return row with custom id column
 Public Sub Save3 (mColumn As String)
 	Dim BlnNew As Boolean
-	If DBCondition.Length > 0 Then
+	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim sb As StringBuilder
 		sb.Initialize
-		DBStatement = $"UPDATE ${DBObject} SET "$
-		For Each col As String In DBColumns
+		mStatement = $"UPDATE ${mObject} SET "$
+		For Each col As String In mColumns
 			If sb.Length > 0 Then sb.Append(", ")
 			If col.EqualsIgnoreCase("modified_date") Then md = True
 			If col.Contains("=") Then
@@ -1045,23 +1364,23 @@ Public Sub Save3 (mColumn As String)
 				sb.Append(col & " = ?")
 			End If
 		Next
-		DBStatement = DBStatement & sb.ToString
+		mStatement = mStatement & sb.ToString
 		' To handle varchar timestamps
-		If BlnUpdateModifiedDate And Not(md) Then
+		If mUpdateModifiedDate And Not(md) Then
 			Select mType
 				Case MYSQL, MARIADB
-					DBStatement = DBStatement & ", modified_date = now()"
+					mStatement = mStatement & ", modified_date = now()"
 				Case SQLITE
-					DBStatement = DBStatement & ", modified_date = (datetime('now'))"
+					mStatement = mStatement & ", modified_date = (datetime('now'))"
 			End Select
 		End If
-		DBStatement = DBStatement & DBCondition
+		mStatement = mStatement & mCondition
 	Else
 		Dim cd As Boolean ' contains created_date
 		Dim sb, vb As StringBuilder
 		sb.Initialize
 		vb.Initialize
-		For Each col As String In DBColumns
+		For Each col As String In mColumns
 			If sb.Length > 0 Then
 				sb.Append(", ")
 				vb.Append(", ")
@@ -1071,7 +1390,7 @@ Public Sub Save3 (mColumn As String)
 			If col.EqualsIgnoreCase("created_date") Then cd = True
 		Next
 		' To handle varchar timestamps
-		If BlnUseTimestamps And Not(cd) Then
+		If mUseTimestamps And Not(cd) Then
 			If sb.Length > 0 Then
 				sb.Append(", ")
 				vb.Append(", ")
@@ -1084,27 +1403,27 @@ Public Sub Save3 (mColumn As String)
 					vb.Append("(datetime('now'))")
 			End Select
 		End If
-		DBStatement = $"INSERT INTO ${DBObject} (${sb.ToString}) VALUES (${vb.ToString})"$
+		mStatement = $"INSERT INTO ${mObject} (${sb.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
 	ExecNonQuery
 	If BlnNew Then
 		' View does not support auto-increment id
-		'If DBObject = DBView Then Return
-		If DBObject = DBView Or BlnAutoIncrement = False Then Return
+		'If mObject = mView Then Return
+		If mObject = mView Or mAutoIncrement = False Then Return
 		Dim NewID As Int = getLastInsertID
 		' Return new row
 		Find2(mColumn & " = ?", NewID)
 	Else
 		' Count numbers of ?
-		Dim ParamChars As Int = CountChar("?", DBCondition)
+		Dim ParamChars As Int = CountChar("?", mCondition)
 		Dim ParamCount As Int = ParametersCount
-		SelectAllFromDBObject
+		SelectAllFromObject
 		Dim ConditionParams(ParamChars) As Object
 		For i = 0 To ParamChars - 1
-			ConditionParams(i) = DBParameters(ParamCount - ParamChars + i)
+			ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
 		Next
-		DBParameters = ConditionParams
+		mParameters = ConditionParams
 		' Return row after update
 		Query
 	End If
@@ -1113,76 +1432,76 @@ End Sub
 Public Sub getLastInsertID As Object
 	Select mType
 		Case MYSQL, MARIADB
-			DBStatement = "SELECT LAST_INSERT_ID()"
+			mStatement = "SELECT LAST_INSERT_ID()"
 		Case SQLITE
-			DBStatement = "SELECT LAST_INSERT_ROWID()"
+			mStatement = "SELECT LAST_INSERT_ROWID()"
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DBType")
+			If mShowExtraLogs Then Log("Unknown DBType")
 			Return -1
 	End Select
-	If BlnShowExtraLogs Then LogQuery
-	Return DBSQL.ExecQuerySingleResult(DBStatement)
+	If mShowExtraLogs Then LogQuery
+	Return mSQL.ExecQuerySingleResult(mStatement)
 End Sub
 
 ' Adding new Condition
-Public Sub setWhere (mStatements As List)
+Public Sub setWhere (Statements As List)
 	Dim sb As StringBuilder
 	sb.Initialize
-	For Each statement In mStatements
+	For Each statement In Statements
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
 		sb.Append(statement)
 	Next
-	DBCondition = DBCondition & sb.ToString
+	mCondition = mCondition & sb.ToString
 End Sub
 
 ' Set Condition with single condition and value
-Public Sub WhereParam (mCondition As String, mParam As Object)
+Public Sub WhereParam (Condition As String, Param As Object)
 	Dim sb As StringBuilder
 	sb.Initialize
 	sb.Append(" WHERE ")
-	sb.Append(mCondition)
-	DBCondition = sb.ToString
-	setParameters(Array As Object(mParam))
+	sb.Append(Condition)
+	mCondition = sb.ToString
+	setParameters(Array As Object(Param))
 End Sub
 
 ' Append new Conditions and Parameters
-Public Sub WhereParams (mConditions() As Object, mParams() As Object)
+Public Sub WhereParams (Conditions() As Object, Params() As Object)
 	Dim sb As StringBuilder
 	sb.Initialize
-	For Each condition As String In mConditions
+	For Each condition As String In Conditions
 		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
 		sb.Append(condition)
 	Next
-	DBCondition = DBCondition & sb.ToString
-	AddParameters(mParams)
+	mCondition = mCondition & sb.ToString
+	AddParameters(Params)
 End Sub
 
 Public Sub Delete
-	DBStatement = $"DELETE FROM ${DBObject}"$
-	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
+	mStatement = $"DELETE FROM ${mObject}"$
+	If mCondition.Length > 0 Then mStatement = mStatement & mCondition
 	ExecNonQuery
-	DBCondition = ""
+	mCondition = ""
 End Sub
 
 Public Sub Drop
-	Select DBObject
-		Case DBTable
-			DBStatement = $"DROP TABLE IF EXISTS ${DBObject}"$
-		Case DBView
-			DBStatement = $"DROP VIEW IF EXISTS ${DBObject}"$
+	Select mObject
+		Case mTable
+			mStatement = $"DROP TABLE IF EXISTS ${mObject}"$
+		Case mView
+			mStatement = $"DROP VIEW IF EXISTS ${mObject}"$
 	End Select
 	ExecNonQuery
-	DBCondition = ""
+	mCondition = ""
 End Sub
 
 Public Sub Destroy (ids() As Int) As ResumableSub
 	If ids.Length < 1 Then Return False
 	For i = 0 To ids.Length - 1
-		DBStatement = $"DELETE FROM ${DBObject} WHERE id = ?"$
-		If BlnShowExtraLogs Then LogQueryWithArg(ids(i))
-		DBSQL.AddNonQueryToBatch(DBStatement, Array(ids(i)))
+		mStatement = $"DELETE FROM ${mObject} WHERE id = ?"$
+		If mShowExtraLogs Then LogQueryWithArg(ids(i))
+		mSQL.AddNonQueryToBatch(mStatement, Array(ids(i)))
 	Next
-	Dim SenderFilter As Object = DBSQL.ExecNonQueryBatch("SQL")
+	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
 	Return Success
 End Sub
@@ -1190,16 +1509,16 @@ End Sub
 Public Sub SoftDelete
 	Select mType
 		Case MYSQL, MARIADB
-			DBStatement = $"UPDATE ${DBObject} SET deleted_date = now()"$
+			mStatement = $"UPDATE ${mObject} SET deleted_date = now()"$
 		Case SQLITE
-			DBStatement = $"UPDATE ${DBObject} SET deleted_date = strftime('%s000', 'now')"$
+			mStatement = $"UPDATE ${mObject} SET deleted_date = strftime('%s000', 'now')"$
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DBType")
+			If mShowExtraLogs Then Log("Unknown DBType")
 			Return
 	End Select
-	If DBCondition.Length > 0 Then DBStatement = DBStatement & DBCondition
-	If BlnShowExtraLogs Then LogQuery
-	DBSQL.ExecNonQuery(DBStatement)
+	If mCondition.Length > 0 Then mStatement = mStatement & mCondition
+	If mShowExtraLogs Then LogQuery
+	mSQL.ExecNonQuery(mStatement)
 End Sub
 
 ' Tests whether the table exists
@@ -1207,21 +1526,21 @@ Public Sub TableExists (TableName As String) As Boolean
 	Select mType
 		Case SQLITE
 			' SQLite code extracted from DBUtils
-			DBStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
-			If BlnShowExtraLogs Then LogQueryWithArg(TableName)
-			Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(TableName))
+			mStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
+			If mShowExtraLogs Then LogQueryWithArg(TableName)
+			Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(TableName))
 			Return count > 0
 		Case MYSQL, MARIADB
-			If DBDatabaseName = "" Then
-				If BlnShowExtraLogs Then Log("Unknown DatabaseName")
+			If mDatabaseName = "" Then
+				If mShowExtraLogs Then Log("Unknown DatabaseName")
 				Return False
 			End If
-			DBStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-			If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DBDatabaseName, TableName))
-			Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DBDatabaseName, TableName))
+			mStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
+			If mShowExtraLogs Then LogQueryWithArg(Array As String(mDatabaseName, TableName))
+			Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(mDatabaseName, TableName))
 			Return count > 0
 		Case Else
-			If BlnShowExtraLogs Then Log("Unknown DBType")
+			If mShowExtraLogs Then Log("Unknown DBType")
 			Return False
 	End Select
 End Sub
@@ -1231,21 +1550,21 @@ Public Sub ViewExists (ViewName As String) As Boolean
 	Try
 		Select mType
 			Case SQLITE
-				DBStatement = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
-				If BlnShowExtraLogs Then LogQueryWithArg(ViewName)
-				Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(ViewName))
+				mStatement = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
+				If mShowExtraLogs Then LogQueryWithArg(ViewName)
+				Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(ViewName))
 				Return count > 0
 			Case MYSQL, MARIADB
-				If DBDatabaseName = "" Then
-					If BlnShowExtraLogs Then Log("Unknown DatabaseName")
+				If mDatabaseName = "" Then
+					If mShowExtraLogs Then Log("Unknown DatabaseName")
 					Return False
 				End If
-				DBStatement = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-				If BlnShowExtraLogs Then LogQueryWithArg(Array As String(DBDatabaseName, ViewName))
-				Dim count As Int = DBSQL.ExecQuerySingleResult2(DBStatement, Array As String(DBDatabaseName, ViewName))
+				mStatement = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
+				If mShowExtraLogs Then LogQueryWithArg(Array As String(mDatabaseName, ViewName))
+				Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(mDatabaseName, ViewName))
 				Return count > 0
 			Case Else
-				If BlnShowExtraLogs Then Log("Unknown DBType")
+				If mShowExtraLogs Then Log("Unknown DBType")
 				Return False
 		End Select
 	Catch
@@ -1262,19 +1581,19 @@ Public Sub ListTables As List
 		lst.Initialize
 		Select mType
 			Case SQLITE
-				DBStatement = "SELECT name FROM sqlite_master WHERE type = 'table'"
-				Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+				mStatement = "SELECT name FROM sqlite_master WHERE type = 'table'"
+				Dim RS As ResultSet = mSQL.ExecQuery(mStatement)
 				Do While RS.NextRow
 					lst.Add(RS.GetString("name"))
 				Loop
 			Case MYSQL, MARIADB
-				DBStatement = "SELECT TABLE_NAME FROM TABLES WHERE TABLE_SCHEMA = ?"
-				Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(DBDatabaseName))
+				mStatement = "SELECT TABLE_NAME FROM TABLES WHERE TABLE_SCHEMA = ?"
+				Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, Array As String(mDatabaseName))
 				Do While RS.NextRow
 					lst.Add(RS.GetString("TABLE_NAME"))
 				Loop
 			Case Else
-				If BlnShowExtraLogs Then Log("Unknown DBType")
+				If mShowExtraLogs Then Log("Unknown DBType")
 				Return lst
 		End Select
 	Catch
@@ -1290,19 +1609,19 @@ Public Sub ShowCreateTable (TableName As String) As String
 	Try
 		Select mType
 			Case SQLITE
-				DBStatement = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
-				Dim RS As ResultSet = DBSQL.ExecQuery2(DBStatement, Array As String(TableName))
+				mStatement = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
+				Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, Array As String(TableName))
 				Do While RS.NextRow
 					Return RS.GetString("sql")
 				Loop
 			Case MYSQL, MARIADB
-				DBStatement = $"SHOW CREATE TABLE ${TableName}"$
-				Dim RS As ResultSet = DBSQL.ExecQuery(DBStatement)
+				mStatement = $"SHOW CREATE TABLE ${TableName}"$
+				Dim RS As ResultSet = mSQL.ExecQuery(mStatement)
 				Do While RS.NextRow
 					Return RS.GetString("CREATE TABLE")
 				Loop
 			Case Else
-				If BlnShowExtraLogs Then Log("Unknown DBType")
+				If mShowExtraLogs Then Log("Unknown DBType")
 				Return ""
 		End Select
 	Catch
@@ -1315,32 +1634,32 @@ End Sub
 
 ' Append to the end of SQL statement
 Public Sub Append (strSQL As String) As String
-	DBStatement = DBStatement & strSQL
-	Return DBStatement
+	mStatement = mStatement & strSQL
+	Return mStatement
 End Sub
 
 ' Set raw SQL statement. Call Reset first.
 Public Sub setStatement (strSQL As String)
-	DBStatement = strSQL
+	mStatement = strSQL
 End Sub
 
 ' Return SQL statement
 Public Sub getStatement As String
-	Return DBStatement
+	Return mStatement
 End Sub
 
 ' Set DatabaseName
 Public Sub setDatabaseName (DatabaseName As String)
-	DBDatabaseName = DatabaseName
+	mDatabaseName = DatabaseName
 End Sub
 
 Public Sub getDatabaseName As String
-	Return DBDatabaseName
+	Return mDatabaseName
 End Sub
 
 ' Print current SQL statement without parameters
 Public Sub LogQuery
-	Log(DBStatement)
+	Log(mStatement)
 End Sub
 
 ' Print current SQL statement on first line
@@ -1350,38 +1669,38 @@ Public Sub LogQuery2
 	SB.Initialize
 	SB.Append("[")
 	Dim started As Boolean
-	For Each Param In DBParameters
+	For Each Param In mParameters
 		If started Then SB.Append(", ")
 		SB.Append(Param)
 		started = True
 	Next
 	SB.Append("]")
-	Log(DBStatement)
+	Log(mStatement)
 	Log(SB.ToString)
 End Sub
 
 ' Print batch SQL statements and parameters
 Public Sub LogQuery3
-	For Each DBMap As Map In DBBatch
+	For Each DBMap As Map In mBatch
 		Dim SB As StringBuilder
 		SB.Initialize
 		SB.Append("[")
 		Dim started As Boolean
-		Dim Params() As Object = DBMap.Get("DBParameters") 
+		Dim Params() As Object = DBMap.Get("DB_Parameters") 
 		For Each Param In Params
 			If started Then SB.Append(", ")
 			SB.Append(Param)
 			started = True
 		Next
 		SB.Append("]")
-		Log(DBMap.Get("DBStatement"))
+		Log(DBMap.Get("DB_Statement"))
 		If Params.Length > 0 Then Log(SB.ToString)
 	Next
 End Sub
 
 ' Print current SQL statement and parameters on one line
 Public Sub LogQueryWithArg (Arg As Object)
-	Log($"${DBStatement} [${Arg}]"$)
+	Log($"${mStatement} [${Arg}]"$)
 End Sub
 
 Public Sub Split (str As String) As String()
@@ -1394,7 +1713,7 @@ Public Sub Split (str As String) As String()
 End Sub
 
 Private Sub ParametersCount As Int
-	Return DBParameters.Length
+	Return mParameters.Length
 End Sub
 
 Private Sub CountChar (c As String, Word As String) As Int

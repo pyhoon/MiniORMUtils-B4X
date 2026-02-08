@@ -4,19 +4,10 @@ ModulesStructureVersion=1
 Type=Class
 Version=9.85
 @EndOfDesignText@
-#Region Macros
-'#Macro: Title, Export as zip, ide://run?file=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
-#Macro: Title, Update Version, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=4.00
-#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\%PROJECT_NAME%4.b4xlib&args=*ORM*.bas&args=..\manifest.txt&args=..\LICENSE
-#Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
-#Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
-'#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
-#End Region
-
 Sub Class_Globals
 	Private xui As XUI
 	Private DB As MiniORM
-	Private Conn As ORMConnector
+	Private MS As ORMSettings
 	Private Root As B4XView
 	Private lblBack As B4XView
 	Private lblCode As B4XView
@@ -68,7 +59,7 @@ Private Sub B4XPage_CloseRequest As ResumableSub
 		GetCategories
 		Return False
 	End If
-	DBClose
+	DB.Close
 	Return True
 End Sub
 
@@ -160,68 +151,50 @@ Private Sub btnDelete_Click
 	ShowDialog3(M1, Id)
 End Sub
 
-Private Sub DBType As String
-	Return Conn.DBType
-End Sub
-
-Private Sub DBOpen As SQL
-	Return Conn.DBOpen
-End Sub
-
-Private Sub DBClose
-	Conn.DBClose
-End Sub
-
 Public Sub ConfigureDatabase
-	Dim info As ConnectionInfo
-	info.Initialize
+	MS.Initialize
 	#If SQLite
-	info.DBType = "SQLite"
-	info.DBFile = "Data.db"
-	#If B4J
-	info.DBDir = File.DirApp
-	#Else
-	info.DBDir = xui.DefaultFolder
+		MS.DBType = "SQLite"
+		MS.DBFile = "Data.db"
+		#If B4J
+			MS.DBDir = File.DirApp
+		#Else
+			MS.DBDir = xui.DefaultFolder
+		#End If
 	#End If
-	#Else If MySQL
-	info.DBType = "MySQL"
-	info.DBName = "pakai"
-	info.DbHost = "localhost"
-	info.User = "root"
-	info.Password = "password"
-	info.DriverClass = "com.mysql.cj.jdbc.Driver"
-	info.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
-	#Else If MariaDB
-	info.DBType = "MariaDB"
-	info.DBName = "pakai"
-	info.DbHost = "localhost"
-	info.User = "root"
-	info.Password = "password"
-	info.DriverClass = "org.mariadb.jdbc.Driver"
-	info.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+	#If MySQL
+		MS.DBType = "MySQL"
+		MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+		MS.DriverClass = "com.mysql.cj.jdbc.Driver"
+	#End If
+	#If MariaDB
+		MS.DBType = "MariaDB"
+		MS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+		MS.DriverClass = "org.mariadb.jdbc.Driver"
+	#End If
+	#If MySQL Or MariaDB
+		MS.DBName = "pakai"
+		MS.DbHost = "localhost"
+		MS.User = "root"
+		MS.Password = "password"
 	#End If
 	Try
-		Conn.Initialize(info)
-		Select DBType
-			Case "SQLite"
-				Dim DBFound As Boolean = Conn.DBExist
-			#If B4J			
-			Case "MySQL", "MariaDB"
-				Wait For (Conn.DBExist2) Complete (DBFound As Boolean)
+		DB.Initialize
+		DB.Settings = MS
+		#If SQLite
+		Dim DbFound As Boolean = DB.Exist
+		#Else If MySQL Or MariaDB
+		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
+		#End If
+		If DbFound Then
+			LogColor($"${MS.DBType} database found!"$, COLOR_BLUE)
+			#If MySQL Or MariaDB
+			DB.InitPool
 			#End If
-		End Select
-		If DBFound Then
-			LogColor($"${info.DBType} database found!"$, COLOR_BLUE)
-			#If B4J			
-			If DBType.EqualsIgnoreCase("MySQL") Or DBType.EqualsIgnoreCase("MariaDB") Then
-				Conn.InitPool
-			End If
-			#End If
-			DB.Initialize(DBType)
-			DB.Open(DBOpen)
+			DB.Open
 			GetCategories
 		Else
-			LogColor($"${info.DBType} database not found!"$, COLOR_RED)
+			LogColor($"${MS.DBType} database not found!"$, COLOR_RED)
 			CreateDatabase
 		End If
 	Catch
@@ -236,18 +209,19 @@ End Sub
 
 Private Sub CreateDatabase
 	LogColor("Creating database...", COLOR_BLUE)
-	#If B4J
-	Wait For (Conn.DBCreate) Complete (Success As Boolean)
+	DB.Initialize
+	DB.Settings = MS
+	#If MySQL Or MariaDB
+	Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
 	#Else
-	Dim Success As Boolean = Conn.DBCreate
+	Dim Success As Boolean = DB.InitializeSQLite
 	#End If
 	If Not(Success) Then
 		Log("Database creation failed!")
 		Return
 	End If
-	
-	DB.Initialize(DBType)
-	DB.Open(DBOpen)
+
+	DB.Open
 	'DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
 	DB.QueryAddToBatch = True
@@ -275,7 +249,7 @@ Private Sub CreateDatabase
 	DB.Insert2(Array(1, "H001", "Hammer", 15.75))
 	DB.Insert2(Array(2, "T002", "Optimus Prime", 1000))
 
-	Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
+	Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)
 	If Success Then
 		LogColor("Database is created successfully!", COLOR_BLUE)
 	Else
@@ -291,10 +265,6 @@ Private Sub CreateDatabase
 	DB.Id = 3 ' after setting Columns and Parameters
 	DB.Save
 	
-	'DB.Close
-	'DB.Initialize
-	'DB.DBType = DBType
-	'DB.SQL = DBOpen
 	GetCategories
 End Sub
 

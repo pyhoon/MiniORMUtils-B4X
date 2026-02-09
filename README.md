@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 3.90
+Version: 4.00
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
@@ -11,20 +11,25 @@ Currently it supports **SQLite** for all platforms, **MariaDB** and **MySQL** (B
 
 ## Initialize object
 ```b4x
-Dim info As ConnectionInfo
-info.Initialize
-info.DBType = "SQLite"
-info.DBFile = "data.db"
+Private DB As MiniORM
+Private MS As ORMSettings
 
-Dim conn As ORMConnector
-conn.Initialize(info)
+DB.Initialize
+MS.Initialize
+MS.DBType = "SQLite"
+MS.DBFile = "data.db"
+MS.DBDir = File.DirApp
+DB.Settings = MS
 
-Dim DB As MiniORM
-DB.Initialize(conn.DBType, conn.DBOpen)
-DB.UseTimestamps = True
-DB.QueryAddToBatch = True
+If DB.Exist Then
+	LogColor($"${MS.DBType} database found!"$, COLOR_BLUE)
+	DB.Open
+Else
+	LogColor($"${MS.DBType} database not found!"$, COLOR_RED)
+	CreateDatabase
+End If
 ```
-Note: Before calling DB.Create and DB.Insert, set QueryAddToBatch to True.
+Note: Before calling DB.Create and DB.Insert, set DB.QueryAddToBatch = True
 
 ## Create table
 ```b4x

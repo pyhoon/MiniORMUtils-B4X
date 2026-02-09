@@ -31,6 +31,15 @@ End If
 ```
 Note: Before calling DB.Create and DB.Insert, set DB.QueryAddToBatch = True
 
+## Create database
+```b4x
+#If MySQL Or MariaDB
+Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
+#Else
+Dim Success As Boolean = DB.InitializeSQLite
+#End If
+```
+
 ## Create table
 ```b4x
 DB.Table = "tbl_category"

@@ -262,7 +262,6 @@ End Sub
 ' Check database can be connected
 Public Sub Test As Boolean
 	If Opened Then
-		'DBClose
 		Close
 		Return True
 	End If
@@ -441,6 +440,7 @@ Public Sub setDbType (Name As String)
 			If Name.EqualsIgnoreCase(MYSQL) Then mType = MYSQL Else mType = MARIADB
 	End Select
 End Sub
+
 Public Sub getDbType As String
 	Return mType
 End Sub

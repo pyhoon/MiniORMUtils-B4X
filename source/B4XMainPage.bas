@@ -4,12 +4,8 @@ ModulesStructureVersion=1
 Type=Class
 Version=9.85
 @EndOfDesignText@
-#Region Shared Files
-'#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
-'Ctrl + click to sync files: ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
-#End Region
-'Ctrl + click to export as zip: ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
-
+#Macro: Title, GetLibraries, ide://run?file=%JAVABIN%\java.exe&args=-jar&args=%ADDITIONAL%\..\B4X\libget.jar&args=%PROJECT%&args=false
+#Macro: Title, Export, ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
 Sub Class_Globals
 	Private xui As XUI
 	Private DB As MiniORM
@@ -310,7 +306,6 @@ Private Sub GetProducts
 	clvRecord.Clear
 	DB.Table = "tbl_products p"
 	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
-	'DB.Select = Array("p.*", "c.category_name")
 	DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
 	DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
 	DB.WhereParams(Array("c.id = ?"), Array As Object(CategoryId))
@@ -319,7 +314,7 @@ Private Sub GetProducts
 	'Log(Items.As(JSON).ToString)
 	For Each Item As Map In Items
 		clvRecord.Add(CreateProductItems(Item.Get("product_code"), GetCategoryName(Item.Get("category_id")), Item.Get("product_name"), NumberFormat2(Item.Get("product_price"), 1, 2, 2, True), clvRecord.AsView.Width), Item.Get("id"))
-'		#If Debug
+		'#If Debug
 		' Test blob field
 		If 3 = Item.Get("id") Then
 			Dim buffer() As Byte = Item.GetDefault("product_image", Array As Byte())
@@ -342,7 +337,7 @@ Private Sub GetProducts
 		Else
 			Image.Clear
 		End If
-'		#End If
+		'#End If
 	Next
 	Viewing = "Product"
 	lblTitle.Text = GetCategoryName(CategoryId)

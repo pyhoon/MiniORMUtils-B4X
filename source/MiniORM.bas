@@ -39,13 +39,13 @@ Sub Class_Globals
 	Private mQueryAddToBatch 		As Boolean
 	Private mQueryExecute 			As Boolean
 	Private mQueryClearParameters 	As Boolean = True
+	#If B4J
 	Private mUseTimestampsAsTicks 	As Boolean
 	Private mDateTimeMethods 		As Map = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
-	#If B4J
 	Private mPool 					As ConnectionPool
-	#End If
 	Private mCharSet 				As String = "utf8mb4"
 	Private mCollate 				As String = "utf8mb4_unicode_ci"
+	#End If
 	Private mJournalMode 			As String = "DELETE"
 	Private Const SQLITE 			As String = "SQLite"
 	Private Const MYSQL 			As String = "MySQL"
@@ -101,8 +101,7 @@ Public Sub InitializeSQLite As Boolean
 	Try
 		#If B4J
 		mSQL.InitializeSQLite(Settings.DBDir, Settings.DBFile, True)
-		#End If
-		#If B4A or B4i
+		#Else
 		mSQL.Initialize(Settings.DBDir, Settings.DBFile, True)
 		#End If
 		If mJournalMode.EqualsIgnoreCase("WAL") Then
@@ -116,6 +115,7 @@ Public Sub InitializeSQLite As Boolean
 	End Try
 End Sub
 
+#If B4J
 ' Create MySQL or MariaDB database
 Public Sub CreateDatabaseAsync As ResumableSub
 	Try
@@ -135,7 +135,6 @@ Public Sub CreateDatabaseAsync As ResumableSub
 	End Try
 End Sub
 
-#If B4J
 ' Connect to database name (MySQL, MariaDB)
 Public Sub InitPool
 	Try
@@ -222,7 +221,7 @@ Public Sub Open As SQL
 			Return mPool.GetConnection
 	End Select
 	#Else
-	SQL.Initialize(Settings.DBDir, Settings.DBFile, False)
+	mSQL.Initialize(Settings.DBDir, Settings.DBFile, False)
 	#End If
 	Return mSQL
 End Sub

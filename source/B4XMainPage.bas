@@ -153,24 +153,22 @@ End Sub
 
 Public Sub ConfigureDatabase
 	MS.Initialize
-	#If SQLite
-		MS.DBType = "SQLite"
-		MS.DBFile = "Data.db"
-		#If B4J
-			MS.DBDir = File.DirApp
-		#Else
-			MS.DBDir = xui.DefaultFolder
-		#End If
-	#End If
 	#If MySQL
 		MS.DBType = "MySQL"
 		MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
 		MS.DriverClass = "com.mysql.cj.jdbc.Driver"
-	#End If
-	#If MariaDB
+	#Else If MariaDB
 		MS.DBType = "MariaDB"
 		MS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
 		MS.DriverClass = "org.mariadb.jdbc.Driver"
+	#Else
+	MS.DBType = "SQLite"
+	MS.DBFile = "Data.db"
+	#If B4J
+	MS.DBDir = File.DirApp
+	#Else
+	MS.DBDir = xui.DefaultFolder
+	#End If
 	#End If
 	#If MySQL Or MariaDB
 		MS.DBName = "pakai"
@@ -181,10 +179,10 @@ Public Sub ConfigureDatabase
 	Try
 		DB.Initialize
 		DB.Settings = MS
-		#If SQLite
-		Dim DbFound As Boolean = DB.Exist
-		#Else If MySQL Or MariaDB
+		#If MySQL Or MariaDB
 		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
+		#Else
+		Dim DbFound As Boolean = DB.Exist
 		#End If
 		If DbFound Then
 			LogColor($"${MS.DBType} database found!"$, COLOR_BLUE)
@@ -443,11 +441,11 @@ Private Sub ShowDialog1 (Action As String, Item As Map)
 	End If
 	PrefDialog1.Title = Action & " Category"
 	Dim sf As Object = PrefDialog1.ShowDialog(Item, "OK", "CANCEL")
-	#If B4A or B4i
-	PrefDialog1.Dialog.Base.Top = 100dip ' Make it lower
-	#Else
+	#If B4J
 	Sleep(0)
 	PrefDialog1.CustomListView1.sv.Height = PrefDialog1.CustomListView1.sv.ScrollViewInnerPanel.Height + 10dip
+	#Else
+	PrefDialog1.Dialog.Base.Top = 100dip ' Make it lower
 	#End If
 	Wait For (sf) Complete (Result As Int)
 	If Result = xui.DialogResponse_Positive Then
@@ -537,11 +535,11 @@ End Sub
 Private Sub ShowDialog3 (Item As Map, Id As Int)
 	PrefDialog3.Title = "Delete " & Viewing
 	Dim sf As Object = PrefDialog3.ShowDialog(Item, "OK", "CANCEL")
-	#If B4A or B4i
-	PrefDialog3.Dialog.Base.Top = 100dip ' Make it lower
-	#Else
+	#If B4J
 	Sleep(0)
 	PrefDialog3.CustomListView1.sv.Height = PrefDialog3.CustomListView1.sv.ScrollViewInnerPanel.Height + 10dip
+	#Else
+	PrefDialog3.Dialog.Base.Top = 100dip ' Make it lower
 	#End If
 	PrefDialog3.CustomListView1.GetPanel(0).GetView(0).Text = Item.Get("Item")
 	#If B4i

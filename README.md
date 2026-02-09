@@ -3,7 +3,7 @@ Version: 4.00
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries.
 It is suitable for Web API Template or any database system.
-Currently it supports **SQLite** for all platforms, **MariaDB** and **MySQL** (B4J only).
+Currently it supports **SQLite** for (B4A, B4i and B4J), **MariaDB** and **MySQL** (B4J only).
 
 <img src="https://github.com/pyhoon/MiniORMUtils-B4X/blob/main/miniorm.png" width="300" />
 

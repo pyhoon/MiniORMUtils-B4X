@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 4.00
+' Version 4.03
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -90,6 +90,7 @@ Public Sub Initialize
 	mStatement = ""
 	mDatabaseName = ""
 	mBatch.Initialize
+	mColumns.Initialize
 	mSettings.Initialize
 End Sub
 
@@ -146,7 +147,8 @@ Public Sub InitPool
 	End Try
 End Sub
 
-' Asynchronously initialize database schema (MySQL, MariaDB)
+' Asynchronously initialize SQL object to database schema e.g information_schema (MySQL, MariaDB)
+'<code>Wait For (DB.InitSchemaAsync) Complete (Success As Boolean)</code>
 Public Sub InitSchemaAsync As ResumableSub
 	Dim JdbcUrl As String = mSettings.JdbcUrl
 	JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
@@ -162,7 +164,8 @@ Public Sub InitSchemaAsync As ResumableSub
 	Return Success
 End Sub
 
-' Initialize database schema (MySQL, MariaDB)
+' Initialize SQL object to database schema e.g information_schema (MySQL, MariaDB)
+'<code>DB.InitSchema</code>
 Public Sub InitSchema
 	Dim JdbcUrl As String = mSettings.JdbcUrl
 	JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
@@ -802,27 +805,27 @@ Public Sub Create
 				SB.Append(",").Append(CRLF)
 				SB.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
 				SB.Append("modified_by " & INTEGER & ",").Append(CRLF)
-				SB.Append("deleted_by " & INTEGER & ",").Append(CRLF)
+				SB.Append("deleted_by " & INTEGER).Append(CRLF)
 			End If
 			If mUseTimestamps Then
 				SB.Append(",").Append(CRLF)
 				SB.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
 				SB.Append("modified_date " & VARCHAR & ",").Append(CRLF)
-				SB.Append("deleted_date " & VARCHAR & ",")
+				SB.Append("deleted_date " & VARCHAR)
 			End If
 		Case MYSQL, MARIADB
 			If mUseDataAuditUserId Then
 				SB.Append(",").Append(CRLF)
 				SB.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
 				SB.Append("modified_by " & INTEGER & ",").Append(CRLF)
-				SB.Append("deleted_by " & INTEGER & ",").Append(CRLF)
+				SB.Append("deleted_by " & INTEGER).Append(CRLF)
 			End If
 			If mUseTimestamps Then
 				' Use timestamp and datetime
 				SB.Append(",").Append(CRLF)
 				SB.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
 				SB.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
-				SB.Append("deleted_date " & DATE_TIME & " DEFAULT NULL,")
+				SB.Append("deleted_date " & DATE_TIME & " DEFAULT NULL")
 			End If
 	End Select
 
@@ -924,11 +927,11 @@ End Sub
 '<code>DB.Foreign("category_id", "id", "tbl_categories", "", "")</code>
 Public Sub Foreign (mKey As String, mReferences As String, mOnTable As String, mOnDelete As String, mOnUpdate As String)
 	Dim SB As StringBuilder
-	sb.Initialize
-	sb.Append( $"FOREIGN KEY (${mKey}) REFERENCES ${mOnTable} (${mReferences})"$ )
-	If mOnDelete.Length > 0 Then sb.Append( " ON DELETE " & mOnDelete )
-	If mOnUpdate.Length > 0 Then sb.Append( " ON UPDATE " & mOnUpdate )
-	mForeignKey = sb.ToString
+	SB.Initialize
+	SB.Append( $"FOREIGN KEY (${mKey}) REFERENCES ${mOnTable} (${mReferences})"$ )
+	If mOnDelete.Length > 0 Then SB.Append( " ON DELETE " & mOnDelete )
+	If mOnUpdate.Length > 0 Then SB.Append( " ON UPDATE " & mOnUpdate )
+	mForeignKey = SB.ToString
 End Sub
 
 ' Add unique key

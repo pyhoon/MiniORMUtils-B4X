@@ -18,7 +18,7 @@ Library3=core
 Library4=ime
 Library5=xui views
 Library6=sql
-ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: https://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="5" android:targetSdkVersion="35"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~'CreateResourceFromFile(Macro, Themes.LightTheme)~\n~SetApplicationAttribute(android:theme, "@android:style/Theme.Holo.Light")~\n~~\n~'End of default text.~\n~SetActivityAttribute(main, android:windowSoftInputMode, adjustResize|stateHidden)~\n~'CreateResourceFromFile(Macro, Core.NetworkClearText) ' Uncomment this if using http protocol
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: https://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="5" android:targetSdkVersion="35"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~'CreateResourceFromFile(Macro, Themes.LightTheme)~\n~'SetApplicationAttribute(android:theme, "@android:style/Theme.Holo.Light")~\n~~\n~SetApplicationAttribute(android:theme, "@style/LightTheme")~\n~CreateResource(values, theme.xml,~\n~<resources>~\n~    <style~\n~        name="LightTheme" parent="@android:style/Theme.Material.Light">~\n~       <item name="android:actionMenuTextAppearance">@style/LowerCaseMenu</item>~\n~       <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>~\n~    </style>~\n~     <style name="LowerCaseMenu" parent="android:TextAppearance.Material.Widget.ActionBar.Menu">~\n~        <item name="android:textAllCaps">false</item>~\n~    </style>~\n~</resources>~\n~)~\n~~\n~'End of default text.~\n~SetActivityAttribute(main, android:windowSoftInputMode, adjustResize|stateHidden)~\n~'CreateResourceFromFile(Macro, Core.NetworkClearText) ' Uncomment this if using http protocol
 Module1=|relative|..\B4XMainPage
 Module2=|relative|..\MiniORM
 Module3=Starter
@@ -28,9 +28,9 @@ NumberOfModules=3
 Version=13.4
 @EndOfDesignText@
 #Region  Project Attributes 
-	#ApplicationLabel: MiniORMUtils
-	#VersionCode: 9
-	#VersionName: 3.90
+	#ApplicationLabel: MiniORM
+	#VersionCode: 10
+	#VersionName: 4.00
 	'SupportedOrientations possible values: unspecified, landscape or portrait.
 	#SupportedOrientations: portrait
 	#CanInstallToExternalStorage: False

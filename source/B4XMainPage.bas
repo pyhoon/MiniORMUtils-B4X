@@ -4,6 +4,12 @@ ModulesStructureVersion=1
 Type=Class
 Version=9.85
 @EndOfDesignText@
+#Region Shared Files
+'#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
+'Ctrl + click to sync files: ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
+#End Region
+'Ctrl + click to export as zip: ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
+
 Sub Class_Globals
 	Private xui As XUI
 	Private DB As MiniORM
@@ -29,6 +35,7 @@ Sub Class_Globals
 	Private Category() As Category
 	Private Const COLOR_RED As Int = -65536
 	Private Const COLOR_BLUE As Int = -16776961
+	Private Const COLOR_MAGENTA As Int = -65281
 	Private Const COLOR_ADD As Int = -13447886
 	Private Const COLOR_EDIT As Int = -12490271
 	Private Const COLOR_DELETE As Int = -2354116
@@ -55,6 +62,11 @@ Private Sub B4XPage_CloseRequest As ResumableSub
 		If PrefDialog2.BackKeyPressed Then Return False
 		If PrefDialog3.BackKeyPressed Then Return False
 	End If
+	If xui.IsB4J Then
+		If PrefDialog1.Dialog.Visible Then PrefDialog1.Dialog.Close(xui.DialogResponse_Negative)
+		If PrefDialog2.Dialog.Visible Then PrefDialog2.Dialog.Close(xui.DialogResponse_Negative)
+		If PrefDialog3.Dialog.Visible Then PrefDialog3.Dialog.Close(xui.DialogResponse_Negative)
+	End If
 	If Viewing = "Product" Then
 		GetCategories
 		Return False
@@ -67,7 +79,7 @@ Private Sub B4XPage_Appear
 
 End Sub
 
-Private Sub B4XPage_Resize(Width As Int, Height As Int)
+Private Sub B4XPage_Resize (Width As Int, Height As Int)
 	If PrefDialog1.IsInitialized And PrefDialog1.Dialog.Visible Then PrefDialog1.Dialog.Resize(Width, Height)
 	If PrefDialog2.IsInitialized And PrefDialog2.Dialog.Visible Then PrefDialog2.Dialog.Resize(Width, Height)
 	If PrefDialog3.IsInitialized And PrefDialog3.Dialog.Visible Then PrefDialog3.Dialog.Resize(Width, Height)
@@ -171,7 +183,7 @@ Public Sub ConfigureDatabase
 	#End If
 	#End If
 	#If MySQL Or MariaDB
-		MS.DBName = "pakai"
+		MS.DBName = "miniorm"
 		MS.DbHost = "localhost"
 		MS.User = "root"
 		MS.Password = "password"
@@ -179,6 +191,7 @@ Public Sub ConfigureDatabase
 	Try
 		DB.Initialize
 		DB.Settings = MS
+		DB.ShowExtraLogs = True
 		#If MySQL Or MariaDB
 		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 		#Else
@@ -189,6 +202,7 @@ Public Sub ConfigureDatabase
 			#If MySQL Or MariaDB
 			DB.InitPool
 			#End If
+			'File.Delete(MS.DBDir, MS.DBFile)
 			DB.Open
 			GetCategories
 		Else
@@ -206,7 +220,7 @@ Public Sub ConfigureDatabase
 End Sub
 
 Private Sub CreateDatabase
-	LogColor("Creating database...", COLOR_BLUE)
+	LogColor("Creating database...", COLOR_MAGENTA)
 	DB.Initialize
 	DB.Settings = MS
 	#If MySQL Or MariaDB
@@ -220,7 +234,7 @@ Private Sub CreateDatabase
 	End If
 
 	DB.Open
-	'DB.ShowExtraLogs = True
+	DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
 	DB.QueryAddToBatch = True
 	
@@ -268,15 +282,14 @@ End Sub
 
 Private Sub GetCategories
 	Try
-		Dim i As Int
 		DB.Table = "tbl_categories"
 		DB.Query
 		Dim Items As List = DB.Results
 		Dim Category(Items.Size) As Category
-		For Each Item As Map In Items
+		For i = 0 To Items.Size - 1
+			Dim Item As Map = Items.Get(i)
 			Category(i).Id = Item.Get("id")
 			Category(i).Name = Item.Get("category_name")
-			i = i + 1
 		Next
 		clvRecord.Clear
 		For i = 0 To Category.Length - 1
@@ -306,28 +319,30 @@ Private Sub GetProducts
 	'Log(Items.As(JSON).ToString)
 	For Each Item As Map In Items
 		clvRecord.Add(CreateProductItems(Item.Get("product_code"), GetCategoryName(Item.Get("category_id")), Item.Get("product_name"), NumberFormat2(Item.Get("product_price"), 1, 2, 2, True), clvRecord.AsView.Width), Item.Get("id"))
+'		#If Debug
 		' Test blob field
-		'If 3 = Item.Get("id") Then
-		'	Dim buffer() As Byte = Item.GetDefault("product_image", Array As Byte())
-		'	If buffer.Length > 0 Then
-		'		Dim in As InputStream
-		'		in.InitializeFromBytesArray(buffer, 0, buffer.Length)
-		'		Dim bmx As B4XBitmap
-		'		#If B4A or B4i
-		'		Dim bmp As Bitmap
-		'		bmp.Initialize2(in)
-		'		bmx = bmp
-		'	  	#Else If B4J
-		'		Dim img As Image
-		'		img.Initialize2(in)
-		'		bmx = img
-		'		#End If
-		'		in.Close
-		'		Image.Bitmap = bmx
-		'	End If
-		'Else
-		'	Image.Clear
-		'End If
+		If 3 = Item.Get("id") Then
+			Dim buffer() As Byte = Item.GetDefault("product_image", Array As Byte())
+			If buffer.Length > 0 Then
+				Dim in As InputStream
+				in.InitializeFromBytesArray(buffer, 0, buffer.Length)
+				Dim bmx As B4XBitmap
+				#If B4A or B4i
+				Dim bmp As Bitmap
+				bmp.Initialize2(in)
+				bmx = bmp
+			  	#Else If B4J
+				Dim img As Image
+				img.Initialize2(in)
+				bmx = img
+				#End If
+				in.Close
+				Image.Bitmap = bmx
+			End If
+		Else
+			Image.Clear
+		End If
+'		#End If
 	Next
 	Viewing = "Product"
 	lblTitle.Text = GetCategoryName(CategoryId)
@@ -335,7 +350,6 @@ Private Sub GetProducts
 End Sub
 
 Private Sub GetCategoryId (Name As String) As Int
-	Dim i As Int
 	For i = 0 To Category.Length - 1
 		If Category(i).Name = Name Then
 			Return Category(i).Id
@@ -345,7 +359,6 @@ Private Sub GetCategoryId (Name As String) As Int
 End Sub
 
 Private Sub GetCategoryName (Id As Int) As String
-	Dim i As Int
 	For i = 0 To Category.Length - 1
 		If Category(i).Id = Id Then
 			Return Category(i).Name

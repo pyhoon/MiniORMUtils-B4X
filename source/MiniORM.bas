@@ -27,6 +27,7 @@ Sub Class_Globals
 	Private mCondition 				As String
 	Private mHaving 				As String
 	Private mParameters() 			As Object
+	Private mSettings				As ORMSettings
 	Private mError 					As Exception
 	Private mType 					As String
 	Private mJournalMode 			As String = "DELETE"
@@ -47,9 +48,6 @@ Sub Class_Globals
 	Private mCollate 				As String = "utf8mb4_unicode_ci"
 	#End If
 	Private mJournalMode 			As String = "DELETE"
-	Private Const SQLITE 			As String = "SQLite"
-	Private Const MYSQL 			As String = "MySQL"
-	Private Const MARIADB 			As String = "MariaDB"
 	Public BLOB 					As String
 	Public INTEGER 					As String
 	Public BIG_INT 					As String
@@ -60,7 +58,6 @@ Sub Class_Globals
 	Public TEXT 					As String
 	Public ORMTable 				As ORMTable
 	Public ORMResult 				As ORMResult
-	Public Settings					As ORMSettings
 	Public Const MYSQL 				As String = "MySQL"
 	Public Const SQLITE 			As String = "SQLite"
 	Public Const MARIADB 			As String = "MariaDB"
@@ -93,16 +90,16 @@ Public Sub Initialize
 	mStatement = ""
 	mDatabaseName = ""
 	mBatch.Initialize
-	Settings.Initialize
+	mSettings.Initialize
 End Sub
 
 ' Create SQLite database
 Public Sub InitializeSQLite As Boolean
 	Try
 		#If B4J
-		mSQL.InitializeSQLite(Settings.DBDir, Settings.DBFile, True)
+		mSQL.InitializeSQLite(mSettings.DBDir, mSettings.DBFile, True)
 		#Else
-		mSQL.Initialize(Settings.DBDir, Settings.DBFile, True)
+		mSQL.Initialize(mSettings.DBDir, mSettings.DBFile, True)
 		#End If
 		If mJournalMode.EqualsIgnoreCase("WAL") Then
 			mSQL.ExecQuerySingleResult("PRAGMA journal_mode = wal")
@@ -125,7 +122,7 @@ Public Sub CreateDatabaseAsync As ResumableSub
 				Return False
 			End If
 		End If
-		Dim qry As String = $"CREATE DATABASE ${Settings.DBName} CHARACTER SET ${mCharSet} COLLATE ${mCollate}"$
+		Dim qry As String = $"CREATE DATABASE ${mSettings.DBName} CHARACTER SET ${mCharSet} COLLATE ${mCollate}"$
 		mSQL.ExecNonQuery(qry)
 		Return True
 	Catch
@@ -138,11 +135,11 @@ End Sub
 ' Connect to database name (MySQL, MariaDB)
 Public Sub InitPool
 	Try
-		Dim JdbcUrl As String = Settings.JdbcUrl
-		JdbcUrl = JdbcUrl.Replace("{DbHost}", Settings.DBHost)
-		JdbcUrl = JdbcUrl.Replace("{DbName}", Settings.DBName)
-		JdbcUrl = IIf(Settings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", Settings.DBPort))
-		mPool.Initialize(Settings.DriverClass, JdbcUrl, Settings.User, Settings.Password)
+		Dim JdbcUrl As String = mSettings.JdbcUrl
+		JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
+		JdbcUrl = JdbcUrl.Replace("{DbName}", mSettings.DBName)
+		JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
+		mPool.Initialize(mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
 	Catch
 		Log(LastException)
 		mError = LastException
@@ -151,11 +148,11 @@ End Sub
 
 ' Asynchronously initialize database schema (MySQL, MariaDB)
 Public Sub InitSchemaAsync As ResumableSub
-	Dim JdbcUrl As String = Settings.JdbcUrl
-	JdbcUrl = JdbcUrl.Replace("{DbHost}", Settings.DBHost)
+	Dim JdbcUrl As String = mSettings.JdbcUrl
+	JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
 	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
-	JdbcUrl = IIf(Settings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", Settings.DBPort))
-	mSQL.InitializeAsync("DB", Settings.DriverClass, JdbcUrl, Settings.User, Settings.Password)
+	JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
+	mSQL.InitializeAsync("DB", mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
 	Wait For DB_Ready (Success As Boolean)
 	If Success = False Then
 		Log(LastException)
@@ -167,18 +164,18 @@ End Sub
 
 ' Initialize database schema (MySQL, MariaDB)
 Public Sub InitSchema
-	Dim JdbcUrl As String = Settings.JdbcUrl
-	JdbcUrl = JdbcUrl.Replace("{DbHost}", Settings.DBHost)
+	Dim JdbcUrl As String = mSettings.JdbcUrl
+	JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
 	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
-	JdbcUrl = IIf(Settings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", Settings.DBPort))
-	mSQL.Initialize2(Settings.DriverClass, JdbcUrl, Settings.User, Settings.Password)
+	JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
+	mSQL.Initialize2(mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
 End Sub
 #End If
 
 ' Check database file exists (SQLite)
 Public Sub Exist As Boolean
 	Dim DBFound As Boolean
-	If File.Exists(Settings.DBDir, Settings.DBFile) Then
+	If File.Exists(mSettings.DBDir, mSettings.DBFile) Then
 		DBFound = True
 	End If
 	Return DBFound
@@ -196,7 +193,7 @@ Public Sub ExistAsync As ResumableSub
 			End If
 		End If
 		Dim qry As String = "SELECT * FROM SCHEMATA WHERE SCHEMA_NAME = ?"
-		Dim RS As ResultSet = mSQL.ExecQuery2(qry, Array As String(Settings.DBName))
+		Dim RS As ResultSet = mSQL.ExecQuery2(qry, Array As String(mSettings.DBName))
 		Do While RS.NextRow
 			DBFound = True
 		Loop
@@ -214,14 +211,14 @@ End Sub
 ' Note: SQLite uses DBDir and DBFile
 Public Sub Open As SQL
 	#If B4J
-	Select Settings.DBType
+	Select mSettings.DBType
 		Case SQLITE
-			mSQL.InitializeSQLite(Settings.DBDir, Settings.DBFile, False)
+			mSQL.InitializeSQLite(mSettings.DBDir, mSettings.DBFile, False)
 		Case MYSQL, MARIADB
 			Return mPool.GetConnection
 	End Select
 	#Else
-	mSQL.Initialize(Settings.DBDir, Settings.DBFile, False)
+	mSQL.Initialize(mSettings.DBDir, mSettings.DBFile, False)
 	#End If
 	Return mSQL
 End Sub
@@ -231,13 +228,13 @@ End Sub
 ' Note: SQLite uses JdbcUrl
 Public Sub OpenAsync As ResumableSub
 	Try
-		Select Settings.DBType
+		Select mSettings.DBType
 			Case MYSQL, MARIADB
 				mPool.GetConnectionAsync("Pool")
 				Wait For Pool_ConnectionReady (DB1 As SQL)
 				mSQL = DB1
 			Case SQLITE
-				mSQL.InitializeAsync("DB", Settings.DriverClass, Settings.JdbcUrl, Settings.User, Settings.Password)
+				mSQL.InitializeAsync("DB", mSettings.DriverClass, mSettings.JdbcUrl, mSettings.User, mSettings.Password)
 				Wait For DB_Ready (Success As Boolean)
 				If Success = False Then
 					Log(LastException)
@@ -275,7 +272,7 @@ End Sub
 ' Return server date
 Public Sub GetDate As String
 	Try
-		Select Settings.DBType
+		Select mSettings.DBType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT CURDATE()"$
@@ -304,7 +301,7 @@ End Sub
 ' Return server date (ascynchronous connection)
 Public Sub GetDate2 As ResumableSub
 	Try
-		Select Settings.DBType
+		Select mSettings.DBType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT CURDATE()"$
@@ -330,7 +327,7 @@ End Sub
 ' Return server timestamp
 Public Sub GetDateTime As String
 	Try
-		Select Settings.DBType
+		Select mSettings.DBType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT now()"$
@@ -359,7 +356,7 @@ End Sub
 ' Return server timestamp (ascynchronous connection)
 Public Sub GetDateTime2 As ResumableSub
 	Try
-		Select Settings.DBType
+		Select mSettings.DBType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT now()"$
@@ -406,7 +403,7 @@ End Sub
 
 ' Return SQL query for Last Insert ID based on DBType
 Public Sub getLastInsertIDQuery As String
-	Select Settings.DBType
+	Select mSettings.DBType
 		#If B4J
 		Case MYSQL, MARIADB
 			Dim qry As String = "SELECT LAST_INSERT_ID()"
@@ -419,14 +416,7 @@ Public Sub getLastInsertIDQuery As String
 	Return qry
 End Sub
 
-
-
-
-
 'Set DBType to SQLite, MySQL or MariaDB
-Public Sub getDbType As String
-	Return mType
-End Sub
 Public Sub setDbType (Name As String)
 	Select Name.ToUpperCase
 		Case "SQLITE"
@@ -450,6 +440,18 @@ Public Sub setDbType (Name As String)
 			TIMESTAMP = "timestamp"
 			If Name.EqualsIgnoreCase(MYSQL) Then mType = MYSQL Else mType = MARIADB
 	End Select
+End Sub
+Public Sub getDbType As String
+	Return mType
+End Sub
+
+Public Sub setSettings (Settings As ORMSettings)
+	mSettings = Settings
+	setDbType(mSettings.DBType)
+End Sub
+
+Public Sub getSettings As ORMSettings
+	Return mSettings
 End Sub
 
 Public Sub setSQL (SQL As SQL)
@@ -663,7 +665,7 @@ End Sub
 
 Private Sub SelectFromTableOrView
 	Dim ac As Boolean ' Add Comma
-	Dim sb As StringBuilder
+	Dim SB As StringBuilder
 	sb.Initialize
 	If mColumns.IsInitialized Then
 		For Each Col In mColumns
@@ -681,39 +683,39 @@ Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As St
 End Sub
 
 Public Sub setGroupBy (Columns As List)
-	Dim sb As StringBuilder
+	Dim SB As StringBuilder
 	sb.Initialize
 	For Each Column As String In Columns
 		If sb.Length > 0 Then sb.Append(", ") Else sb.Append(" GROUP BY ")
 		sb.Append(Column)
 	Next
-	mGroupBy = sb.ToString
+	mGroupBy = SB.ToString
 End Sub
 
 Public Sub setHaving (Statements As List)
-	Dim sb As StringBuilder
-	sb.Initialize
+	Dim SB As StringBuilder
+	SB.Initialize
 	For Each statement In Statements
-		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" HAVING ")
-		sb.Append(statement)
+		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" HAVING ")
+		SB.Append(statement)
 	Next
-	mHaving = sb.ToString
+	mHaving = SB.ToString
 End Sub
 
 Public Sub setOrderBy (Col As Map)
 	If Col.IsInitialized Then
-		Dim sb As StringBuilder
-		sb.Initialize
+		Dim SB As StringBuilder
+		SB.Initialize
 		For Each key As String In Col.Keys
-			If sb.Length > 0 Then sb.Append(", ")
+			If SB.Length > 0 Then SB.Append(", ")
 			Dim value As String = Col.Get(key)
 			If value.EqualsIgnoreCase("DESC") Then
-				sb.Append(key & " " & value)
+				SB.Append(key & " " & value)
 			Else
-				sb.Append(key)
+				SB.Append(key)
 			End If
 		Next
-		mOrderBy = $" ORDER BY ${sb.ToString}"$
+		mOrderBy = $" ORDER BY ${SB.ToString}"$
 	End If
 End Sub
 
@@ -722,26 +724,30 @@ Public Sub SortByLastId
 End Sub
 
 Public Sub Create
-	Dim sb As StringBuilder
-	sb.Initialize
+	Dim SB As StringBuilder
+	SB.Initialize
+	Dim FirstColumn As Boolean = True
 	For Each col As ORMColumn In mColumns
-		sb.Append(col.ColumnName)
-		sb.Append(" ")
+		If FirstColumn = False Then
+			SB.Append(",").Append(CRLF)
+		End If
+		SB.Append(col.ColumnName)
+		SB.Append(" ")
 		Select mType
 			Case SQLITE
-				sb.Append(col.ColumnType)
+				SB.Append(col.ColumnType)
 			Case MYSQL, MARIADB
 				Select col.ColumnType
 					Case INTEGER, BIG_INT, DECIMAL, TIMESTAMP, DATE_TIME, TEXT, BLOB
-						sb.Append(col.ColumnType)
+						SB.Append(col.ColumnType)
 					Case Else
-						sb.Append(VARCHAR)
+						SB.Append(VARCHAR)
 				End Select
 				If col.ColumnLength.Length > 0 Then
-					sb.Append("(").Append(col.ColumnLength).Append(")")
+					SB.Append("(").Append(col.ColumnLength).Append(")")
 				End If
 				If col.Collation.Length > 0 Then
-					sb.Append(" ").Append(col.Collation)
+					SB.Append(" ").Append(col.Collation)
 				End If
 		End Select
 		
@@ -751,67 +757,72 @@ Public Sub Create
 					Select mType
 						Case SQLITE
 							If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
-								sb.Append(" DEFAULT ").Append(col.DefaultValue)
+								SB.Append(" DEFAULT ").Append(col.DefaultValue)
 							Else
-								sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
+								SB.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
 							End If
 						Case MYSQL, MARIADB
-							sb.Append(" DEFAULT ").Append(col.DefaultValue)
+							SB.Append(" DEFAULT ").Append(col.DefaultValue)
 					End Select
 				Case Else
 					If col.UseFunction Then
 						If col.DefaultValue.StartsWith("(") And col.DefaultValue.EndsWith(")") Then
-							sb.Append(" DEFAULT ").Append(col.DefaultValue)
+							SB.Append(" DEFAULT ").Append(col.DefaultValue)
 						Else
 							Select mType
 								Case SQLITE
-									sb.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
+									SB.Append(" DEFAULT ").Append("(").Append(col.DefaultValue).Append(")")
 								Case MYSQL, MARIADB
-									sb.Append(" DEFAULT ").Append(col.DefaultValue)
+									SB.Append(" DEFAULT ").Append(col.DefaultValue)
 							End Select
 						End If
 					Else
-						sb.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
+						SB.Append(" DEFAULT ").Append("'").Append(col.DefaultValue).Append("'")
 					End If
 			End Select
 		End If
 		
-		If col.AllowNull Then sb.Append(" NULL") Else sb.Append(" NOT NULL")
-		If col.Unique Then sb.Append(" UNIQUE")
+		If col.AllowNull Then SB.Append(" NULL") Else SB.Append(" NOT NULL")
+		If col.Unique Then SB.Append(" UNIQUE")
 		If col.AutoIncrement Then
 			Select mType
 				Case SQLITE
-					sb.Append(" AUTOINCREMENT")
+					SB.Append(" AUTOINCREMENT")
 				Case MYSQL, MARIADB
-					sb.Append(" AUTO_INCREMENT")
+					SB.Append(" AUTO_INCREMENT")
 			End Select
 		End If
-		sb.Append(",").Append(CRLF)
+		'sb.Append(",").Append(CRLF)
+		FirstColumn = False
 	Next
 	
 	Select mType
 		Case SQLITE
 			If mUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
-				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
-				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
+				SB.Append(",").Append(CRLF)
+				SB.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
+				SB.Append("modified_by " & INTEGER & ",").Append(CRLF)
+				SB.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
 			If mUseTimestamps Then
-				sb.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
-				sb.Append("modified_date " & VARCHAR & ",").Append(CRLF)
-				sb.Append("deleted_date " & VARCHAR & ",")
+				SB.Append(",").Append(CRLF)
+				SB.Append("created_date " & VARCHAR & " DEFAULT (datetime('now')),").Append(CRLF)
+				SB.Append("modified_date " & VARCHAR & ",").Append(CRLF)
+				SB.Append("deleted_date " & VARCHAR & ",")
 			End If
 		Case MYSQL, MARIADB
 			If mUseDataAuditUserId Then
-				sb.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
-				sb.Append("modified_by " & INTEGER & ",").Append(CRLF)
-				sb.Append("deleted_by " & INTEGER & ",").Append(CRLF)
+				SB.Append(",").Append(CRLF)
+				SB.Append("created_by " & INTEGER & " DEFAULT " & mDefaultUserId & ",").Append(CRLF)
+				SB.Append("modified_by " & INTEGER & ",").Append(CRLF)
+				SB.Append("deleted_by " & INTEGER & ",").Append(CRLF)
 			End If
 			If mUseTimestamps Then
 				' Use timestamp and datetime
-				sb.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
-				sb.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
-				sb.Append("deleted_date " & DATE_TIME & " DEFAULT NULL,")
+				SB.Append(",").Append(CRLF)
+				SB.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
+				SB.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
+				SB.Append("deleted_date " & DATE_TIME & " DEFAULT NULL,")
 			End If
 	End Select
 
@@ -839,23 +850,29 @@ Public Sub Create
 	End If
 
 	' Put the columns here
-	stmt.Append(sb.ToString)
+	stmt.Append(SB.ToString)
 
 	If mAutoIncrement Then
 		Select mType
 			Case SQLITE
-				stmt.Append(CRLF)
+				stmt.Append(",").Append(CRLF)
 				stmt.Append($"PRIMARY KEY(${Pk} AUTOINCREMENT)"$)
 			Case MYSQL, MARIADB
-				stmt.Append(CRLF)
+				stmt.Append(",").Append(CRLF)
 				stmt.Append($"PRIMARY KEY(${Pk})"$)
 		End Select
 	Else
 		If mPrimaryKey.Length > 0 Then
-			stmt.Append(CRLF)
+			stmt.Append(",").Append(CRLF)
 			stmt.Append($"PRIMARY KEY(${mPrimaryKey})"$)
 		Else
-			stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
+			Dim chk As String = stmt.ToString
+			If chk.EndsWith(",") Then
+				LogColor("*** Contains comma", COLOR_RED)
+				stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
+			Else
+				LogColor("*** Good", COLOR_RED)
+			End If
 		End If
 	End If
 	
@@ -906,7 +923,7 @@ End Sub
 ' Add foreign key
 '<code>DB.Foreign("category_id", "id", "tbl_categories", "", "")</code>
 Public Sub Foreign (mKey As String, mReferences As String, mOnTable As String, mOnDelete As String, mOnUpdate As String)
-	Dim sb As StringBuilder
+	Dim SB As StringBuilder
 	sb.Initialize
 	sb.Append( $"FOREIGN KEY (${mKey}) REFERENCES ${mOnTable} (${mReferences})"$ )
 	If mOnDelete.Length > 0 Then sb.Append( " ON DELETE " & mOnDelete )
@@ -918,12 +935,12 @@ End Sub
 ' mKey: Column name
 ' Optional: mAlias
 Public Sub Unique (mKey As String, mAlias As String)
-	Dim sb As StringBuilder
-	sb.Initialize
-	sb.Append("UNIQUE KEY")
-	If mAlias.Length > 0 Then sb.Append(" " & mAlias)
-	sb.Append($" (${mKey})"$)
-	mUniqueKey = sb.ToString
+	Dim SB As StringBuilder
+	SB.Initialize
+	SB.Append("UNIQUE KEY")
+	If mAlias.Length > 0 Then SB.Append(" " & mAlias)
+	SB.Append($" (${mKey})"$)
+	mUniqueKey = SB.ToString
 End Sub
 
 ' Add constraint
@@ -931,13 +948,13 @@ End Sub
 ' mKeys: Column names separated by comma
 ' Optional: mAlias
 Public Sub Constraint (mKeyType As String, mKeys As String, mAlias As String)
-	Dim sb As StringBuilder
-	sb.Initialize
-	sb.Append("CONSTRAINT")
-	If mAlias.Length > 0 Then sb.Append(" " & mAlias)
-	sb.Append(" " & mKeyType)
-	sb.Append($"(${mKeys})"$)
-	mConstraint = sb.ToString
+	Dim SB As StringBuilder
+	SB.Initialize
+	SB.Append("CONSTRAINT")
+	If mAlias.Length > 0 Then SB.Append(" " & mAlias)
+	SB.Append(" " & mKeyType)
+	SB.Append($"(${mKeys})"$)
+	mConstraint = SB.ToString
 End Sub
 
 ' Execute Non Query
@@ -953,18 +970,23 @@ Public Sub Execute2 (Parameter() As Object)
 End Sub
 
 Private Sub ExecQuery As ResultSet
-	'Try
+	Try
 		If ParametersCount = 0 Then
 			If mShowExtraLogs Then LogQuery
 			Dim RS As ResultSet = mSQL.ExecQuery(mStatement)
 		Else
 			If mShowExtraLogs Then LogQuery2
-			Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, mParameters)
+			' B4A requires String Array
+			Dim StringParams(mParameters.Length) As String
+			For i = 0 To mParameters.Length - 1
+				StringParams(i) = mParameters(i)
+			Next
+			Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, StringParams)
 		End If
-	'Catch
-	'	Log(LastException.Message)
-	'	mError = LastException
-	'End Try
+	Catch
+		Log(LastException.Message)
+		mError = LastException
+	End Try
 	Return RS
 End Sub
 
@@ -993,15 +1015,8 @@ Public Sub ExecuteBatchAsync As ResumableSub
 End Sub
 
 Public Sub AddNonQueryToBatch
-	Dim paramsize As Int = ParametersCount
-	Dim Args(paramsize) As Object
-	Dim i As Int
-	For Each Param In mParameters
-		Args(i) = Param
-		i = i + 1
-	Next
-	mBatch.Add(CreateMap("DB_Statement": mStatement, "DB_Parameters": Args))
-	mSQL.AddNonQueryToBatch(mStatement, Args)
+	mBatch.Add(CreateMap("DB_Statement": mStatement, "DB_Parameters": mParameters))
+	mSQL.AddNonQueryToBatch(mStatement, mParameters)
 End Sub
 
 ' Append Parameters at the end
@@ -1146,8 +1161,9 @@ Public Sub Query
 						End If
 					Catch
 						' Conversion from BLOB to String in Android will fail
-						Log(LastException)
+						Log(LastException.Message)
 						Row(i) = RS.GetBlob2(i)
+						LogColor("Converted to BLOB", COLOR_RED)
 					End Try
 				End If
 				Row2.Add(Row(i))
@@ -1217,23 +1233,23 @@ End Sub
 
 Public Sub Insert
 	Dim cd As Boolean ' contains created_date
-	Dim sb As StringBuilder
+	Dim SB As StringBuilder
 	Dim vb As StringBuilder
-	sb.Initialize
+	SB.Initialize
 	vb.Initialize
 	For Each col As String In mColumns
-		If sb.Length > 0 Then
-			sb.Append(", ")
+		If SB.Length > 0 Then
+			SB.Append(", ")
 			vb.Append(", ")
 		End If
-		sb.Append(col)
+		SB.Append(col)
 		vb.Append("?")
 		If col.EqualsIgnoreCase("created_date") Then cd = True
 	Next
 	' To handle varchar timestamps
 	If mUseTimestamps And Not(cd) Then
-		If sb.Length > 0 Then
-			sb.Append(", ")
+		If SB.Length > 0 Then
+			SB.Append(", ")
 			vb.Append(", ")
 		End If
 		sb.Append("created_date")
@@ -1259,7 +1275,7 @@ Public Sub Save
 	Dim BlnNew As Boolean
 	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
-		Dim sb As StringBuilder
+		Dim SB As StringBuilder
 		sb.Initialize
 		mStatement = $"UPDATE ${mObject} SET "$
 		For Each col As String In mColumns
@@ -1313,7 +1329,7 @@ Public Sub Save
 					vb.Append("now()")
 			End Select
 		End If
-		mStatement = $"INSERT INTO ${mObject} (${sb.ToString}) VALUES (${vb.ToString})"$
+		mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
 	ExecNonQuery
@@ -1348,7 +1364,7 @@ Public Sub Save3 (mColumn As String)
 	Dim BlnNew As Boolean
 	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
-		Dim sb As StringBuilder
+		Dim SB As StringBuilder
 		sb.Initialize
 		mStatement = $"UPDATE ${mObject} SET "$
 		For Each col As String In mColumns
@@ -1402,7 +1418,7 @@ Public Sub Save3 (mColumn As String)
 					vb.Append("(datetime('now'))")
 			End Select
 		End If
-		mStatement = $"INSERT INTO ${mObject} (${sb.ToString}) VALUES (${vb.ToString})"$
+		mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
 	ExecNonQuery
@@ -1444,34 +1460,34 @@ End Sub
 
 ' Adding new Condition
 Public Sub setWhere (Statements As List)
-	Dim sb As StringBuilder
-	sb.Initialize
+	Dim SB As StringBuilder
+	SB.Initialize
 	For Each statement In Statements
-		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
-		sb.Append(statement)
+		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
+		SB.Append(statement)
 	Next
-	mCondition = mCondition & sb.ToString
+	mCondition = mCondition & SB.ToString
 End Sub
 
 ' Set Condition with single condition and value
 Public Sub WhereParam (Condition As String, Param As Object)
-	Dim sb As StringBuilder
-	sb.Initialize
-	sb.Append(" WHERE ")
-	sb.Append(Condition)
-	mCondition = sb.ToString
+	Dim SB As StringBuilder
+	SB.Initialize
+	SB.Append(" WHERE ")
+	SB.Append(Condition)
+	mCondition = SB.ToString
 	setParameters(Array As Object(Param))
 End Sub
 
 ' Append new Conditions and Parameters
 Public Sub WhereParams (Conditions() As Object, Params() As Object)
-	Dim sb As StringBuilder
-	sb.Initialize
+	Dim SB As StringBuilder
+	SB.Initialize
 	For Each condition As String In Conditions
-		If sb.Length > 0 Then sb.Append(" AND ") Else sb.Append(" WHERE ")
-		sb.Append(condition)
+		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
+		SB.Append(condition)
 	Next
-	mCondition = mCondition & sb.ToString
+	mCondition = mCondition & SB.ToString
 	AddParameters(Params)
 End Sub
 

@@ -27,7 +27,7 @@ Version=8.8
 'Code module
 #Region  Project Attributes 
 	#ApplicationLabel: MiniORMUtils
-	#Version: 3.9.0
+	#Version: 4.0.0
 	'Orientation possible values: Portrait, LandscapeLeft, LandscapeRight and PortraitUpsideDown
 	#iPhoneOrientations: Portrait, LandscapeLeft, LandscapeRight
 	#iPadOrientations: Portrait, LandscapeLeft, LandscapeRight, PortraitUpsideDown

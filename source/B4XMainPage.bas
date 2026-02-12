@@ -307,7 +307,8 @@ Private Sub GetProducts
 	DB.Table = "tbl_products p"
 	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 	DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
-	DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
+	'DB.Join = DB.CreateJoin("JOIN", "tbl_categories c", "p.category_id = c.id")
+	DB.Join("JOIN", "tbl_categories c", "p.category_id = c.id")
 	DB.WhereParams(Array("c.id = ?"), Array As Object(CategoryId))
 	DB.Query
 	Dim Items As List = DB.Results

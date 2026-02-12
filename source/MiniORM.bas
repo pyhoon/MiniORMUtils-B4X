@@ -5,7 +5,7 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 4.03
+' Version 4.10
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -62,11 +62,9 @@ Sub Class_Globals
 	Public Const SQLITE 			As String = "SQLite"
 	Public Const MARIADB 			As String = "MariaDB"
 	Public Const COLOR_RED 			As Int = -65536
-	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
-	Type ORMFilter (Column As String, Operator As String, Value As String)
-	Type ORMJoin (Table2 As String, OnConditions As String, Mode As String)
 	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
+	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMSettings (DBDir As String, _
 	DBFile As String, _
 	DBType As String, _
@@ -598,9 +596,9 @@ Public Sub Find (ID As Int)
 End Sub
 
 ' Query by single condition
-Public Sub Find2 (Condition As String, Value As Object)
+Public Sub Find2 (Statement As String, Parameter As Object)
 	Reset
-	WhereParam(Condition, Value)
+	WhereParam(Statement, Parameter)
 	Query
 End Sub
 
@@ -616,49 +614,49 @@ Public Sub getId As Int
 End Sub
 
 ' Returns first queried row
-Public Sub getFirst As Map
+Public Sub First As Map
 	Return ORMTable.First
 End Sub
 
 ' Returns first queried row with ordered keys
-Public Sub getFirst2 As Map
+Public Sub First2 As Map
 	Return ORMTable.First2
 End Sub
 
-' (formerly known as SelectOnly)
 ' Return first queried row with specified columns
-Public Sub FirstPick (Columns As List) As Map
+' (formerly known as SelectOnly then FirstPick)
+Public Sub First3 (Columns As List) As Map
 	Dim NewMap As Map
 	NewMap.Initialize
-	For Each Col In Columns
-		If ORMTable.First.ContainsKey(Col) Then
-			NewMap.Put(Col, ORMTable.First.Get(Col))
+	For Each Col As String In Columns
+		If First.ContainsKey(Col) Then
+			NewMap.Put(Col, First.Get(Col))
 		End If
 	Next
 	Return NewMap
 End Sub
 
 ' Deprecated: Will be removed in future version
-Public Sub SelectOnly (Columns As List) As Map
-	Return FirstPick(Columns)
-End Sub
+'Public Sub SelectOnly (Columns As List) As Map
+'	Return First3(Columns)
+'End Sub
 
 ' Returns new inserted row
-Public Sub getLast As Map
+Public Sub Last As Map
 	Return ORMTable.Last
 End Sub
 
-Public Sub getFirstId As Int
-	Return getFirst.Get("id")
+Public Sub FirstId As Int
+	Return First.Get("id")
 End Sub
 
 ' Returns number of rows in ORMTable
-Public Sub getRowCount As Int
+Public Sub RowCount As Int
 	Return ORMTable.RowCount
 End Sub
 
 ' Returns True if ORMTable.RowCount > 0
-Public Sub getFound As Boolean
+Public Sub Found As Boolean
 	Return ORMTable.RowCount > 0
 End Sub
 
@@ -669,42 +667,50 @@ End Sub
 Private Sub SelectFromTableOrView
 	Dim ac As Boolean ' Add Comma
 	Dim SB As StringBuilder
-	sb.Initialize
+	SB.Initialize
 	If mColumns.IsInitialized Then
 		For Each Col In mColumns
-			If ac Then sb.Append(", ")
-			sb.Append(Col)
+			If ac Then SB.Append(", ")
+			SB.Append(Col)
 			ac = True
 		Next
 	End If
-	Dim Cols As String = sb.ToString
+	Dim Cols As String = SB.ToString
 	mStatement = $"SELECT ${IIf(Cols = "", "*", Cols)} FROM ${mObject}"$
 End Sub
 
+'Example: IFNULL(amount, 0) AS total
+'<code>DB.IfNull("amount", 0, "total")</code>
 Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As String) As String
 	Return $"IFNULL(${ColumnName}, '${DefaultValue}')"$ & IIf(AliasName = "", $" AS ${ColumnName}"$, $" AS ${AliasName}"$)
 End Sub
 
+'Example: Group By id, age
+'<code>DB.GroupBy = Array("id", "age")</code>
 Public Sub setGroupBy (Columns As List)
 	Dim SB As StringBuilder
-	sb.Initialize
+	SB.Initialize
 	For Each Column As String In Columns
-		If sb.Length > 0 Then sb.Append(", ") Else sb.Append(" GROUP BY ")
-		sb.Append(Column)
+		If SB.Length > 0 Then SB.Append(", ") Else SB.Append(" GROUP BY ")
+		SB.Append(Column)
 	Next
 	mGroupBy = SB.ToString
 End Sub
 
+'Example: Having id > 5 And age = 21
+'<code>DB.Having = Array("id > 5", "age = 21")</code>
 Public Sub setHaving (Statements As List)
 	Dim SB As StringBuilder
 	SB.Initialize
-	For Each statement In Statements
+	For Each statement As String In Statements
 		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" HAVING ")
 		SB.Append(statement)
 	Next
 	mHaving = SB.ToString
 End Sub
 
+'Example: Order by id, name DESC
+'<code>DB.OrderBy = CreateMap("id": "", "name", "DESC")</code>
 Public Sub setOrderBy (Col As Map)
 	If Col.IsInitialized Then
 		Dim SB As StringBuilder
@@ -722,8 +728,18 @@ Public Sub setOrderBy (Col As Map)
 	End If
 End Sub
 
+'Example: Limit 10, 10 (second parameter is Offset)
+'<code>DB.Limit = "10, 10"</code>
+Public Sub setLimit (Value As String)
+	If Value = "" Then
+		mLimit = ""
+	Else
+		mLimit = " LIMIT " & Value
+	End If
+End Sub
+
 Public Sub SortByLastId
-	mOrderBy = $" ORDER BY id DESC"$
+	mOrderBy = " ORDER BY id DESC"
 End Sub
 
 Public Sub Create
@@ -1044,15 +1060,17 @@ Public Sub setParameters (Params() As Object)
 	mParameters = Params
 End Sub
 
-' Example: Limit 10, 10 (second parameter is Offset)
-Public Sub setLimit (Value As String)
-	mLimit = Value
-End Sub
+'Public Sub setJoin (OJoin As ORMJoin)
+'	If OJoin.Operation = "" Then OJoin.Operation = "JOIN"
+'	Append(" " & OJoin.Operation & " " & OJoin.Target & " ON " & OJoin.Conditions)
+'End Sub
 
-Public Sub setJoin (OJoin As ORMJoin)
-	Dim JOIN As String = " JOIN "
-	If OJoin.Mode <> "" Then JOIN = " " & OJoin.Mode & " "
-	Append(JOIN & OJoin.Table2 & " ON " & OJoin.OnConditions)
+'Example: LEFT JOIN tbl_categories c ON p.category_id = c.id
+'<code>DB.Join("LEFT JOIN", "tbl_categories c", "p.category_id = c.id")</code>
+Public Sub Join (Operation As String, Target As String, Statements As String)
+	If Operation = "" Then Operation = "JOIN"
+	'Append(" " & Operation & " " & Target & " ON " & Statements)
+	mStatement = mStatement & " " & Operation & " " & Target & " ON " & Statements
 End Sub
 
 ' Execute Query
@@ -1062,7 +1080,7 @@ Public Sub Query
 		If mGroupBy.Length > 0 Then mStatement = mStatement & mGroupBy
 		If mHaving.Length > 0 Then mStatement = mStatement & mHaving
 		If mOrderBy.Length > 0 Then mStatement = mStatement & mOrderBy
-		If mLimit.Length > 0 Then mStatement = mStatement & $" LIMIT ${mLimit}"$ ' Limit 10, 10 <-- second parameter is OFFSET
+		If mLimit.Length > 0 Then mStatement = mStatement & mLimit
 		Dim RS As ResultSet = ExecQuery
 		If mError.IsInitialized Then
 			If Initialized(RS) Then RS.Close
@@ -1121,15 +1139,13 @@ Public Sub Query
 		Loop
 		#Else
 		' Experimental
-		Dim First As Boolean = True
 		Dim Columns As Map
+		Dim Filled As Boolean
 		Do While RS.NextRow
-			If First Then
-				Columns.Initialize
-			End If
 			Dim Row(cols) As Object ' ORMResult (array of object)
 			Dim Row2 As List 		' ORMTable (list of object)
 			Row2.Initialize
+			If Not(Filled) Then Columns.Initialize
 			For i = 0 To cols - 1
 				' Experimental
 				Dim ColumnName As String = RS.GetColumnName(i)
@@ -1170,14 +1186,14 @@ Public Sub Query
 					End Try
 				End If
 				Row2.Add(Row(i))
-				If First Then
+				If Not(Filled) Then
 					Columns.Put(ColumnName, Row(i))
 					ORMTable.Columns.Add(ColumnName)
 				End If
 			Next
 			ORMResult.Rows.Add(Row)
 			ORMTable.Rows.Add(Row2)
-			First = False
+			Filled = True
 		Loop
 		ORMResult.Columns = Columns
 		#End If
@@ -1255,7 +1271,7 @@ Public Sub Insert
 			SB.Append(", ")
 			vb.Append(", ")
 		End If
-		sb.Append("created_date")
+		SB.Append("created_date")
 		Select mType
 			Case SQLITE
 				vb.Append("(datetime('now'))")			
@@ -1263,7 +1279,7 @@ Public Sub Insert
 				vb.Append("now()")
 		End Select
 	End If
-	mStatement = $"INSERT INTO ${mObject} (${sb.ToString}) VALUES (${vb.ToString})"$
+	mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then Execute
 End Sub
@@ -1279,21 +1295,21 @@ Public Sub Save
 	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim SB As StringBuilder
-		sb.Initialize
+		SB.Initialize
 		mStatement = $"UPDATE ${mObject} SET "$
 		For Each col As String In mColumns
-			If sb.Length > 0 Then sb.Append(", ")
+			If SB.Length > 0 Then SB.Append(", ")
 			If col.EqualsIgnoreCase("modified_date") Then md = True
 			If col.Contains("=") Then
-				sb.Append(col)
+				SB.Append(col)
 			Else If col.EndsWith("++") Then
 				col = col.Replace("++", "").Trim
-				sb.Append($"${col} = ${col} + 1"$)
+				SB.Append($"${col} = ${col} + 1"$)
 			Else
-				sb.Append(col & " = ?")
+				SB.Append(col & " = ?")
 			End If
 		Next
-		mStatement = mStatement & sb.ToString
+		mStatement = mStatement & SB.ToString
 		' To handle varchar timestamps
 		If mUpdateModifiedDate And Not(md) Then
 			Select mType
@@ -1306,25 +1322,25 @@ Public Sub Save
 		mStatement = mStatement & mCondition
 	Else
 		Dim cd As Boolean ' contains created_date
-		Dim sb, vb As StringBuilder
-		sb.Initialize
+		Dim SB, vb As StringBuilder
+		SB.Initialize
 		vb.Initialize
 		For Each col As String In mColumns
-			If sb.Length > 0 Then
-				sb.Append(", ")
+			If SB.Length > 0 Then
+				SB.Append(", ")
 				vb.Append(", ")
 			End If
-			sb.Append(col)
+			SB.Append(col)
 			vb.Append("?")
 			If col.EqualsIgnoreCase("created_date") Then cd = True
 		Next
 		' To handle varchar timestamps
 		If mUseTimestamps And Not(cd) Then
-			If sb.Length > 0 Then
-				sb.Append(", ")
+			If SB.Length > 0 Then
+				SB.Append(", ")
 				vb.Append(", ")
 			End If
-			sb.Append("created_date")
+			SB.Append("created_date")
 			Select mType
 				Case SQLITE
 					vb.Append("(datetime('now'))")				
@@ -1368,21 +1384,21 @@ Public Sub Save3 (mColumn As String)
 	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim SB As StringBuilder
-		sb.Initialize
+		SB.Initialize
 		mStatement = $"UPDATE ${mObject} SET "$
 		For Each col As String In mColumns
-			If sb.Length > 0 Then sb.Append(", ")
+			If SB.Length > 0 Then SB.Append(", ")
 			If col.EqualsIgnoreCase("modified_date") Then md = True
 			If col.Contains("=") Then
-				sb.Append(col)
+				SB.Append(col)
 			Else If col.EndsWith("++") Then
 				col = col.Replace("++", "").Trim
-				sb.Append($"${col} = ${col} + 1"$)
+				SB.Append($"${col} = ${col} + 1"$)
 			Else
-				sb.Append(col & " = ?")
+				SB.Append(col & " = ?")
 			End If
 		Next
-		mStatement = mStatement & sb.ToString
+		mStatement = mStatement & SB.ToString
 		' To handle varchar timestamps
 		If mUpdateModifiedDate And Not(md) Then
 			Select mType
@@ -1395,25 +1411,25 @@ Public Sub Save3 (mColumn As String)
 		mStatement = mStatement & mCondition
 	Else
 		Dim cd As Boolean ' contains created_date
-		Dim sb, vb As StringBuilder
-		sb.Initialize
+		Dim SB, vb As StringBuilder
+		SB.Initialize
 		vb.Initialize
 		For Each col As String In mColumns
-			If sb.Length > 0 Then
-				sb.Append(", ")
+			If SB.Length > 0 Then
+				SB.Append(", ")
 				vb.Append(", ")
 			End If
-			sb.Append(col)
+			SB.Append(col)
 			vb.Append("?")
 			If col.EqualsIgnoreCase("created_date") Then cd = True
 		Next
 		' To handle varchar timestamps
 		If mUseTimestamps And Not(cd) Then
-			If sb.Length > 0 Then
-				sb.Append(", ")
+			If SB.Length > 0 Then
+				SB.Append(", ")
 				vb.Append(", ")
 			End If
-			sb.Append("created_date")
+			SB.Append("created_date")
 			Select mType
 				Case MYSQL, MARIADB
 					vb.Append("now()")
@@ -1461,36 +1477,52 @@ Public Sub getLastInsertID As Object
 	Return mSQL.ExecQuerySingleResult(mStatement)
 End Sub
 
-' Adding new Condition
-Public Sub setWhere (Statements As List)
-	Dim SB As StringBuilder
-	SB.Initialize
-	For Each statement In Statements
-		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
-		SB.Append(statement)
-	Next
-	mCondition = mCondition & SB.ToString
+Private Sub NewCondition As Boolean
+	Return mCondition.Length = 0
 End Sub
 
-' Set Condition with single condition and value
-Public Sub WhereParam (Condition As String, Param As Object)
-	Dim SB As StringBuilder
-	SB.Initialize
-	SB.Append(" WHERE ")
-	SB.Append(Condition)
-	mCondition = SB.ToString
-	setParameters(Array As Object(Param))
+Private Sub AppendWhereOrAndClause
+	If NewCondition Then
+		mCondition = mCondition & " WHERE "
+	Else
+		mCondition = mCondition & " AND "
+	End If
+End Sub
+
+' Add new Condition (disregard there are already some)
+Public Sub Condition (Statement As String)
+	AppendWhereOrAndClause
+	mCondition = mCondition & Statement
+End Sub
+
+' Add new list of Conditions
+' Formerly known as setWhere
+Public Sub Conditions (Statements As List)
+	For Each Statement As String In Statements
+		AppendWhereOrAndClause
+		mCondition = mCondition & Statement
+	Next
+End Sub
+
+' Add single condition and parameter
+Public Sub WhereParam (Statement As String, Param As Object)
+	AppendWhereOrAndClause
+	mCondition = mCondition & Statement
+	'setParameters(Array As Object(Param))
+	AddParameters(Array(Param))
 End Sub
 
 ' Append new Conditions and Parameters
-Public Sub WhereParams (Conditions() As Object, Params() As Object)
-	Dim SB As StringBuilder
-	SB.Initialize
-	For Each condition As String In Conditions
-		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
-		SB.Append(condition)
+Public Sub WhereParams (Statements() As Object, Params() As Object)
+	'Dim SB As StringBuilder
+	'SB.Initialize
+	For Each Statement As String In Statements
+		'If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
+		'SB.Append(Statement)
+		AppendWhereOrAndClause
+		mCondition = mCondition & Statement
 	Next
-	mCondition = mCondition & SB.ToString
+	'mCondition = mCondition & SB.ToString
 	AddParameters(Params)
 End Sub
 
@@ -1817,23 +1849,5 @@ Public Sub CreateColumn2 (Props As Map) As ORMColumn
 	If t1.ColumnType = INTEGER Then t1.ColumnLength = "11"
 	If t1.ColumnType = TIMESTAMP Then t1.ColumnLength = ""
 	If t1.ColumnLength = "0" Then t1.ColumnLength = ""
-	Return t1
-End Sub
-
-Public Sub CreateFilter (Column As String, Operator As String, Value As String) As ORMFilter
-	Dim t1 As ORMFilter
-	t1.Initialize
-	t1.Column = Column
-	t1.Operator = Operator
-	t1.Value = Value
-	Return t1
-End Sub
-
-Public Sub CreateJoin (Table2 As String, OnConditions As String, Mode As String) As ORMJoin
-	Dim t1 As ORMJoin
-	t1.Initialize
-	t1.Table2 = Table2
-	t1.OnConditions = OnConditions
-	t1.Mode = Mode
 	Return t1
 End Sub

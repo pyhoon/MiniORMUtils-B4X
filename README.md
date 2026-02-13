@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 4.03
+Version: 4.10
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries. \
 It is suitable for Web API Template or any database system. \
@@ -7,7 +7,7 @@ Currently it supports **SQLite** (for B4A, B4i and B4J), **MariaDB** and **MySQL
 
 <img src="https://github.com/pyhoon/MiniORMUtils-B4X/blob/main/miniorm.png" width="300" />
 
-# Usage example
+# Usage examples
 
 ## Initialize object
 ```b4x
@@ -42,7 +42,7 @@ Dim Success As Boolean = DB.InitializeSQLite
 
 ## Create table
 ```b4x
-DB.Table = "tbl_category"
+DB.Table = "tbl_categories"
 DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_name")))
 DB.Create
 ```
@@ -54,9 +54,9 @@ DB.Insert2(Array("Hardwares"))
 DB.Insert2(Array("Toys"))
 ```
 
-## Execute NonQuery Batch
+## Execute NonQuery batch
 ```b4x
-Wait For (DB.ExecuteBatch) Complete (Success As Boolean)
+Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)
 If Success Then
     Log("Database is created successfully!")
 Else
@@ -65,9 +65,14 @@ End If
 DB.Close
 ```
 
-## Select All Rows
+## Connect to database
 ```b4x
-DB.Table = "tbl_category"
+DB.SQL = DB.Open
+```
+
+## Select all rows
+```b4x
+DB.Table = "tbl_categories"
 DB.Query
 Dim Items As List = DB.Results
 ```
@@ -107,11 +112,11 @@ Dim Rows As Int = DB.RowCount
 Dim Data As Map = DB.Find(2)
 ```
 
-## Return multiple rows
+## Filter by conditions
 ```b4x
 DB.Table = "tbl_products"
-DB.Where = Array As String("category_id = ?")
-DB.Parameters = Array(2)
+DB.Conditions = Array("category_id = ?", "product_price > ?")
+DB.Parameters = Array(2, 50)
 DB.OrderBy = CreateMap("id": "DESC")
 DB.Query
 Dim Data As List = DB.Results
@@ -121,7 +126,7 @@ Dim Data As List = DB.Results
 ```b4x
 DB.Table = "tbl_products p"
 DB.Select = Array("p.*", "c.category_name")
-DB.Join = DB.CreateJoin("tbl_category c", "p.category_id = c.id", "")
+DB.Join("tbl_categories c", "p.category_id = c.id", "")
 DB.WhereParam("c.id = ?", CategoryId)
 DB.Query
 Dim Data As List = DB.Results

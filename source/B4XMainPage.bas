@@ -249,7 +249,11 @@ Private Sub CreateDatabase
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
 	'DB.BLOB = "longblob"
 	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
-	DB.Foreign("category_id", "id", "tbl_categories", "", "")
+	'DB.Foreign("category_id", "id", "tbl_categories", "", "") ' <-- breaking change
+	'DB.Foreign = DB.Foreign & " ON UPDATE CASCADE" ' ON UPDATE NO ACTION, ON UPDATE RESTRICT, ON UPDATE SET NULL
+	'DB.Foreign = DB.Foreign & " ON DELETE CASCADE" ' ON DELETE NO ACTION, ON DELETE RESTRICT, ON DELETE SET NULL, ON DELETE SET DEFAULT
+	DB.Foreign = "category_id"
+	DB.References("tbl_categories", "id")
 	DB.Create
 	
 	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")

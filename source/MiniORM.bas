@@ -62,7 +62,7 @@ Sub Class_Globals
 	Public Const SQLITE 			As String = "SQLite"
 	Public Const MARIADB 			As String = "MariaDB"
 	Public Const COLOR_RED 			As Int = -65536
-	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
+	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, Last2 As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
 	Type ORMSettings (DBDir As String, _
@@ -613,17 +613,17 @@ Public Sub getId As Int
 	Return mID
 End Sub
 
-' Returns first queried row
+' Returns first row in results
 Public Sub First As Map
 	Return ORMTable.First
 End Sub
 
-' Returns first queried row with ordered keys
+' Returns first row in results with ordered keys
 Public Sub First2 As Map
 	Return ORMTable.First2
 End Sub
 
-' Return first queried row with specified columns
+' Returns first row in results with specified columns
 ' (formerly known as SelectOnly then FirstPick)
 Public Sub First3 (Columns As List) As Map
 	Dim NewMap As Map
@@ -641,23 +641,40 @@ End Sub
 '	Return First3(Columns)
 'End Sub
 
-' Returns new inserted row
+' Returns last row in results
 Public Sub Last As Map
 	Return ORMTable.Last
+End Sub
+
+' Returns last row in results with ordered keys
+Public Sub Last2 As Map
+	Return ORMTable.Last2
+End Sub
+
+' Returns last row in results with specified columns
+Public Sub Last3 (Columns As List) As Map
+	Dim NewMap As Map
+	NewMap.Initialize
+	For Each Col As String In Columns
+		If Last.ContainsKey(Col) Then
+			NewMap.Put(Col, Last.Get(Col))
+		End If
+	Next
+	Return NewMap
 End Sub
 
 Public Sub FirstId As Int
 	Return First.Get("id")
 End Sub
 
-' Returns number of rows in ORMTable
+' Returns number of rows in results
 Public Sub RowCount As Int
 	Return ORMTable.RowCount
 End Sub
 
-' Returns True if ORMTable.RowCount > 0
+' Returns True if RowCount > 0
 Public Sub Found As Boolean
-	Return ORMTable.RowCount > 0
+	Return RowCount > 0
 End Sub
 
 Private Sub SelectAllFromObject
@@ -685,7 +702,7 @@ Public Sub IfNull (ColumnName As String, DefaultValue As Object, AliasName As St
 	Return $"IFNULL(${ColumnName}, '${DefaultValue}')"$ & IIf(AliasName = "", $" AS ${ColumnName}"$, $" AS ${AliasName}"$)
 End Sub
 
-'Example: Group By id, age
+'Example: GROUP BY id, age
 '<code>DB.GroupBy = Array("id", "age")</code>
 Public Sub setGroupBy (Columns As List)
 	Dim SB As StringBuilder
@@ -697,7 +714,7 @@ Public Sub setGroupBy (Columns As List)
 	mGroupBy = SB.ToString
 End Sub
 
-'Example: Having id > 5 And age = 21
+'Example: HAVING id > 5 AND age = 21
 '<code>DB.Having = Array("id > 5", "age = 21")</code>
 Public Sub setHaving (Statements As List)
 	Dim SB As StringBuilder
@@ -709,7 +726,7 @@ Public Sub setHaving (Statements As List)
 	mHaving = SB.ToString
 End Sub
 
-'Example: Order by id, name DESC
+'Example: ORDER BY id, name DESC
 '<code>DB.OrderBy = CreateMap("id": "", "name", "DESC")</code>
 Public Sub setOrderBy (Col As Map)
 	If Col.IsInitialized Then
@@ -728,7 +745,8 @@ Public Sub setOrderBy (Col As Map)
 	End If
 End Sub
 
-'Example: Limit 10, 10 (second parameter is Offset)
+'Limit number of rows and offset
+'Example: LIMIT 10, 10
 '<code>DB.Limit = "10, 10"</code>
 Public Sub setLimit (Value As String)
 	If Value = "" Then
@@ -927,52 +945,78 @@ Public Sub Create2 (CreateStatement As String)
 	If mQueryExecute Then Execute
 End Sub
 
-' Replace default primary key
-Public Sub Primary (mKeys() As String)
-	If mKeys.Length = 0 Then Return
-	Dim keys As StringBuilder
-	keys.Initialize
-	For i = 0 To mKeys.Length - 1
-		If i > 0 Then keys.Append(", ")
-		keys.Append(mKeys(i))
-	Next
-	mPrimaryKey = keys.ToString
-End Sub
-
-' Add foreign key
-'<code>DB.Foreign("category_id", "id", "tbl_categories", "", "")</code>
-Public Sub Foreign (mKey As String, mReferences As String, mOnTable As String, mOnDelete As String, mOnUpdate As String)
+' Set Primary Key
+' Example: PRIMARY KEY (order_id, product_id)
+' <code>DB.Primary(Array("order_id", "product_id"))</code>
+Public Sub setPrimary (Keys() As String)
+	If Keys.Length = 0 Then Return
 	Dim SB As StringBuilder
 	SB.Initialize
-	SB.Append( $"FOREIGN KEY (${mKey}) REFERENCES ${mOnTable} (${mReferences})"$ )
-	If mOnDelete.Length > 0 Then SB.Append( " ON DELETE " & mOnDelete )
-	If mOnUpdate.Length > 0 Then SB.Append( " ON UPDATE " & mOnUpdate )
-	mForeignKey = SB.ToString
+	For Each Key In Keys
+		If SB.Length > 0 Then SB.Append(", ")
+		SB.Append(Key)
+	Next
+	mPrimaryKey = SB.ToString
+End Sub
+
+' Returns Primary Key
+Public Sub getPrimary As String
+	Return mPrimaryKey
+End Sub
+
+' Example: FOREIGN KEY (category_id)
+' <code>DB.Foreign("category_id")</code>
+Public Sub setForeign (Key As String) '(ReferenceTable As String, Key As String, ReferenceKey As String, OnDelete As String, OnUpdate As String)
+	mForeignKey = $"FOREIGN KEY (${Key})"$
+End Sub
+
+' Returns Foreign Key
+Public Sub getForeign As String
+	Return mForeignKey
+End Sub
+
+' Add a references to the statement or append to the Foreign Key
+' Example: REFERENCES tbl_categories (id)
+' <code>DB.References("tbl_categories", "id")</code>
+Public Sub References (Table As String, Key As String)
+	Dim SB As StringBuilder
+	SB.Initialize
+	SB.Append(" ").Append("REFERENCES").Append(" ").Append(Table)
+	If Key <> "" Then SB.Append(" ").Append("(").Append(Key).Append(")")
+	If mForeignKey.Contains("FOREIGN KEY") Then
+		If mForeignKey.Contains("REFERENCES") Then
+			mStatement = mStatement & SB.ToString
+		Else
+			mForeignKey = mForeignKey & SB.ToString
+		End If
+	Else
+		mStatement = mStatement & SB.ToString
+	End If
 End Sub
 
 ' Add unique key
-' mKey: Column name
-' Optional: mAlias
-Public Sub Unique (mKey As String, mAlias As String)
+' Key: Column name
+' Optional: Alias
+Public Sub Unique (Key As String, Alias As String)
 	Dim SB As StringBuilder
 	SB.Initialize
 	SB.Append("UNIQUE KEY")
-	If mAlias.Length > 0 Then SB.Append(" " & mAlias)
-	SB.Append($" (${mKey})"$)
+	If Alias.Length > 0 Then SB.Append(" " & Alias)
+	SB.Append($" (${Key})"$)
 	mUniqueKey = SB.ToString
 End Sub
 
 ' Add constraint
-' mKeyType: UNIQUE or PRIMARY KEY
-' mKeys: Column names separated by comma
-' Optional: mAlias
-Public Sub Constraint (mKeyType As String, mKeys As String, mAlias As String)
+' KeyType: UNIQUE or PRIMARY KEY
+' Keys: Column names separated by comma
+' Optional: Alias
+Public Sub Constraint (KeyType As String, Keys As String, Alias As String)
 	Dim SB As StringBuilder
 	SB.Initialize
 	SB.Append("CONSTRAINT")
-	If mAlias.Length > 0 Then SB.Append(" " & mAlias)
-	SB.Append(" " & mKeyType)
-	SB.Append($"(${mKeys})"$)
+	If Alias.Length > 0 Then SB.Append(" " & Alias)
+	SB.Append(" " & KeyType)
+	SB.Append($"(${Keys})"$)
 	mConstraint = SB.ToString
 End Sub
 
@@ -1024,8 +1068,8 @@ Private Sub ExecNonQuery
 	End Try
 End Sub
 
-' Execute Non Query batch <code>
-'Wait For (DB.ExecuteBatch) Complete (Success As Boolean)</code>
+' Execute Non Query batch
+'<code>Wait For (DB.ExecuteBatch) Complete (Success As Boolean)</code>
 Public Sub ExecuteBatchAsync As ResumableSub
 	If mShowExtraLogs Then LogQuery3
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
@@ -1033,6 +1077,8 @@ Public Sub ExecuteBatchAsync As ResumableSub
 	Return Success
 End Sub
 
+' Example: SQL.AddNonQueryToBatch(Statement, Parameters)
+' This is handled internally inside the library
 Public Sub AddNonQueryToBatch
 	mBatch.Add(CreateMap("DB_Statement": mStatement, "DB_Parameters": mParameters))
 	mSQL.AddNonQueryToBatch(mStatement, mParameters)
@@ -1065,12 +1111,11 @@ End Sub
 '	Append(" " & OJoin.Operation & " " & OJoin.Target & " ON " & OJoin.Conditions)
 'End Sub
 
-'Example: LEFT JOIN tbl_categories c ON p.category_id = c.id
-'<code>DB.Join("LEFT JOIN", "tbl_categories c", "p.category_id = c.id")</code>
-Public Sub Join (Operation As String, Target As String, Statements As String)
-	If Operation = "" Then Operation = "JOIN"
-	'Append(" " & Operation & " " & Target & " ON " & Statements)
-	mStatement = mStatement & " " & Operation & " " & Target & " ON " & Statements
+'Example: RIGHT JOIN tbl_categories c ON p.category_id = c.id
+'<code>DB.Join("RIGHT", "tbl_categories c", "p.category_id = c.id")</code>
+Public Sub Join (Modifier As String, Target As String, Statements As String)
+	If Modifier <> "" Then Modifier = " " & Modifier
+	mStatement = mStatement & Modifier & " JOIN " & Target & " ON " & Statements
 End Sub
 
 ' Execute Query
@@ -1217,6 +1262,7 @@ Public Sub Query
 			ORMTable.First = ORMTable.Results.Get(0)
 			ORMTable.First2 = ORMTable.Results2.Get(0)
 			ORMTable.Last = ORMTable.Results.Get(ORMTable.Results.Size - 1)
+			ORMTable.Last2 = ORMTable.Results2.Get(ORMTable.Results.Size - 1)
 		End If
 		'RS.Close ' test 2023-10-24
 	Catch
@@ -1546,10 +1592,11 @@ End Sub
 
 Public Sub Destroy (ids() As Int) As ResumableSub
 	If ids.Length < 1 Then Return False
-	For i = 0 To ids.Length - 1
+	For Each id As Int In ids
 		mStatement = $"DELETE FROM ${mObject} WHERE id = ?"$
-		If mShowExtraLogs Then LogQueryWithArg(ids(i))
-		mSQL.AddNonQueryToBatch(mStatement, Array(ids(i)))
+		mParameters = Array(id)
+		If mShowExtraLogs Then LogQueryWithArg(id)
+		If mQueryAddToBatch Then AddNonQueryToBatch
 	Next
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)

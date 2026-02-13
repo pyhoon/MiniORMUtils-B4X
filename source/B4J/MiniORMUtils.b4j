@@ -38,6 +38,9 @@ Version=10.3
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
 '#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
 #End Region
+#If Release
+#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf ..\..\..\release\%PROJECT_NAME%.v4.b4xlib ..\..\MiniORM.bas ..\..\..\manifest.txt ..\..\..\LICENSE
+#End If
 #Region Project Attributes 
 	#MainFormWidth: 600
 	#MainFormHeight: 600

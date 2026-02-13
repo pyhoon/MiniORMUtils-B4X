@@ -1,0 +1,224 @@
+﻿AppType=StandardJava
+Build1=Default,com.puterise.miniormutils,SQLite
+Build2=MariaDB,com.puterise.miniormutils,MariaDB
+Build3=MySQL,com.puterise.miniormutils,MySQL
+File1=icon.png
+FileGroup1=Default Group
+Group=App
+Library1=jcore
+Library2=jserver
+Library3=jsql
+Library4=javaobject
+Module1=|relative|..\MiniORM
+NumberOfFiles=1
+NumberOfLibraries=4
+NumberOfModules=1
+Version=10.3
+@EndOfDesignText@
+' Version 4.10
+#Region Macros
+#Macro: Title, Update Manifest, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=4.10
+#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\MiniORMUtils.v4.b4xlib&args=MiniORM.bas&args=..\manifest.txt&args=..\LICENSE
+#Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
+#Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
+'#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
+#End Region
+#If Release
+#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf %PROJECT_NAME%.v4.b4xlib MiniORM.bas
+#End If
+#Region Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+#End Region
+#If SQLite
+	#AdditionalJar: sqlite-jdbc-3.7.2
+#End If
+#If MariaDB
+	#AdditionalJar: mariadb-java-client-3.5.6
+#End If
+#If MySQL
+	#AdditionalJar: mysql-connector-j-9.3.0
+#End If
+Sub Process_Globals
+	Private DB As MiniORM
+	Private MS As ORMSettings
+	Private Const COLOR_RED As Int = -65536
+	Private Const COLOR_BLUE As Int = -16776961
+	Private Const COLOR_MAGENTA As Int = -65281	
+End Sub
+
+Sub AppStart (Args() As String)
+	Log("Starting tests...")
+	ConfigureDatabase
+	StartMessageLoop
+End Sub
+
+Public Sub ConfigureDatabase
+	MS.Initialize
+	#If MySQL
+	MS.DBType = "MySQL"
+	MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+	MS.DriverClass = "com.mysql.cj.jdbc.Driver"
+	#Else If MariaDB
+	MS.DBType = "MariaDB"
+	MS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+	MS.DriverClass = "org.mariadb.jdbc.Driver"
+	#Else
+	MS.DBType = "SQLite"
+	MS.DBFile = "Data.db"
+	#If B4J
+	MS.DBDir = File.DirApp
+	#Else
+	MS.DBDir = xui.DefaultFolder
+	#End If
+	#End If
+	#If MySQL Or MariaDB
+	MS.DBName = "miniorm"
+	MS.DbHost = "localhost"
+	MS.User = "root"
+	MS.Password = "password"
+	#End If
+	Try
+		DB.Initialize
+		DB.Settings = MS
+		DB.ShowExtraLogs = True
+		#If MySQL Or MariaDB
+		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
+		#Else
+		Dim DbFound As Boolean = DB.Exist
+		#End If
+		If DbFound Then
+			LogColor($"${MS.DBType} database found!"$, COLOR_BLUE)
+			#If MySQL Or MariaDB
+			DB.InitPool
+			#End If
+			'File.Delete(MS.DBDir, MS.DBFile)
+			DB.Open
+			GetCategories
+			GetProducts(2)
+		Else
+			LogColor($"${MS.DBType} database not found!"$, COLOR_RED)
+			CreateDatabase
+		End If
+	Catch
+		Log(LastException.Message)
+		LogColor("Error checking database!", COLOR_RED)
+		Log("Application is terminated.")
+		#If B4J
+		ExitApplication
+		#End If
+	End Try
+End Sub
+
+Private Sub CreateDatabase
+	LogColor("Creating database...", COLOR_MAGENTA)
+	DB.Initialize
+	DB.Settings = MS
+	#If MySQL Or MariaDB
+	Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
+	#Else
+	Dim Success As Boolean = DB.InitializeSQLite
+	#End If
+	If Not(Success) Then
+		Log("Database creation failed!")
+		Return
+	End If
+
+	DB.Open
+	DB.ShowExtraLogs = True
+	'DB.UseTimestamps = True
+	DB.QueryAddToBatch = True
+	
+	DB.Table = "tbl_categories"
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_name")))
+	DB.Create
+	
+	DB.Columns = Array("category_name")
+	DB.Insert2(Array("Hardwares"))
+	DB.Insert2(Array("Toys"))
+
+	DB.Table = "tbl_products"
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_id", "Type": DB.INTEGER)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
+	'DB.BLOB = "longblob"
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
+	'DB.Foreign("category_id", "id", "tbl_categories", "", "") ' <-- breaking change
+	DB.Foreign = "category_id"
+	DB.References("tbl_categories", "id")
+	'DB.Foreign = DB.Foreign & " ON UPDATE CASCADE" ' ON UPDATE NO ACTION, ON UPDATE RESTRICT, ON UPDATE SET NULL
+	'DB.Foreign = DB.Foreign & " ON DELETE CASCADE" ' ON DELETE NO ACTION, ON DELETE RESTRICT, ON DELETE SET NULL, ON DELETE SET DEFAULT
+	DB.Create
+	
+	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
+	DB.Insert2(Array(2, "T001", "Teddy Bear", 99.9))
+	DB.Insert2(Array(1, "H001", "Hammer", 15.75))
+	DB.Insert2(Array(2, "T002", "Optimus Prime", 1000))
+
+	Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)
+	If Success Then
+		LogColor("Database is created successfully!", COLOR_BLUE)
+		
+		' Adding an image to blob field
+		Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")
+		DB.Table = "tbl_products"
+		DB.Columns = Array("product_image")
+		DB.Parameters = Array(b)
+		DB.Id = 3 ' after setting Columns and Parameters
+		DB.Save
+		LogColor("Image added as blob", COLOR_BLUE)
+	Else
+		LogColor("Database creation failed!", COLOR_RED)
+		Log(LastException.Message)
+	End If
+End Sub
+
+Private Sub GetCategories
+	Try
+		DB.Table = "tbl_categories"
+		DB.Query
+		Dim Items As List = DB.Results
+		LogColor(Items, COLOR_BLUE)
+	Catch
+		LogColor(LastException.Message, COLOR_RED)
+	End Try
+End Sub
+
+Private Sub GetProducts (CategoryId As Int)
+	Try
+		DB.Table = "tbl_products p"
+		DB.ColumnsType = CreateMap("product_image": DB.BLOB)
+		DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
+		'DB.Join = DB.CreateJoin("JOIN", "tbl_categories c", "p.category_id = c.id")
+		DB.Join("", "tbl_categories c", "p.category_id = c.id")
+		DB.WhereParams(Array("c.id = ?"), Array(CategoryId))
+		DB.Query
+		Dim Items As List = DB.Results
+		LogColor(Items, COLOR_BLUE)
+		'Log(Items.As(JSON).ToString)
+		For Each Item As Map In Items
+			'#If Debug
+			' Test blob field
+			If 3 = Item.Get("id") Then
+				Dim buffer() As Byte = Item.GetDefault("product_image", Array As Byte())
+				If buffer.Length > 0 Then
+					File.WriteBytes(File.DirApp, "icon.png", buffer)
+					LogColor("Image saved as png", COLOR_BLUE)
+				End If
+			End If
+			'#End If
+		Next
+		Log(DB.Found)
+		If DB.Found Then
+			Log(DB.First)
+			Log(DB.First2)
+			Log(DB.First3(Array("product_price", "product_name")))
+			Log(DB.Last)
+			Log(DB.Last2)
+			Log(DB.Last3(Array("product_image", "product_code")))
+		End If
+	Catch
+		LogColor(LastException.Message, COLOR_RED)
+	End Try
+End Sub

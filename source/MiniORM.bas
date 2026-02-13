@@ -40,7 +40,7 @@ Sub Class_Globals
 	Private mUseDataAuditUserId 	As Boolean
 	Private mUpdateModifiedDate 	As Boolean
 	Private mQueryAddToBatch 		As Boolean
-	Private mQueryExecute 			As Boolean
+	Private mQueryExecute 			As Boolean = True
 	Private mQueryClearParameters 	As Boolean = True
 	#If B4J
 	Private mUseTimestampsAsTicks 	As Boolean
@@ -543,10 +543,12 @@ End Sub
 
 Public Sub setQueryAddToBatch (Value As Boolean)
 	mQueryAddToBatch = Value
+	If mQueryAddToBatch Then mQueryExecute = False ' Disallow both set to True
 End Sub
 
 Public Sub setQueryExecute (Value As Boolean)
 	mQueryExecute = Value
+	If mQueryExecute Then mQueryAddToBatch = False ' Disallow both set to True
 End Sub
 
 ' Clear Parameters after Query
@@ -572,7 +574,6 @@ Private Sub Clear
 	mHaving = ""
 	mGroupBy = ""
 	mOrderBy = ""
-	mCondition = ""
 	mUniqueKey = ""
 	mPrimaryKey = ""
 	mForeignKey = ""
@@ -581,6 +582,7 @@ End Sub
 
 ' Clear Conditions
 Private Sub ClearConditions
+	mCondition = ""
 	mConditions.Clear
 End Sub
 
@@ -938,7 +940,7 @@ Public Sub Create
 	If mObject = mTable Then stmt.Append(")")
 	mStatement = stmt.ToString
 	If mQueryAddToBatch Then AddNonQueryToBatch
-	If mQueryExecute Then Execute
+	If mQueryExecute Then ExecNonQuery
 End Sub
 
 'Create using raw SQL statement
@@ -946,7 +948,7 @@ Public Sub Create2 (CreateStatement As String)
 	ClearParameters
 	mStatement = CreateStatement
 	If mQueryAddToBatch Then AddNonQueryToBatch
-	If mQueryExecute Then Execute
+	If mQueryExecute Then ExecNonQuery
 End Sub
 
 ' Set Primary Key
@@ -1031,7 +1033,7 @@ End Sub
 Public Sub Execute2 (Parameter() As Object)
 	mParameters = Parameter
 	If mShowExtraLogs Then LogQuery2
-	Execute
+	ExecNonQuery
 End Sub
 
 Private Sub ExecQuery As ResultSet
@@ -1086,18 +1088,6 @@ Public Sub AddNonQueryToBatch
 	mSQL.AddNonQueryToBatch(mStatement, mParameters)
 End Sub
 
-Private Sub NewCondition As Boolean
-	Return mCondition.Length = 0
-End Sub
-
-Private Sub AppendWhereOrAndClause
-	If NewCondition Then
-		mCondition = mCondition & " WHERE "
-	Else
-		mCondition = mCondition & " AND "
-	End If
-End Sub
-
 ' Add new Condition (disregard there are already some)
 Public Sub setCondition (Statement As String)
 	mConditions.Add(Statement)
@@ -1105,11 +1095,13 @@ Public Sub setCondition (Statement As String)
 End Sub
 
 Public Sub getCondition As String
-	mCondition = ""
+	Dim SB As StringBuilder
+	SB.Initialize
 	For Each Statement As String In mConditions
-		AppendWhereOrAndClause
-		mCondition = mCondition & Statement
+		If SB.Length = 0 Then SB.Append(" WHERE ") Else SB.Append(" AND ")
+		SB.Append(Statement)
 	Next
+	mCondition = SB.ToString
 	Return mCondition
 End Sub
 
@@ -1169,7 +1161,7 @@ End Sub
 ' Execute Query
 Public Sub Query
 	Try
-		If mCondition.Length > 0 Then mStatement = mStatement & mCondition
+		If getCondition.Length > 0 Then mStatement = mStatement & mCondition
 		If mGroupBy.Length > 0 Then mStatement = mStatement & mGroupBy
 		If mHaving.Length > 0 Then mStatement = mStatement & mHaving
 		If mOrderBy.Length > 0 Then mStatement = mStatement & mOrderBy
@@ -1330,7 +1322,7 @@ End Sub
 ' Return an object without calling Query
 ' Note: ORMTable and ORMResults are not affected
 Public Sub Scalar As Object
-	If mCondition.Length > 0 Then mStatement = mStatement & mCondition
+	If getCondition.Length > 0 Then mStatement = mStatement & mCondition
 	If ParametersCount = 0 Then
 		Return mSQL.ExecQuerySingleResult(mStatement)
 	Else	
@@ -1375,7 +1367,7 @@ Public Sub Insert
 	End If
 	mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 	If mQueryAddToBatch Then AddNonQueryToBatch
-	If mQueryExecute Then Execute
+	If mQueryExecute Then ExecNonQuery
 End Sub
 
 Public Sub Insert2 (Params() As Object)
@@ -1386,7 +1378,7 @@ End Sub
 ' Update must have at least 1 condition
 Public Sub Save
 	Dim BlnNew As Boolean
-	If mCondition.Length > 0 Then
+	If getCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim SB As StringBuilder
 		SB.Initialize
@@ -1437,7 +1429,7 @@ Public Sub Save
 			SB.Append("created_date")
 			Select mType
 				Case SQLITE
-					vb.Append("(datetime('now'))")				
+					vb.Append("(datetime('now'))")
 				Case MYSQL, MARIADB
 					vb.Append("now()")
 			End Select
@@ -1445,25 +1437,28 @@ Public Sub Save
 		mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
-	ExecNonQuery
-	If BlnNew Then
-		' View does not support auto-increment id or ID is not autoincrement
-		If mObject = mView Or mAutoIncrement = False Then Return
-		Dim NewID As Int = getLastInsertID
-		' Return new row
-		Find(NewID)
-	Else
-		' Count numbers of ?
-		Dim ParamChars As Int = CountChar("?", mCondition)
-		Dim ParamCount As Int = ParametersCount
-		SelectAllFromObject
-		Dim ConditionParams(ParamChars) As Object
-		For i = 0 To ParamChars - 1
-			ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
-		Next
-		mParameters = ConditionParams
-		' Return row after update
-		Query
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then
+		ExecNonQuery
+		If BlnNew Then
+			' View does not support auto-increment id or ID is not autoincrement
+			If mObject = mView Or mAutoIncrement = False Then Return
+			Dim NewID As Int = getLastInsertID
+			' Return new row
+			Find(NewID)
+		Else
+			' Count numbers of ?
+			Dim ParamChars As Int = CountChar("?", mCondition)
+			Dim ParamCount As Int = ParametersCount
+			SelectAllFromObject
+			Dim ConditionParams(ParamChars) As Object
+			For i = 0 To ParamChars - 1
+				ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
+			Next
+			mParameters = ConditionParams
+			' Return row after update
+			Query
+		End If
 	End If
 End Sub
 
@@ -1475,7 +1470,7 @@ End Sub
 ' Same as Save but return row with custom id column
 Public Sub Save3 (mColumn As String)
 	Dim BlnNew As Boolean
-	If mCondition.Length > 0 Then
+	If getCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
 		Dim SB As StringBuilder
 		SB.Initialize
@@ -1534,26 +1529,29 @@ Public Sub Save3 (mColumn As String)
 		mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 		BlnNew = True
 	End If
-	ExecNonQuery
-	If BlnNew Then
-		' View does not support auto-increment id
-		'If mObject = mView Then Return
-		If mObject = mView Or mAutoIncrement = False Then Return
-		Dim NewID As Int = getLastInsertID
-		' Return new row
-		Find2(mColumn & " = ?", NewID)
-	Else
-		' Count numbers of ?
-		Dim ParamChars As Int = CountChar("?", mCondition)
-		Dim ParamCount As Int = ParametersCount
-		SelectAllFromObject
-		Dim ConditionParams(ParamChars) As Object
-		For i = 0 To ParamChars - 1
-			ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
-		Next
-		mParameters = ConditionParams
-		' Return row after update
-		Query
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then
+		ExecNonQuery
+		If BlnNew Then
+			' View does not support auto-increment id
+			'If mObject = mView Then Return
+			If mObject = mView Or mAutoIncrement = False Then Return
+			Dim NewID As Int = getLastInsertID
+			' Return new row
+			Find2(mColumn & " = ?", NewID)
+		Else
+			' Count numbers of ?
+			Dim ParamChars As Int = CountChar("?", mCondition)
+			Dim ParamCount As Int = ParametersCount
+			SelectAllFromObject
+			Dim ConditionParams(ParamChars) As Object
+			For i = 0 To ParamChars - 1
+				ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
+			Next
+			mParameters = ConditionParams
+			' Return row after update
+			Query
+		End If
 	End If
 End Sub
 
@@ -1573,9 +1571,10 @@ End Sub
 
 Public Sub Delete
 	mStatement = $"DELETE FROM ${mObject}"$
-	If mCondition.Length > 0 Then mStatement = mStatement & mCondition
-	ExecNonQuery
-	mCondition = ""
+	If getCondition.Length > 0 Then mStatement = mStatement & mCondition
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then ExecNonQuery
+	'mCondition = ""
 End Sub
 
 Public Sub Drop
@@ -1585,17 +1584,25 @@ Public Sub Drop
 		Case mView
 			mStatement = $"DROP VIEW IF EXISTS ${mObject}"$
 	End Select
-	ExecNonQuery
-	mCondition = ""
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then ExecNonQuery
+	'mCondition = ""
 End Sub
 
+' Execute Delete statement by batch
 Public Sub Destroy (ids() As Int) As ResumableSub
 	If ids.Length < 1 Then Return False
 	For Each id As Int In ids
-		mStatement = $"DELETE FROM ${mObject} WHERE id = ?"$
+		mID = id
+		'mStatement = $"DELETE FROM ${mObject} WHERE id = ?"$
+		mStatement = $"DELETE FROM ${mObject}"$
+		mConditions = Array("id = ?")
+		mCondition = " WHERE id = ?"
+		mStatement = mStatement & mCondition
+		mParameter = mID
 		mParameters = Array(id)
-		If mShowExtraLogs Then LogQueryWithArg(id)
-		If mQueryAddToBatch Then AddNonQueryToBatch
+		If mShowExtraLogs Then LogQuery4(id)
+		AddNonQueryToBatch
 	Next
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
@@ -1612,9 +1619,15 @@ Public Sub SoftDelete
 			If mShowExtraLogs Then Log("Unknown DBType")
 			Return
 	End Select
-	If mCondition.Length > 0 Then mStatement = mStatement & mCondition
+	If getCondition.Length = 0 Then
+		Log("Missing condition")
+		Return
+	End If
+	mStatement = mStatement & mCondition
 	If mShowExtraLogs Then LogQuery
-	mSQL.ExecNonQuery(mStatement)
+	If mQueryAddToBatch Then AddNonQueryToBatch
+	If mQueryExecute Then ExecNonQuery
+	'ClearConditions
 End Sub
 
 ' Tests whether the table exists
@@ -1623,7 +1636,7 @@ Public Sub TableExists (TableName As String) As Boolean
 		Case SQLITE
 			' SQLite code extracted from DBUtils
 			mStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
-			If mShowExtraLogs Then LogQueryWithArg(TableName)
+			If mShowExtraLogs Then LogQuery4(TableName)
 			Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(TableName))
 			Return count > 0
 		Case MYSQL, MARIADB
@@ -1632,7 +1645,7 @@ Public Sub TableExists (TableName As String) As Boolean
 				Return False
 			End If
 			mStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-			If mShowExtraLogs Then LogQueryWithArg(Array As String(mDatabaseName, TableName))
+			If mShowExtraLogs Then LogQuery4(Array As String(mDatabaseName, TableName))
 			Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(mDatabaseName, TableName))
 			Return count > 0
 		Case Else
@@ -1647,7 +1660,7 @@ Public Sub ViewExists (ViewName As String) As Boolean
 		Select mType
 			Case SQLITE
 				mStatement = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
-				If mShowExtraLogs Then LogQueryWithArg(ViewName)
+				If mShowExtraLogs Then LogQuery4(ViewName)
 				Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(ViewName))
 				Return count > 0
 			Case MYSQL, MARIADB
@@ -1656,7 +1669,7 @@ Public Sub ViewExists (ViewName As String) As Boolean
 					Return False
 				End If
 				mStatement = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-				If mShowExtraLogs Then LogQueryWithArg(Array As String(mDatabaseName, ViewName))
+				If mShowExtraLogs Then LogQuery4(Array As String(mDatabaseName, ViewName))
 				Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(mDatabaseName, ViewName))
 				Return count > 0
 			Case Else

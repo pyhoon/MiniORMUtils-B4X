@@ -10,7 +10,8 @@ Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
 	Private mBatch 					As List
-	Private mColumns 				As List
+	Private mColumns				As List
+	Private mConditions				As List
 	Private mColumnsType			As Map
 	Private mObject 				As String
 	Private mTable 					As String
@@ -24,7 +25,8 @@ Sub Class_Globals
 	Private mGroupBy 				As String
 	Private mOrderBy 				As String
 	Private mLimit 					As String
-	Private mCondition 				As String
+	Private mCondition				As String
+	Private mParameter				As String
 	Private mHaving 				As String
 	Private mParameters() 			As Object
 	Private mSettings				As ORMSettings
@@ -89,6 +91,7 @@ Public Sub Initialize
 	mDatabaseName = ""
 	mBatch.Initialize
 	mColumns.Initialize
+	mConditions.Initialize
 	mSettings.Initialize
 End Sub
 
@@ -557,6 +560,7 @@ End Sub
 
 Public Sub Reset
 	Clear
+	ClearConditions
 	ClearParameters
 	mColumns.Initialize
 	SelectAllFromObject
@@ -573,6 +577,11 @@ Private Sub Clear
 	mPrimaryKey = ""
 	mForeignKey = ""
 	mConstraint = ""
+End Sub
+
+' Clear Conditions
+Private Sub ClearConditions
+	mConditions.Clear
 End Sub
 
 ' Clear Parameters
@@ -965,12 +974,10 @@ Public Sub getPrimary As String
 End Sub
 
 ' Example: FOREIGN KEY (category_id)
-' <code>DB.Foreign("category_id")</code>
+' <code>DB.Foreign = "category_id"</code>
 Public Sub setForeign (Key As String) '(ReferenceTable As String, Key As String, ReferenceKey As String, OnDelete As String, OnUpdate As String)
 	mForeignKey = $"FOREIGN KEY (${Key})"$
 End Sub
-
-' Returns Foreign Key
 Public Sub getForeign As String
 	Return mForeignKey
 End Sub
@@ -1084,36 +1091,117 @@ Public Sub AddNonQueryToBatch
 	mSQL.AddNonQueryToBatch(mStatement, mParameters)
 End Sub
 
-' Append Parameters at the end
-Public Sub AddParameters (Params() As Object)
-	If Params.Length = 0 Then Return
-	If mParameters.Length > 0 Then
-		Dim NewArray(mParameters.Length + Params.Length) As Object
-		For i = 0 To mParameters.Length - 1
-			NewArray(i) = mParameters(i)
-		Next
-		For i = 0 To Params.Length - 1
-			NewArray(mParameters.Length + i) = Params(i)
-		Next
-		mParameters = NewArray
+Private Sub NewCondition As Boolean
+	Return mCondition.Length = 0
+End Sub
+
+Private Sub AppendWhereOrAndClause
+	If NewCondition Then
+		mCondition = mCondition & " WHERE "
 	Else
-		mParameters = Params
+		mCondition = mCondition & " AND "
 	End If
 End Sub
 
-' Initialize Parameters
+' Add new Condition (disregard there are already some)
+Public Sub setCondition (Statement As String)
+	mConditions.Add(Statement)
+	mCondition = getCondition
+End Sub
+
+Public Sub getCondition As String
+	mCondition = ""
+	For Each Statement As String In mConditions
+		AppendWhereOrAndClause
+		mCondition = mCondition & Statement
+	Next
+	Return mCondition
+End Sub
+
+' Add new list of Conditions
+' Formerly known as setWhere
+Public Sub setConditions (Statements As List)
+	mConditions.AddAll(Statements)
+	mCondition = getCondition
+End Sub
+
+Public Sub getConditions As List
+	Return mConditions
+End Sub
+
+Public Sub setParameter (Param As Object)
+	mParameter = Param
+	Dim NewArray(mParameters.Length + 1) As Object
+	For i = 0 To mParameters.Length - 1
+		NewArray(i) = mParameters(i)
+	Next
+	NewArray(mParameters.Length) = Param
+	mParameters = NewArray
+End Sub
+' Last Parameter
+Public Sub getParameter As Object
+	Return mParameter
+End Sub
+
 Public Sub setParameters (Params() As Object)
 	mParameters = Params
+	mParameter = mParameters(mParameters.Length - 1)
 End Sub
+
+Public Sub getParameters As Object()
+	Return mParameters
+End Sub
+
+'' Adding new Condition
+'Public Sub setWhere (Statements As List)
+'	'Dim SB As StringBuilder
+'	'SB.Initialize
+'	For Each Statement In Statements
+'		'If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
+'		AppendWhereOrAndClause
+'		mCondition = mCondition & Statement
+'		'SB.Append(Statement)
+'	Next
+'	'mCondition = mCondition & SB.ToString
+'End Sub
+
+' Add single condition and parameter
+Public Sub WhereParam (Statement As String, Param As Object)
+	setCondition(Statement)
+	setParameter(Param)
+End Sub
+
+' Append new Conditions and Parameters
+Public Sub WhereParams (Statements As List, Params() As Object)
+	setConditions(Statements)
+	setParameters(Params)
+End Sub
+
+' Append Parameters at the end
+'Public Sub AddParameters (Params() As Object)
+'	If Params.Length = 0 Then Return
+'	If mParameters.Length > 0 Then
+'		Dim NewArray(mParameters.Length + Params.Length) As Object
+'		For i = 0 To mParameters.Length - 1
+'			NewArray(i) = mParameters(i)
+'		Next
+'		For i = 0 To Params.Length - 1
+'			NewArray(mParameters.Length + i) = Params(i)
+'		Next
+'		mParameters = NewArray
+'	Else
+'		mParameters = Params
+'	End If
+'End Sub
 
 'Public Sub setJoin (OJoin As ORMJoin)
 '	If OJoin.Operation = "" Then OJoin.Operation = "JOIN"
 '	Append(" " & OJoin.Operation & " " & OJoin.Target & " ON " & OJoin.Conditions)
 'End Sub
 
-'Example: RIGHT JOIN tbl_categories c ON p.category_id = c.id
-'<code>DB.Join("RIGHT", "tbl_categories c", "p.category_id = c.id")</code>
-Public Sub Join (Modifier As String, Target As String, Statements As String)
+'Example: JOIN tbl_categories c ON p.category_id = c.id
+'<code>DB.Join("tbl_categories c", "p.category_id = c.id", "")</code>
+Public Sub Join (Target As String, Statements As String, Modifier As String)
 	If Modifier <> "" Then Modifier = " " & Modifier
 	mStatement = mStatement & Modifier & " JOIN " & Target & " ON " & Statements
 End Sub
@@ -1521,55 +1609,6 @@ Public Sub getLastInsertID As Object
 	End Select
 	If mShowExtraLogs Then LogQuery
 	Return mSQL.ExecQuerySingleResult(mStatement)
-End Sub
-
-Private Sub NewCondition As Boolean
-	Return mCondition.Length = 0
-End Sub
-
-Private Sub AppendWhereOrAndClause
-	If NewCondition Then
-		mCondition = mCondition & " WHERE "
-	Else
-		mCondition = mCondition & " AND "
-	End If
-End Sub
-
-' Add new Condition (disregard there are already some)
-Public Sub Condition (Statement As String)
-	AppendWhereOrAndClause
-	mCondition = mCondition & Statement
-End Sub
-
-' Add new list of Conditions
-' Formerly known as setWhere
-Public Sub Conditions (Statements As List)
-	For Each Statement As String In Statements
-		AppendWhereOrAndClause
-		mCondition = mCondition & Statement
-	Next
-End Sub
-
-' Add single condition and parameter
-Public Sub WhereParam (Statement As String, Param As Object)
-	AppendWhereOrAndClause
-	mCondition = mCondition & Statement
-	'setParameters(Array As Object(Param))
-	AddParameters(Array(Param))
-End Sub
-
-' Append new Conditions and Parameters
-Public Sub WhereParams (Statements() As Object, Params() As Object)
-	'Dim SB As StringBuilder
-	'SB.Initialize
-	For Each Statement As String In Statements
-		'If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
-		'SB.Append(Statement)
-		AppendWhereOrAndClause
-		mCondition = mCondition & Statement
-	Next
-	'mCondition = mCondition & SB.ToString
-	AddParameters(Params)
 End Sub
 
 Public Sub Delete

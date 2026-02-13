@@ -1,5 +1,5 @@
 ﻿AppType=StandardJava
-Build1=Default,com.puterise.miniormutils,SQLite
+Build1=Default,com.puterise.miniormutils
 Build2=MariaDB,com.puterise.miniormutils,MariaDB
 Build3=MySQL,com.puterise.miniormutils,MySQL
 File1=icon.png
@@ -30,14 +30,12 @@ Version=10.3
 	#CommandLineArgs:
 	#MergeLibraries: True 
 #End Region
-#If SQLite
-	#AdditionalJar: sqlite-jdbc-3.7.2
-#End If
 #If MariaDB
 	#AdditionalJar: mariadb-java-client-3.5.6
-#End If
-#If MySQL
+#Else If MySQL
 	#AdditionalJar: mysql-connector-j-9.3.0
+#Else
+	#AdditionalJar: sqlite-jdbc-3.7.2
 #End If
 Sub Process_Globals
 	Private DB As MiniORM
@@ -190,8 +188,8 @@ Private Sub GetProducts (CategoryId As Int)
 		DB.Table = "tbl_products p"
 		DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 		DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
-		'DB.Join = DB.CreateJoin("JOIN", "tbl_categories c", "p.category_id = c.id")
-		DB.Join("", "tbl_categories c", "p.category_id = c.id")
+		'DB.Join = DB.CreateJoin("tbl_categories c", "p.category_id = c.id", "")
+		DB.Join("tbl_categories c", "p.category_id = c.id", "")
 		DB.WhereParams(Array("c.id = ?"), Array(CategoryId))
 		DB.Query
 		Dim Items As List = DB.Results
@@ -209,7 +207,7 @@ Private Sub GetProducts (CategoryId As Int)
 			End If
 			'#End If
 		Next
-		Log(DB.Found)
+
 		If DB.Found Then
 			Log(DB.First)
 			Log(DB.First2)

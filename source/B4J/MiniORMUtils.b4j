@@ -1,5 +1,5 @@
 ﻿AppType=JavaFX
-Build1=Default,pyhoon.miniormutils,SQLite
+Build1=Default,pyhoon.miniormutils
 Build2=MariaDB,pyhoon.miniormutils,MariaDB
 Build3=MySQL,pyhoon.miniormutils,MySQL
 File1=CategoryItem.bjl
@@ -45,14 +45,12 @@ Version=10.3
 	#MainFormWidth: 600
 	#MainFormHeight: 600
 #End Region
-#If SQLite
-	#AdditionalJar: sqlite-jdbc-3.7.2
-#End If
 #If MariaDB
 	#AdditionalJar: mariadb-java-client-3.5.6
-#End If
-#If MySQL
+#Else If MySQL
 	#AdditionalJar: mysql-connector-j-9.3.0
+#Else
+	#AdditionalJar: sqlite-jdbc-3.7.2
 #End If
 Sub Process_Globals
 	Private fx As JFX

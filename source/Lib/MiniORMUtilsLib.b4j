@@ -18,13 +18,16 @@ Version=10.3
 ' Version 4.10
 #Region Macros
 #Macro: Title, Update Manifest, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=4.10
-#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\MiniORMUtils.v4.b4xlib&args=MiniORM.bas&args=..\manifest.txt&args=..\LICENSE
+#Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\MiniORMUtils.b4xlib&args=MiniORM.bas&args=..\manifest.txt&args=..\LICENSE
 #Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
 '#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
 #End Region
+'#If Release
+'#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf %PROJECT_NAME%.b4xlib MiniORM.bas
+'#End If
 #If Release
-#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf %PROJECT_NAME%.v4.b4xlib MiniORM.bas
+#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf ..\..\..\release\MiniORMUtils.b4xlib ..\..\MiniORM.bas ..\..\..\manifest.txt ..\..\..\LICENSE
 #End If
 #Region Project Attributes 
 	#CommandLineArgs:

@@ -645,11 +645,6 @@ Public Sub First3 (Columns As List) As Map
 	Return NewMap
 End Sub
 
-' Deprecated: Will be removed in future version
-'Public Sub SelectOnly (Columns As List) As Map
-'	Return First3(Columns)
-'End Sub
-
 ' Returns last row in results
 Public Sub Last As Map
 	Return ORMTable.Last
@@ -1152,19 +1147,6 @@ Public Sub getParameters As Object()
 	Return mParameters
 End Sub
 
-'' Adding new Condition
-'Public Sub setWhere (Statements As List)
-'	'Dim SB As StringBuilder
-'	'SB.Initialize
-'	For Each Statement In Statements
-'		'If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" WHERE ")
-'		AppendWhereOrAndClause
-'		mCondition = mCondition & Statement
-'		'SB.Append(Statement)
-'	Next
-'	'mCondition = mCondition & SB.ToString
-'End Sub
-
 ' Add single condition and parameter
 Public Sub WhereParam (Statement As String, Param As Object)
 	setCondition(Statement)
@@ -1176,28 +1158,6 @@ Public Sub WhereParams (Statements As List, Params() As Object)
 	setConditions(Statements)
 	setParameters(Params)
 End Sub
-
-' Append Parameters at the end
-'Public Sub AddParameters (Params() As Object)
-'	If Params.Length = 0 Then Return
-'	If mParameters.Length > 0 Then
-'		Dim NewArray(mParameters.Length + Params.Length) As Object
-'		For i = 0 To mParameters.Length - 1
-'			NewArray(i) = mParameters(i)
-'		Next
-'		For i = 0 To Params.Length - 1
-'			NewArray(mParameters.Length + i) = Params(i)
-'		Next
-'		mParameters = NewArray
-'	Else
-'		mParameters = Params
-'	End If
-'End Sub
-
-'Public Sub setJoin (OJoin As ORMJoin)
-'	If OJoin.Operation = "" Then OJoin.Operation = "JOIN"
-'	Append(" " & OJoin.Operation & " " & OJoin.Target & " ON " & OJoin.Conditions)
-'End Sub
 
 'Example: JOIN tbl_categories c ON p.category_id = c.id
 '<code>DB.Join("tbl_categories c", "p.category_id = c.id", "")</code>
@@ -1835,7 +1795,7 @@ Public Sub LogQuery3
 End Sub
 
 ' Print current SQL statement and parameters on one line
-Public Sub LogQueryWithArg (Arg As Object)
+Public Sub LogQuery4 (Arg As Object)
 	Log($"${mStatement} [${Arg}]"$)
 End Sub
 
@@ -1937,3 +1897,43 @@ Public Sub CreateColumn2 (Props As Map) As ORMColumn
 	If t1.ColumnLength = "0" Then t1.ColumnLength = ""
 	Return t1
 End Sub
+
+' Deprecated: Will be removed in future version
+' Superseded by setConditions
+Public Sub setWhere (Statements As List)
+	setConditions(Statements)
+End Sub
+
+' Deprecated: Use LogQuery4
+Public Sub LogQueryWithArg (Arg As Object)
+	LogQuery4(Arg)
+End Sub
+
+' Disabled due to unused
+' Append Parameters at the end
+'Public Sub AddParameters (Params() As Object)
+'	If Params.Length = 0 Then Return
+'	If mParameters.Length > 0 Then
+'		Dim NewArray(mParameters.Length + Params.Length) As Object
+'		For i = 0 To mParameters.Length - 1
+'			NewArray(i) = mParameters(i)
+'		Next
+'		For i = 0 To Params.Length - 1
+'			NewArray(mParameters.Length + i) = Params(i)
+'		Next
+'		mParameters = NewArray
+'	Else
+'		mParameters = Params
+'	End If
+'End Sub
+
+' Replaced by Join
+'Public Sub setJoin (OJoin As ORMJoin)
+'	If OJoin.Operation = "" Then OJoin.Operation = "JOIN"
+'	Append(" " & OJoin.Operation & " " & OJoin.Target & " ON " & OJoin.Conditions)
+'End Sub
+
+' Deprecated: Will be removed in future version
+'Public Sub SelectOnly (Columns As List) As Map
+'	Return First3(Columns)
+'End Sub

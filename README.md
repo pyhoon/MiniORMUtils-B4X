@@ -125,7 +125,7 @@ Dim Data As List = DB.Results
 ## Join tables
 ```b4x
 DB.Table = "tbl_products p"
-DB.Select = Array("p.*", "c.category_name")
+DB.Columns = Array("p.*", "c.category_name")
 DB.Join("tbl_categories c", "p.category_id = c.id", "")
 DB.WhereParam("c.id = ?", CategoryId)
 DB.Query

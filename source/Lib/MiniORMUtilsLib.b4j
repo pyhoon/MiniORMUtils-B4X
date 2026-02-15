@@ -50,8 +50,64 @@ End Sub
 
 Sub AppStart (Args() As String)
 	Log("Starting tests...")
-	ConfigureDatabase
+	'ConfigureDatabase
+	CreateQueries
 	StartMessageLoop
+End Sub
+
+Public Sub CreateQueries
+	DB.Initialize
+	DB.DbType = DB.SQLITE
+	'DB.OptionalNull = False
+	DB.QueryExecute = False
+	'DB.ShowExtraLogs = True
+	
+	DB.Table = "products"
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_id", "Type": DB.INTEGER)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
+	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
+	DB.Foreign = "category_id"
+	DB.References("tbl_categories", "id")
+	DB.Create
+	Log(DB.Statement)
+
+	Log(TAB)
+	
+	DB.UseTimestamps = True
+	DB.Table = "users"
+	DB.Columns.Add(DB.CreateColumn("email", DB.TEXT, "255", "", "", False, True, False, False))
+	DB.Columns.Add(DB.CreateColumn("hash", DB.TEXT, "255", "", "", False, True, False, False))
+	DB.Columns.Add(DB.CreateColumn("salt", DB.TEXT, "255", "", "", False, True, False, False))
+	DB.Columns.Add(DB.CreateColumn("user_name", DB.TEXT, "255", "", "", False, True, False, False))
+	DB.Columns.Add(DB.CreateColumn("logins", DB.INTEGER, "", "", "0", False, True, False, False))
+	DB.Columns.Add(DB.CreateColumn("image", DB.BLOB, "", "", "", False, True, False, False))
+	DB.Create
+	Log(DB.Statement)
+
+	Log(TAB)
+
+	DB.Table = "categories"
+	Log(DB.Statement)
+	
+	Log(TAB)
+	
+	DB.Table = "categories"
+	DB.Columns = Array("col1", "col2", "col3")
+	DB.Condition = "col2 = ?"
+	DB.Parameter = 1
+	Log(DB.Statement)
+	'Log(DB.Parameter)
+	
+	Log(TAB)
+	
+	DB.Table = "products p"
+	'DB.Columns = Array("col1", "col2", "col3")
+	DB.Condition = "p.col2 = ?"
+	DB.Join("categories c", "p.category_id = c.id", "LEFT")
+	Log(DB.Statement)
+
 End Sub
 
 Public Sub ConfigureDatabase
@@ -157,6 +213,15 @@ Private Sub CreateDatabase
 	DB.Insert2(Array(1, "H001", "Hammer", 15.75))
 	DB.Insert2(Array(2, "T002", "Optimus Prime", 1000))
 
+	Dim DB_Batch As List
+	DB_Batch.Initialize
+	Dim DB_Statement As String
+	For Each M1 As Map In DB.Batch
+		DB_Batch.Add(DB_Statement & CRLF)
+		DB_Statement = M1.Get("DB_Statement")
+	Next
+	File.WriteList(File.DirApp, "Batch.txt", DB_Batch)
+	
 	Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)
 	If Success Then
 		LogColor("Database is created successfully!", COLOR_BLUE)
@@ -165,7 +230,8 @@ Private Sub CreateDatabase
 		Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")
 		DB.Table = "tbl_products"
 		DB.Columns = Array("product_image")
-		DB.Parameters = Array(b)
+		'DB.Parameters = Array(b)
+		DB.Parameter = b
 		DB.Id = 3 ' after setting Columns and Parameters
 		DB.Save
 		LogColor("Image added as blob", COLOR_BLUE)
@@ -197,7 +263,6 @@ Private Sub GetProducts (CategoryId As Int)
 		DB.Query
 		Dim Items As List = DB.Results
 		LogColor(Items, COLOR_BLUE)
-		'Log(Items.As(JSON).ToString)
 		For Each Item As Map In Items
 			'#If Debug
 			' Test blob field
@@ -212,11 +277,11 @@ Private Sub GetProducts (CategoryId As Int)
 		Next
 
 		If DB.Found Then
-			Log(DB.First)
-			Log(DB.First2)
+			'Log(DB.First)
+			'Log(DB.First2)
 			Log(DB.First3(Array("product_price", "product_name")))
-			Log(DB.Last)
-			Log(DB.Last2)
+			'Log(DB.Last)
+			'Log(DB.Last2)
 			Log(DB.Last3(Array("product_image", "product_code")))
 		End If
 	Catch

@@ -37,6 +37,7 @@ Sub Class_Globals
 	Private mShowExtraLogs 			As Boolean
 	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
 	Private mAutoIncrement 			As Boolean = True
+	Private mOptionalNull			As Boolean = True ' NULL is not added to column in CREATE
 	Private mUseDataAuditUserId 	As Boolean
 	Private mUpdateModifiedDate 	As Boolean
 	Private mQueryAddToBatch 		As Boolean
@@ -217,9 +218,10 @@ Public Sub Open As SQL
 	#If B4J
 	Select mSettings.DBType
 		Case SQLITE
+			If mSQL.IsInitialized Then Return mSQL
 			mSQL.InitializeSQLite(mSettings.DBDir, mSettings.DBFile, False)
 		Case MYSQL, MARIADB
-			Return mPool.GetConnection
+			mSQL = mPool.GetConnection
 	End Select
 	#Else
 	mSQL.Initialize(mSettings.DBDir, mSettings.DBFile, False)
@@ -560,6 +562,10 @@ Public Sub setAutoIncrement (Value As Boolean)
 	mAutoIncrement = Value
 End Sub
 
+Public Sub setOptionalNull (Value As Boolean)
+	mOptionalNull = Value
+End Sub
+
 Public Sub Reset
 	Clear
 	ClearConditions
@@ -725,9 +731,9 @@ End Sub
 Public Sub setHaving (Statements As List)
 	Dim SB As StringBuilder
 	SB.Initialize
-	For Each statement As String In Statements
+	For Each Statement As String In Statements
 		If SB.Length > 0 Then SB.Append(" AND ") Else SB.Append(" HAVING ")
-		SB.Append(statement)
+		SB.Append(Statement)
 	Next
 	mHaving = SB.ToString
 End Sub
@@ -825,7 +831,12 @@ Public Sub Create
 			End Select
 		End If
 		
-		If col.AllowNull Then SB.Append(" NULL") Else SB.Append(" NOT NULL")
+		If col.AllowNull Then
+			If mOptionalNull = False Then SB.Append(" NULL")
+		Else
+			SB.Append(" NOT NULL")
+		End If
+		
 		If col.Unique Then SB.Append(" UNIQUE")
 		If col.AutoIncrement Then
 			Select mType
@@ -864,8 +875,11 @@ Public Sub Create
 				' Use timestamp and datetime
 				SB.Append(",").Append(CRLF)
 				SB.Append("created_date " & TIMESTAMP & " DEFAULT CURRENT_TIMESTAMP,").Append(CRLF)
-				SB.Append("modified_date " & DATE_TIME & " DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
-				SB.Append("deleted_date " & DATE_TIME & " DEFAULT NULL")
+				SB.Append("modified_date " & DATE_TIME)
+				If mOptionalNull = False Then SB.Append(" DEFAULT NULL")
+				SB.Append(" ON UPDATE CURRENT_TIMESTAMP,").Append(CRLF)
+				SB.Append("deleted_date " & DATE_TIME)
+				If mOptionalNull = False Then SB.Append(" DEFAULT NULL")
 			End If
 	End Select
 
@@ -944,9 +958,9 @@ Public Sub Create
 End Sub
 
 'Create using raw SQL statement
-Public Sub Create2 (CreateStatement As String)
+Public Sub Create2 (Statement As String)
 	ClearParameters
-	mStatement = CreateStatement
+	mStatement = Statement
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then ExecNonQuery
 End Sub
@@ -1078,6 +1092,7 @@ Public Sub ExecuteBatchAsync As ResumableSub
 	If mShowExtraLogs Then LogQuery3
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
+	mQueryExecute = True ' set back to Execute mode
 	Return Success
 End Sub
 
@@ -1139,6 +1154,24 @@ Public Sub getParameters As Object()
 	Return mParameters
 End Sub
 
+' Append Parameters at the end
+Public Sub AppendParameters (Params() As Object)
+	If Params.Length = 0 Then Return
+	If mParameters.Length > 0 Then
+		Dim NewArray(mParameters.Length + Params.Length) As Object
+		For i = 0 To mParameters.Length - 1
+			NewArray(i) = mParameters(i)
+		Next
+		For i = 0 To Params.Length - 1
+			NewArray(mParameters.Length + i) = Params(i)
+		Next
+		mParameters = NewArray
+	Else
+		mParameters = Params
+	End If
+	mParameter = mParameters(mParameters.Length - 1)
+End Sub
+
 ' Add single condition and parameter
 Public Sub WhereParam (Statement As String, Param As Object)
 	setCondition(Statement)
@@ -1148,7 +1181,7 @@ End Sub
 ' Append new Conditions and Parameters
 Public Sub WhereParams (Statements As List, Params() As Object)
 	setConditions(Statements)
-	setParameters(Params)
+	AppendParameters(Params)
 End Sub
 
 'Example: JOIN tbl_categories c ON p.category_id = c.id
@@ -1574,7 +1607,6 @@ Public Sub Delete
 	If getCondition.Length > 0 Then mStatement = mStatement & mCondition
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then ExecNonQuery
-	'mCondition = ""
 End Sub
 
 Public Sub Drop
@@ -1586,7 +1618,6 @@ Public Sub Drop
 	End Select
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then ExecNonQuery
-	'mCondition = ""
 End Sub
 
 ' Execute Delete statement by batch
@@ -1795,7 +1826,7 @@ Public Sub LogQuery3
 		SB.Initialize
 		SB.Append("[")
 		Dim started As Boolean
-		Dim Params() As Object = DBMap.Get("DB_Parameters") 
+		Dim Params() As Object = DBMap.Get("DB_Parameters")
 		For Each Param In Params
 			If started Then SB.Append(", ")
 			SB.Append(Param)
@@ -1835,6 +1866,8 @@ Private Sub CountChar (c As String, Word As String) As Int
 	Return count
 End Sub
 
+'Example: logins INTEGER DEFAULT (0)
+'<code>DB.Columns.Add(DB.CreateColumn("logins", DB.INTEGER, "", "", "0", False, True, False, False))</code>
 Public Sub CreateColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, IsUnique As Boolean, AutoIncrement As Boolean) As ORMColumn
 	Dim t1 As ORMColumn
 	t1.Initialize
@@ -1856,6 +1889,7 @@ Public Sub CreateColumn (ColumnName As String, ColumnType As String, ColumnLengt
 	Return t1
 End Sub
 
+' <code>DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))</code>
 ' Name - Column Name (String)
 ' Type - Column Type (String) e.g INTEGER/DECIMAL/VARCHAR/TIMESTAMP
 ' Size - Column Length (String) e.g 255/10,2
@@ -1921,24 +1955,6 @@ End Sub
 Public Sub LogQueryWithArg (Arg As Object)
 	LogQuery4(Arg)
 End Sub
-
-' Disabled due to unused
-' Append Parameters at the end
-'Public Sub AddParameters (Params() As Object)
-'	If Params.Length = 0 Then Return
-'	If mParameters.Length > 0 Then
-'		Dim NewArray(mParameters.Length + Params.Length) As Object
-'		For i = 0 To mParameters.Length - 1
-'			NewArray(i) = mParameters(i)
-'		Next
-'		For i = 0 To Params.Length - 1
-'			NewArray(mParameters.Length + i) = Params(i)
-'		Next
-'		mParameters = NewArray
-'	Else
-'		mParameters = Params
-'	End If
-'End Sub
 
 ' Replaced by Join
 'Public Sub setJoin (OJoin As ORMJoin)

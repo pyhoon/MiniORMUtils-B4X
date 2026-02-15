@@ -14,11 +14,12 @@ Currently it supports **SQLite** (for B4A, B4i and B4J), **MariaDB** and **MySQL
 Private DB As MiniORM
 Private MS As ORMSettings
 
-DB.Initialize
 MS.Initialize
 MS.DBType = "SQLite"
 MS.DBFile = "data.db"
 MS.DBDir = File.DirApp
+
+DB.Initialize
 DB.Settings = MS
 
 If DB.Exist Then

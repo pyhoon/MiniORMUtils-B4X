@@ -5,20 +5,20 @@ Type=Class
 Version=10.3
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 4.10
+' Version 4.20
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
 	Private mBatch 					As List
 	Private mColumns				As List
 	Private mConditions				As List
+	Private mPrimaryKeys 			As List
 	Private mColumnsType			As Map
 	Private mObject 				As String
 	Private mTable 					As String
 	Private mView					As String
 	Private mStatement 				As String
 	Private mDatabaseName 			As String
-	Private mPrimaryKey 			As String
 	Private mUniqueKey 				As String
 	Private mForeignKey 			As String
 	Private mConstraint 			As String
@@ -65,6 +65,7 @@ Sub Class_Globals
 	Public Const SQLITE 			As String = "SQLite"
 	Public Const MARIADB 			As String = "MariaDB"
 	Public Const COLOR_RED 			As Int = -65536
+	Public Const COLOR_BLUE 		As Int = -16776961
 	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, Last2 As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
@@ -93,6 +94,7 @@ Public Sub Initialize
 	mBatch.Initialize
 	mColumns.Initialize
 	mConditions.Initialize
+	mPrimaryKeys.Initialize
 	mSettings.Initialize
 End Sub
 
@@ -581,7 +583,6 @@ Private Sub Clear
 	mGroupBy = ""
 	mOrderBy = ""
 	mUniqueKey = ""
-	mPrimaryKey = ""
 	mForeignKey = ""
 	mConstraint = ""
 End Sub
@@ -892,17 +893,17 @@ Public Sub Create
 			stmt.Append($"CREATE VIEW IF NOT EXISTS ${mView} AS "$)
 	End Select
 	
-	' id column added by default
-	Dim Pk As String = "id"
-	If mPrimaryKey.Length > 0 And Not(mPrimaryKey.Contains(",")) Then
-		Pk = mPrimaryKey
-	End If
+	' Auto increment id column added by default
 	If mAutoIncrement Then
+		Dim AI As String = "id"
+		If mPrimaryKeys.Size = 1 Then
+			AI = mPrimaryKeys.Get(0)
+		End If
 		Select mType
 			Case MYSQL, MARIADB
-				stmt.Append($"${Pk} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
+				stmt.Append($"${AI} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
 			Case SQLITE
-				stmt.Append($"${Pk} ${INTEGER},"$).Append(CRLF)
+				stmt.Append($"${AI} ${INTEGER},"$).Append(CRLF)
 		End Select
 	End If
 
@@ -913,22 +914,28 @@ Public Sub Create
 		Select mType
 			Case SQLITE
 				stmt.Append(",").Append(CRLF)
-				stmt.Append($"PRIMARY KEY(${Pk} AUTOINCREMENT)"$)
+				stmt.Append($"PRIMARY KEY(${AI} AUTOINCREMENT)"$)
 			Case MYSQL, MARIADB
 				stmt.Append(",").Append(CRLF)
-				stmt.Append($"PRIMARY KEY(${Pk})"$)
+				stmt.Append($"PRIMARY KEY(${AI})"$)
 		End Select
 	Else
-		If mPrimaryKey.Length > 0 Then
+		If mPrimaryKeys.Size > 0 Then
 			stmt.Append(",").Append(CRLF)
-			stmt.Append($"PRIMARY KEY(${mPrimaryKey})"$)
+			Dim pk As StringBuilder
+			pk.Initialize
+			For Each Key As String In mPrimaryKeys
+				If pk.Length > 0 Then pk.Append(", ")
+				pk.Append(Key)
+			Next
+			stmt.Append($"PRIMARY KEY(${pk.ToString})"$)
 		Else
 			Dim chk As String = stmt.ToString
 			If chk.EndsWith(",") Then
 				LogColor("*** Contains comma", COLOR_RED)
 				stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
 			Else
-				LogColor("*** Good", COLOR_RED)
+				LogColor("*** Good", COLOR_BLUE)
 			End If
 		End If
 	End If
@@ -955,6 +962,7 @@ Public Sub Create
 	mStatement = stmt.ToString
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then ExecNonQuery
+	mPrimaryKeys.Initialize
 End Sub
 
 'Create using raw SQL statement
@@ -967,21 +975,15 @@ End Sub
 
 ' Set Primary Key
 ' Example: PRIMARY KEY (order_id, product_id)
-' <code>DB.Primary(Array("order_id", "product_id"))</code>
-Public Sub setPrimary (Keys() As String)
-	If Keys.Length = 0 Then Return
-	Dim SB As StringBuilder
-	SB.Initialize
-	For Each Key In Keys
-		If SB.Length > 0 Then SB.Append(", ")
-		SB.Append(Key)
-	Next
-	mPrimaryKey = SB.ToString
+' <code>DB.Primary = Array("order_id", "product_id")</code>
+Public Sub setPrimary (Keys As List)
+	If Keys.Size = 0 Then Return
+	mPrimaryKeys = Keys
 End Sub
 
 ' Returns Primary Key
-Public Sub getPrimary As String
-	Return mPrimaryKey
+Public Sub getPrimary As List
+	Return mPrimaryKeys
 End Sub
 
 ' Example: FOREIGN KEY (category_id)

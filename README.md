@@ -8,7 +8,6 @@ Currently it supports **SQLite** (for B4A, B4i and B4J), **MariaDB** and **MySQL
 <img src="https://github.com/pyhoon/MiniORMUtils-B4X/blob/main/miniorm.png" width="300" />
 
 # Usage examples
-
 ## Initialize object
 ```b4x
 Private DB As MiniORM
@@ -31,6 +30,15 @@ Else
 End If
 ```
 Note: Before calling DB.Create and DB.Insert, set DB.QueryAddToBatch = True
+
+## Initialize object (no execute)
+```b4x
+DB.Initialize
+DB.DbType = DB.SQLITE
+DB.QueryExecute = False
+DB.Table = "categories"
+Log(DB.Statement)
+```
 
 ## Create database
 ```b4x

@@ -29,8 +29,8 @@ Version=13.4
 @EndOfDesignText@
 #Region  Project Attributes 
 	#ApplicationLabel: MiniORM
-	#VersionCode: 10
-	#VersionName: 4.00
+	#VersionCode: 12
+	#VersionName: 4.20
 	'SupportedOrientations possible values: unspecified, landscape or portrait.
 	#SupportedOrientations: portrait
 	#CanInstallToExternalStorage: False

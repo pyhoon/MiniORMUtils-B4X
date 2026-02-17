@@ -895,15 +895,15 @@ Public Sub Create
 	
 	' Auto increment id column added by default
 	If mAutoIncrement Then
-		Dim AI As String = "id"
+		Dim id As String = "id"
 		If mPrimaryKeys.Size = 1 Then
-			AI = mPrimaryKeys.Get(0)
+			id = mPrimaryKeys.Get(0)
 		End If
 		Select mType
 			Case MYSQL, MARIADB
-				stmt.Append($"${AI} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
+				stmt.Append($"${id} ${INTEGER}(11) NOT NULL AUTO_INCREMENT,"$).Append(CRLF)
 			Case SQLITE
-				stmt.Append($"${AI} ${INTEGER},"$).Append(CRLF)
+				stmt.Append($"${id} ${INTEGER},"$).Append(CRLF)
 		End Select
 	End If
 
@@ -914,10 +914,10 @@ Public Sub Create
 		Select mType
 			Case SQLITE
 				stmt.Append(",").Append(CRLF)
-				stmt.Append($"PRIMARY KEY(${AI} AUTOINCREMENT)"$)
+				stmt.Append($"PRIMARY KEY(${id} AUTOINCREMENT)"$)
 			Case MYSQL, MARIADB
 				stmt.Append(",").Append(CRLF)
-				stmt.Append($"PRIMARY KEY(${AI})"$)
+				stmt.Append($"PRIMARY KEY(${id})"$)
 		End Select
 	Else
 		If mPrimaryKeys.Size > 0 Then

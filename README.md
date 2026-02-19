@@ -49,6 +49,11 @@ Dim Success As Boolean = DB.InitializeSQLite
 #End If
 ```
 
+## Connect to database
+```b4x
+DB.SQL = DB.Open
+```
+
 ## Create table
 ```b4x
 DB.Table = "tbl_categories"
@@ -72,11 +77,6 @@ Else
     Log("Database creation failed!")
 End If
 DB.Close
-```
-
-## Connect to database
-```b4x
-DB.SQL = DB.Open
 ```
 
 ## Select all rows

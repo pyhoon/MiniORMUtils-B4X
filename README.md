@@ -83,7 +83,7 @@ DB.Close
 ```b4x
 DB.Table = "tbl_categories"
 DB.Query
-Dim Items As List = DB.Results
+Dim Data As List = DB.Results
 ```
 
 ## Update row
@@ -128,7 +128,6 @@ DB.Conditions = Array("category_id = ?", "product_price > ?")
 DB.Parameters = Array(2, 50)
 DB.OrderBy = CreateMap("id": "DESC")
 DB.Query
-Dim Data As List = DB.Results
 ```
 
 ## Join tables
@@ -138,5 +137,4 @@ DB.Columns = Array("p.*", "c.category_name")
 DB.Join("tbl_categories c", "p.category_id = c.id", "")
 DB.WhereParam("c.id = ?", CategoryId)
 DB.Query
-Dim Data As List = DB.Results
 ```

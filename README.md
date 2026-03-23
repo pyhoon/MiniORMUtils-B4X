@@ -51,7 +51,7 @@ Dim Success As Boolean = DB.InitializeSQLite
 
 ## Connect to database
 ```b4x
-DB.SQL = DB.Open
+DB.Open
 ```
 
 ## Create table

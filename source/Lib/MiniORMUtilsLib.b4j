@@ -51,7 +51,8 @@ End Sub
 Sub AppStart (Args() As String)
 	Log("Starting tests...")
 	DB.Initialize
-	DB.QueryExecute = False
+	DB.QueryAddToBatch = True
+	'DB.QueryExecute = False
 	'CreateQueries
 	ConfigureDatabase
 	StartMessageLoop
@@ -188,7 +189,7 @@ Private Sub CreateDatabase
 	DB.Open
 	DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
-	DB.QueryAddToBatch = True
+	'DB.QueryAddToBatch = True
 	
 	DB.Table = "tbl_categories"
 	'DB.Columns.Add("category_name")

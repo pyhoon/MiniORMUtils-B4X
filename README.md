@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 4.30
+Version: 5.00
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries. \
 It is suitable for Web API Template or any database system. \
@@ -10,26 +10,9 @@ Currently it supports **SQLite** (for B4A, B4i and B4J), **MariaDB** and **MySQL
 # Usage examples
 ## Initialize object
 ```b4x
-Private DB As MiniORM
-Private MS As ORMSettings
-
-MS.Initialize
-MS.DBType = "SQLite"
-MS.DBFile = "data.db"
-MS.DBDir = File.DirApp
-
+Dim DB As MiniORM
 DB.Initialize
-DB.Settings = MS
-
-If DB.Exist Then
-	LogColor($"${MS.DBType} database found!"$, COLOR_BLUE)
-	DB.Open
-Else
-	LogColor($"${MS.DBType} database not found!"$, COLOR_RED)
-	CreateDatabase
-End If
 ```
-Note: Before calling DB.Create and DB.Insert, set DB.QueryAddToBatch = True
 
 ## Initialize object (no execute)
 ```b4x
@@ -40,12 +23,28 @@ DB.Table = "categories"
 Log(DB.Statement)
 ```
 
+## Check database exists
+```b4x
+#If MySQL Or MariaDB
+Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
+#Else
+Dim DbFound As Boolean = DB.Exist
+#End If
+If DbFound Then
+	LogColor($"${DB.DBType} database found!"$, COLOR_BLUE)
+	DB.Open
+Else
+	LogColor($"${DB.DBType} database not found!"$, COLOR_RED)
+	CreateDatabase
+End If
+```
+
 ## Create database
 ```b4x
 #If MySQL Or MariaDB
 Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
 #Else
-Dim Success As Boolean = DB.InitializeSQLite
+Dim Success As Boolean = DB.CreateSQLite
 #End If
 ```
 
@@ -54,18 +53,32 @@ Dim Success As Boolean = DB.InitializeSQLite
 DB.Open
 ```
 
-## Create table
+## Create table (text only columns)
 ```b4x
-DB.Table = "tbl_categories"
-DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_name")))
+DB.Table = "categories"
+DB.Columns = Array("category_code", "category_name")
+DB.Create
+```
+
+## Create table (with column definitions)
+```b4x
+DB.Table = "products"
+DB.Columns.Add(CreateMap("N": "category_id", "T": DB.INTEGER))
+DB.Columns.Add(CreateMap("N": "product_code", "S": 12))
+DB.Columns.Add(CreateMap("N": "product_name"))
+DB.Columns.Add(CreateMap("N": "product_price", "T": DB.DECIMAL, "S": "10,2", "D": 0.0))
+DB.Columns.Add(CreateMap("N": "product_image", "T": DB.BLOB))
+DB.Foreign = "category_id"
+DB.References("categories", "id")
 DB.Create
 ```
 
 ## Insert rows
 ```b4x
-DB.Columns = Array("category_name")
-DB.Insert2(Array("Hardwares"))
-DB.Insert2(Array("Toys"))
+DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
+DB.Inserts = Array(2, "T001", "Teddy Bear", 99.9)
+DB.Inserts = Array(1, "H001", "Hammer", 15.75)
+DB.Inserts = Array(2, "T002", "Optimus Prime", 1000)
 ```
 
 ## Execute NonQuery batch
@@ -81,17 +94,21 @@ DB.Close
 
 ## Select all rows
 ```b4x
-DB.Table = "tbl_categories"
+DB.Table = "categories"
 DB.Query
+```
+
+## Read rows
+```b4x
 Dim Data As List = DB.Results
 ```
 
 ## Update row
 ```b4x
-DB.Table = "tbl_products"
+DB.Table = "products"
 DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 DB.Id = 2
-DB.Save2(Array(Category_Id, Product_Code, Product_Name, Product_Price))
+DB.Save2 = Array(Category_Id, Product_Code, Product_Name, Product_Price)
 ```
 
 ## Soft delete row
@@ -123,18 +140,27 @@ Dim Data As Map = DB.Find(2)
 
 ## Filter by conditions
 ```b4x
-DB.Table = "tbl_products"
+DB.Table = "products"
 DB.Conditions = Array("category_id = ?", "product_price > ?")
 DB.Parameters = Array(2, 50)
 DB.OrderBy = CreateMap("id": "DESC")
-DB.Query
 ```
 
 ## Join tables
 ```b4x
-DB.Table = "tbl_products p"
+DB.Table = "products p"
 DB.Columns = Array("p.*", "c.category_name")
-DB.Join("tbl_categories c", "p.category_id = c.id", "")
+DB.Join = Array("categories c", "p.category_id = c.id")
 DB.WhereParam("c.id = ?", CategoryId)
-DB.Query
 ```
+
+## Show query logs
+```b4x
+DB.ShowExtraLogs = True
+```
+
+## Add query to batch
+```b4x
+DB.QueryAddToBatch = True
+```
+Note: Set to true before calling DB.Create and DB.Insert

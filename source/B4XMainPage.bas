@@ -222,7 +222,7 @@ Private Sub CreateDatabase
 	#If MySQL Or MariaDB
 	Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
 	#Else
-	Dim Success As Boolean = DB.InitializeSQLite
+	Dim Success As Boolean = DB.CreateSQLite
 	#End If
 	If Not(Success) Then
 		Log("Database creation failed!")
@@ -235,20 +235,20 @@ Private Sub CreateDatabase
 	DB.QueryAddToBatch = True
 	
 	DB.Table = "tbl_categories"
-	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_name")))
+	DB.Columns.Add(CreateMap("Name": "category_name"))
 	DB.Create
 	
 	DB.Columns = Array("category_name")
-	DB.Insert2(Array("Hardwares"))
-	DB.Insert2(Array("Toys"))
+	DB.Inserts = Array("Hardwares")
+	DB.Inserts = Array("Toys")
 
 	DB.Table = "tbl_products"
-	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "category_id", "Type": DB.INTEGER)))
-	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_code", "Size": 12)))
-	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_name")))
-	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)))
+	DB.Columns.Add(CreateMap("Name": "category_id", "Type": DB.INTEGER))
+	DB.Columns.Add(CreateMap("Name": "product_code", "Size": 12))
+	DB.Columns.Add(CreateMap("Name": "product_name"))
+	DB.Columns.Add(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0))
 	'DB.BLOB = "longblob"
-	DB.Columns.Add(DB.CreateColumn2(CreateMap("Name": "product_image", "Type": DB.BLOB)))
+	DB.Columns.Add(CreateMap("Name": "product_image", "Type": DB.BLOB))
 	'DB.Foreign("category_id", "id", "tbl_categories", "", "") ' <-- breaking change
 	'DB.Foreign = DB.Foreign & " ON UPDATE CASCADE" ' ON UPDATE NO ACTION, ON UPDATE RESTRICT, ON UPDATE SET NULL
 	'DB.Foreign = DB.Foreign & " ON DELETE CASCADE" ' ON DELETE NO ACTION, ON DELETE RESTRICT, ON DELETE SET NULL, ON DELETE SET DEFAULT
@@ -257,9 +257,9 @@ Private Sub CreateDatabase
 	DB.Create
 	
 	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-	DB.Insert2(Array(2, "T001", "Teddy Bear", 99.9))
-	DB.Insert2(Array(1, "H001", "Hammer", 15.75))
-	DB.Insert2(Array(2, "T002", "Optimus Prime", 1000))
+	DB.Inserts = Array(2, "T001", "Teddy Bear", 99.9)
+	DB.Inserts = Array(1, "H001", "Hammer", 15.75)
+	DB.Inserts = Array(2, "T002", "Optimus Prime", 1000)
 
 	Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)
 	If Success Then
@@ -311,8 +311,8 @@ Private Sub GetProducts
 	DB.Table = "tbl_products p"
 	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 	DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
-	DB.Join("tbl_categories c", "p.category_id = c.id", "")
-	DB.WhereParams(Array("c.id = ?"), Array As Object(CategoryId))
+	DB.Join = Array("tbl_categories c", "p.category_id = c.id")
+	DB.WhereParam("c.id = ?", CategoryId)
 	DB.Query
 	Dim Items As List = DB.Results
 	'Log(Items.As(JSON).ToString)
@@ -471,7 +471,7 @@ Private Sub ShowDialog1 (Action As String, Item As Map)
 			End If
 			DB.Reset
 			DB.Columns = Array("category_name")
-			DB.Save2(Array As Object(Item.Get("Category Name")))
+			DB.Save2 = Array(Item.Get("Category Name"))
 			xui.MsgboxAsync("New category created!", $"ID: ${DB.First.Get("id")}"$)
 		Else
 			DB.Table = "tbl_categories"
@@ -514,7 +514,7 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 			DB.Reset
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 			Dim SelectedCategory As Int = GetCategoryId(Item.Get("Category"))
-			DB.Save2(Array As Object(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price")))
+			DB.Save2 = Array(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
 			CategoryId = SelectedCategory
 			xui.MsgboxAsync("New product created!", $"ID: ${DB.First.Get("id")}"$)
 		Else

@@ -23,7 +23,12 @@ DB.Table = "categories"
 Log(DB.Statement)
 ```
 
-## Using ORMSettings for MySQL
+## Set file name for SQLite
+```b4x
+DB.Settings.DBFile = "app.db"
+```
+
+## Set ORMSettings for MySQL
 ```b4x
 DB.Initialize
 Dim MS As ORMSettings

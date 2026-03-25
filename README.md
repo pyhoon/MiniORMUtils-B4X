@@ -23,6 +23,21 @@ DB.Table = "categories"
 Log(DB.Statement)
 ```
 
+## Using ORMSettings for MySQL
+```b4x
+DB.Initialize
+Dim MS As ORMSettings
+MS.Initialize
+MS.DBType = DB.MYSQL
+MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+MS.DriverClass = "com.mysql.cj.jdbc.Driver"
+MS.DBName = "app"
+MS.DbHost = "localhost"
+MS.User = "root"
+MS.Password = "password"
+DB.Settings = MS
+```
+
 ## Check database exists
 ```b4x
 #If MySQL Or MariaDB

@@ -53,8 +53,8 @@ Sub AppStart (Args() As String)
 	DB.Initialize
 	DB.QueryAddToBatch = True
 	'DB.QueryExecute = False
-	'CreateQueries
 	ConfigureDatabase
+	CreateQueries
 	StartMessageLoop
 End Sub
 
@@ -63,6 +63,22 @@ Public Sub CreateQueries
 	'DB.QueryExecute = False
 	'DB.OptionalNull = False
 	'DB.ShowExtraLogs = True
+	#If MySQL Or MariaDB
+	Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
+	#Else
+	Dim DbFound As Boolean = DB.Exist
+	#End If
+	If DbFound Then
+		LogColor($"${DB.DBType} database found!"$, COLOR_BLUE)
+		#If MySQL Or MariaDB
+		DB.InitPool
+		#End If
+		DB.Initialize '<-- important
+		DB.Open
+	Else
+		LogColor($"${DB.DBType} database not found!"$, COLOR_RED)
+		Return
+	End If
 	
 	DB.Table = "products"
 	DB.Columns.Add(CreateMap("Name": "product_code", "Size": 12))
@@ -70,9 +86,8 @@ Public Sub CreateQueries
 	DB.Columns.Add(CreateMap("Name": "product_name"))
 	DB.Columns.Add(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0))
 	DB.Columns.Add(CreateMap("Name": "product_image", "Type": DB.BLOB))
-	
 	DB.Foreign = "category_id"
-	DB.References("tbl_categories", "id")
+	DB.References("categories", "id")
 	DB.Primary = Array("product_code")
 	DB.AutoIncrement = False
 	DB.Create
@@ -113,6 +128,11 @@ Public Sub CreateQueries
 	DB.Condition = "p.col2 = ?"
 	DB.Join = Array("categories c", "p.category_id = c.id", "LEFT")
 	Log(DB.Statement)
+	
+	DB.Find(3)
+	If DB.Found Then
+		LogColor(DB.First, COLOR_BLUE)
+	End If
 End Sub
 
 Public Sub ConfigureDatabase
@@ -191,7 +211,7 @@ Private Sub CreateDatabase
 	'DB.UseTimestamps = True
 	'DB.QueryAddToBatch = True
 	
-	DB.Table = "tbl_categories"
+	DB.Table = "categories"
 	'DB.Columns.Add("category_name")
 	DB.Columns = Array("category_name") ' passing array of String
 	DB.Create
@@ -200,14 +220,14 @@ Private Sub CreateDatabase
 	DB.Inserts = Array("Hardwares")
 	DB.Inserts = Array("Toys")
 	
-	DB.Table = "tbl_products"
+	DB.Table = "products"
 	DB.Columns.Add(CreateMap("N": "category_id", "T": DB.INTEGER))
 	DB.Columns.Add(CreateMap("N": "product_code", "S": 12))
 	DB.Columns.Add(CreateMap("N": "product_name"))
 	DB.Columns.Add(CreateMap("N": "product_price", "T": DB.DECIMAL, "S": "10,2", "D": 0.0))
 	DB.Columns.Add(CreateMap("N": "product_image", "T": DB.BLOB))
 	DB.Foreign = "category_id"
-	DB.References("tbl_categories", "id")
+	DB.References("categories", "id")
 	'DB.Foreign = DB.Foreign & " ON UPDATE CASCADE" ' ON UPDATE NO ACTION, ON UPDATE RESTRICT, ON UPDATE SET NULL
 	'DB.Foreign = DB.Foreign & " ON DELETE CASCADE" ' ON DELETE NO ACTION, ON DELETE RESTRICT, ON DELETE SET NULL, ON DELETE SET DEFAULT
 	DB.Create
@@ -248,7 +268,7 @@ Private Sub CreateDatabase
 		
 		' Adding an image to blob field
 		Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")
-		DB.Table = "tbl_products"
+		DB.Table = "products"
 		DB.Columns = Array("product_image")
 		'DB.Parameters = Array(b)
 		DB.Parameter = b
@@ -263,7 +283,7 @@ End Sub
 
 Private Sub GetCategories
 	Try
-		DB.Table = "tbl_categories"
+		DB.Table = "categories"
 		DB.Query
 		Dim Items As List = DB.Results
 		LogColor(Items, COLOR_BLUE)
@@ -274,10 +294,10 @@ End Sub
 
 Private Sub GetProducts (CategoryId As Int)
 	Try
-		DB.Table = "tbl_products p"
+		DB.Table = "products p"
 		DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 		DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
-		DB.Join = Array("tbl_categories c", "p.category_id = c.id")
+		DB.Join = Array("categories c", "p.category_id = c.id")
 		DB.Condition = "c.id = ?"
 		DB.Parameter = CategoryId
 		DB.Query
@@ -297,10 +317,10 @@ Private Sub GetProducts (CategoryId As Int)
 		If DB.Found Then
 			'Log(DB.First)
 			'Log(DB.First2)
-			Log(DB.First3(Array("product_price", "product_name")))
+			LogColor(DB.First3(Array("product_price", "product_name")), COLOR_BLUE)
 			'Log(DB.Last)
 			'Log(DB.Last2)
-			Log(DB.Last3(Array("product_image", "product_code")))
+			LogColor(DB.Last3(Array("product_image", "product_code")), COLOR_BLUE)
 		End If
 	Catch
 		LogColor(LastException.Message, COLOR_RED)

@@ -27,9 +27,9 @@ Module2=|relative|..\MiniORM
 NumberOfFiles=6
 NumberOfLibraries=7
 NumberOfModules=2
-Version=10.3
+Version=10.5
 @EndOfDesignText@
-' Version 4.20
+' Version 5.00
 #Region Macros
 '#Macro: Title, Export as zip, ide://run?file=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
 #Macro: Title, Update Manifest, ide://run?file=%JAVABIN%\java.exe&Args=-jar&Args=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=add0.01
@@ -39,7 +39,7 @@ Version=10.3
 '#Macro: Title, Sync, ide://run?file=%WINDIR%\System32\Robocopy.exe&args=..\..\Shared+Files&args=..\Files&FilesSync=True
 #End Region
 #If Release
-#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf ..\..\..\release\%PROJECT_NAME%.v4.b4xlib ..\..\MiniORM.bas ..\..\..\manifest.txt ..\..\..\LICENSE
+#CustomBuildAction: 2, %JAVABIN%\jar.exe, -cMf ..\..\..\release\%PROJECT_NAME%.b4xlib ..\..\MiniORM.bas ..\..\..\manifest.txt ..\..\..\LICENSE
 #End If
 #Region Project Attributes 
 	#MainFormWidth: 600

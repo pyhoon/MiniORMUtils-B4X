@@ -155,7 +155,10 @@ Dim Rows As Int = DB.RowCount
 
 ## Return single row
 ```b4x
-Dim Data As Map = DB.Find(2)
+DB.Find(3)
+If DB.Found Then
+    Log(DB.First)
+End If
 ```
 
 ## Filter by conditions

@@ -106,24 +106,29 @@ Public Sub Initialize
 	mDateTimeMethods = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
 	#End If
 	Clear
+	SetDefaults
 	setDbType(SQLITE) ' Default
+End Sub
+
+Private Sub SetDefaults
+	If mSettings.DBDir = "" Then
+		#If B4J
+		mSettings.DBDir = File.DirApp
+		#Else If B4A
+		mSettings.DBDir = File.DirInternal
+		#Else If B4i
+		mSettings.DBDir = File.DirDocuments
+		#End If
+	End If
+	If mSettings.DBFile = "" Then
+		mSettings.DBFile = "data.db"
+	End If
 End Sub
 
 ' Create SQLite database. formerly InitializeSQLite
 Public Sub CreateSQLite As Boolean
 	Try
-		If mSettings.DBDir = "" Then
-			#If B4J
-			mSettings.DBDir = File.DirApp
-			#Else If B4A
-			mSettings.DBDir = File.DirInternal
-			#Else If B4i
-			mSettings.DBDir = File.DirDocuments
-			#End If
-		End If
-		If mSettings.DBFile = "" Then
-			mSettings.DBFile = "data.db"
-		End If
+		SetDefaults
 		#If B4J
 		mSQL.InitializeSQLite(mSettings.DBDir, mSettings.DBFile, True)
 		#Else
@@ -204,19 +209,8 @@ End Sub
 
 ' Check database file exists (SQLite)
 Public Sub Exist As Boolean
+	SetDefaults
 	Dim DBFound As Boolean
-	If mSettings.DBDir = "" Then
-		#If B4J
-		mSettings.DBDir = File.DirApp
-		#Else If B4A
-		mSettings.DBDir = File.DirInternal
-		#Else If B4i
-		mSettings.DBDir = File.DirDocuments
-		#End If
-	End If
-	If mSettings.DBFile = "" Then
-		mSettings.DBFile = "data.db"
-	End If
 	If File.Exists(mSettings.DBDir, mSettings.DBFile) Then
 		DBFound = True
 	End If
@@ -643,7 +637,9 @@ End Sub
 
 ' Query column id
 Public Sub Find (ID As Int)
+	mQueryClearParameters = False
 	Find2("id = ?", ID)
+	mQueryClearParameters = True
 End Sub
 
 ' Query by single condition
@@ -1050,10 +1046,10 @@ Public Sub Create
 		Else
 			Dim chk As String = stmt.ToString
 			If chk.EndsWith(",") Then
-				LogColor("*** Contains comma", COLOR_RED)
+			'	LogColor("*** Contains comma", COLOR_RED)
 				stmt.Remove(stmt.Length - 1, stmt.Length) ' remove the last comma
-			Else
-				LogColor("*** Good", COLOR_BLUE)
+			'Else
+			'	LogColor("*** Good", COLOR_BLUE)
 			End If
 		End If
 	End If
@@ -1340,6 +1336,11 @@ Public Sub Query
 		ORMTable.Rows.Initialize
 		ORMTable.Results.Initialize
 		ORMTable.Results2.Initialize
+		ORMTable.First.Initialize
+		ORMTable.First2.Initialize
+		ORMTable.Last.Initialize
+		ORMTable.Last2.Initialize
+		ORMTable.RowCount = 0
 		If getCondition.Length > 0 Then mStatement = mStatement & mCondition
 		If mGroupBy.Length > 0 Then mStatement = mStatement & mGroupBy
 		If mHaving.Length > 0 Then mStatement = mStatement & mHaving

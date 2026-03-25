@@ -1101,6 +1101,7 @@ End Sub
 Public Sub setForeign (Column As String) '(ReferenceTable As String, Key As String, ReferenceKey As String, OnDelete As String, OnUpdate As String)
 	mForeignKeys = $"FOREIGN KEY (${Column})"$
 End Sub
+
 Public Sub getForeign As String
 	Return mForeignKeys
 End Sub
@@ -1519,6 +1520,7 @@ Public Sub Insert
 		vb.Append("?")
 		If col.EqualsIgnoreCase("created_date") Then cd = True
 	Next
+	
 	' To handle varchar timestamps
 	If mUseTimestamps And Not(cd) Then
 		If SB.Length > 0 Then
@@ -1533,6 +1535,7 @@ Public Sub Insert
 				vb.Append("now()")
 		End Select
 	End If
+	
 	mStatement = $"INSERT INTO ${mObject} (${SB.ToString}) VALUES (${vb.ToString})"$
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then ExecNonQuery

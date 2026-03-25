@@ -86,12 +86,9 @@ End Sub
 Public Sub Initialize
 	mBatch.Initialize
 	mColumns.Initialize
+	mSettings.Initialize
 	mConditions.Initialize
 	mPrimaryKeys.Initialize
-	mSettings.Initialize
-	mSettings.DBType = mDbType	
-	setDbType(SQLITE)
-	Clear
 	mView = ""
 	mTable = ""
 	mObject = ""
@@ -108,6 +105,8 @@ Public Sub Initialize
 	mCollate = "utf8mb4_unicode_ci"
 	mDateTimeMethods = CreateMap(91: "getDate", 92: "getTime", 93: "getTimestamp")
 	#End If
+	Clear
+	setDbType(SQLITE) ' Default
 End Sub
 
 ' Create SQLite database. formerly InitializeSQLite
@@ -253,7 +252,7 @@ End Sub
 ' Open database connection
 Public Sub Open As SQL
 	#If B4J
-	Select mSettings.DBType
+	Select mDbType
 		Case SQLITE
 			If mSQL.IsInitialized Then Return mSQL
 			mSQL.InitializeSQLite(mSettings.DBDir, mSettings.DBFile, False)
@@ -270,7 +269,7 @@ End Sub
 ' Connect to database server (asynchronously connection)
 Public Sub OpenAsync As ResumableSub
 	Try
-		Select mSettings.DBType
+		Select mDbType
 			Case MYSQL, MARIADB
 				mPool.GetConnectionAsync("Pool")
 				Wait For Pool_ConnectionReady (DB1 As SQL)
@@ -313,7 +312,7 @@ End Sub
 ' Return server date
 Public Sub GetDate As String
 	Try
-		Select mSettings.DBType
+		Select mDbType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT CURDATE()"$
@@ -342,7 +341,7 @@ End Sub
 ' Return server date (ascynchronous connection)
 Public Sub GetDate2 As ResumableSub
 	Try
-		Select mSettings.DBType
+		Select mDbType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT CURDATE()"$
@@ -368,7 +367,7 @@ End Sub
 ' Return server timestamp
 Public Sub GetDateTime As String
 	Try
-		Select mSettings.DBType
+		Select mDbType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT now()"$
@@ -397,7 +396,7 @@ End Sub
 ' Return server timestamp (ascynchronous connection)
 Public Sub GetDateTime2 As ResumableSub
 	Try
-		Select mSettings.DBType
+		Select mDbType
 			#If B4J
 			Case MYSQL, MARIADB
 				Dim qry As String = $"SELECT now()"$
@@ -444,7 +443,7 @@ End Sub
 
 ' Return SQL query for Last Insert ID based on DBType
 Public Sub getLastInsertIDQuery As String
-	Select mSettings.DBType
+	Select mDbType
 		#If B4J
 		Case MYSQL, MARIADB
 			Dim qry As String = "SELECT LAST_INSERT_ID()"
@@ -582,12 +581,12 @@ End Sub
 
 Public Sub setQueryAddToBatch (Value As Boolean)
 	mQueryAddToBatch = Value
-	If mQueryAddToBatch Then mQueryExecute = False ' Disallow both set to True
+	If mQueryAddToBatch Then mQueryExecute = False ' Only either one is True
 End Sub
 
 Public Sub setQueryExecute (Value As Boolean)
 	mQueryExecute = Value
-	If mQueryExecute Then mQueryAddToBatch = False ' Disallow both set to True
+	If mQueryExecute Then mQueryAddToBatch = False ' Only either one is True
 End Sub
 
 ' Clear Parameters after Query

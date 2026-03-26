@@ -118,6 +118,14 @@ DB.Table = "categories"
 DB.Query
 ```
 
+## Return single row
+```b4x
+DB.Find(3)
+If DB.Found Then
+    Log(DB.First)
+End If
+```
+
 ## Read rows
 ```b4x
 Dim Data As List = DB.Results
@@ -153,14 +161,6 @@ DB.Destroy(Array(2, 3))
 Dim Rows As Int = DB.RowCount
 ```
 
-## Return single row
-```b4x
-DB.Find(3)
-If DB.Found Then
-    Log(DB.First)
-End If
-```
-
 ## Filter by conditions
 ```b4x
 DB.Table = "products"
@@ -186,4 +186,3 @@ DB.ShowExtraLogs = True
 ```b4x
 DB.QueryAddToBatch = True
 ```
-Note: Set to true before calling DB.Create and DB.Insert

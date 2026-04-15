@@ -5,7 +5,7 @@ Type=Class
 Version=10.5
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 5.10
+' Version 5.20
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -31,8 +31,6 @@ Sub Class_Globals
 	Private mCondition				As String
 	Private mParameter				As String
 	Private mParameters() 			As Object
-	Private mSettings				As ORMSettings
-	Private mError 					As Exception
 	Private mDbType 				As String
 	Private mJournalMode 			As String
 	Private mDefaultUserId 			As String
@@ -41,6 +39,7 @@ Sub Class_Globals
 	Private mIfNotExist				As Boolean
 	Private mOptionalNull			As Boolean
 	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
+	Private mUseTimestampsAsTicks 	As Boolean ' B4J only
 	Private mUseDataAuditUserId 	As Boolean
 	Private mUpdateModifiedDate 	As Boolean
 	Private mQueryAddToBatch 		As Boolean
@@ -48,12 +47,14 @@ Sub Class_Globals
 	Private mQueryRaw				As Boolean ' No Table
 	Private mQueryClearParameters 	As Boolean
 	#If B4J
+	Private mConnectionPool			As ConnectionPool
 	Private mCharSet 				As String
 	Private mCollate 				As String
-	Private mPool 					As ConnectionPool
 	Private mDateTimeMethods 		As Map
-	Private mUseTimestampsAsTicks 	As Boolean
 	#End If
+	Private mError 					As Exception
+	Private mSettings				As MiniORMSettings
+	' Global
 	Public BLOB 					As String
 	Public INTEGER 					As String
 	Public BIG_INT 					As String
@@ -73,7 +74,7 @@ Sub Class_Globals
 	Type ORMJoin (Modifier As String, Target As String, Criteria As List)
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, Constraint As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
 	Type ORMResult (Tag As Object, Columns As Map, Rows As List)
-	Type ORMSettings (DBDir As String, _
+	Type MiniORMSettings (DBDir As String, _
 	DBFile As String, _
 	DBType As String, _
 	DBHost As String, _
@@ -181,7 +182,7 @@ Public Sub InitPool
 		JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
 		JdbcUrl = JdbcUrl.Replace("{DbName}", mSettings.DBName)
 		JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
-		mPool.Initialize(mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
+		mConnectionPool.Initialize(mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
@@ -261,7 +262,7 @@ Public Sub Open As SQL
 			If mSQL.IsInitialized Then Return mSQL
 			mSQL.InitializeSQLite(mSettings.DBDir, mSettings.DBFile, False)
 		Case MYSQL, MARIADB
-			mSQL = mPool.GetConnection
+			mSQL = mConnectionPool.GetConnection
 	End Select
 	#Else
 	mSQL.Initialize(mSettings.DBDir, mSettings.DBFile, False)
@@ -275,7 +276,7 @@ Public Sub OpenAsync As ResumableSub
 	Try
 		Select mDbType
 			Case MYSQL, MARIADB
-				mPool.GetConnectionAsync("Pool")
+				mConnectionPool.GetConnectionAsync("Pool")
 				Wait For Pool_ConnectionReady (DB1 As SQL)
 				mSQL = DB1
 			Case SQLITE
@@ -486,12 +487,12 @@ Public Sub getDbType As String
 	Return mDbType
 End Sub
 
-Public Sub setSettings (Settings As ORMSettings)
+Public Sub setSettings (Settings As MiniORMSettings)
 	mSettings = Settings
 	setDbType(mSettings.DBType)
 End Sub
 
-Public Sub getSettings As ORMSettings
+Public Sub getSettings As MiniORMSettings
 	Return mSettings
 End Sub
 
@@ -1211,7 +1212,6 @@ End Sub
 ' Execute Non Query with Object type parameters
 Public Sub Execute2 (Parameter() As Object)
 	mParameters = Parameter
-	If mShowExtraLogs Then LogQuery2("Execute2")
 	ExecNonQuery
 End Sub
 
@@ -1344,11 +1344,11 @@ Public Sub Union
 	mUnion = mStatement
 End Sub
 
-' Add new Condition (disregard there are already some)
 Public Sub setCondition (Statement As String)
 	mConditions.Add(Statement)
 End Sub
 
+' Append new condition to existing list or return the full condition statement
 Public Sub getCondition As String
 	Dim SB As StringBuilder
 	SB.Initialize
@@ -1360,12 +1360,13 @@ Public Sub getCondition As String
 	Return mCondition
 End Sub
 
-' Add new list of Conditions
 ' Formerly known as setWhere
 Public Sub setConditions (Statements As List)
-	mConditions.AddAll(Statements)
+	'mConditions.AddAll(Statements)
+	mConditions = Statements
 End Sub
 
+' Append new conditions
 Public Sub getConditions As List
 	Return mConditions
 End Sub
@@ -1380,16 +1381,17 @@ Public Sub setParameter (Param As Object)
 	mParameters = NewArray
 End Sub
 
-' Last Parameter
+' Append new parameter
 Public Sub getParameter As Object
 	Return mParameter
 End Sub
 
 Public Sub setParameters (Params() As Object)
 	mParameters = Params
-	mParameter = mParameters(mParameters.Length - 1)
+	If mParameters.Length > 0 Then mParameter = mParameters(mParameters.Length - 1)
 End Sub
 
+' Assign array of parameters
 Public Sub getParameters As Object()
 	Return mParameters
 End Sub
@@ -1409,7 +1411,7 @@ Public Sub AppendParameters (Params() As Object)
 	Else
 		mParameters = Params
 	End If
-	mParameter = mParameters(mParameters.Length - 1)
+	If mParameters.Length > 0 Then mParameter = mParameters(mParameters.Length - 1)
 End Sub
 
 ' Add single condition and parameter
@@ -1451,8 +1453,8 @@ Public Sub Query
 			mStatement = mStatement & mHaving
 			mStatement = mStatement & mOrderBy
 			mStatement = mStatement & mLimit
-		Else
-			mQueryRaw = False
+		'Else
+			'mQueryRaw = False
 		End If
 		If mUnion <> "" Then
 			mStatement = mUnion & mStatement
@@ -1736,7 +1738,7 @@ Public Sub Save
 		If mObject = "VIEW" Or mAutoIncrement = False Then Return
 		Dim NewID As Int = getLastInsertID
 		' Return new row
-		Log("Finding NewID")
+		Log("Finding NewID FROM " & mTable)
 		Find(NewID)
 	Else
 		'ClearParameters
@@ -1750,7 +1752,6 @@ Public Sub Save
 		Next
 		mParameters = ConditionParams
 		mColumns = Array As String()
-		LogQuery2("Save")
 		' Return row after update
 		Log("Return row after update")
 		Query

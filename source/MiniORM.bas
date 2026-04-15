@@ -1753,7 +1753,7 @@ Public Sub Save
 		mParameters = ConditionParams
 		mColumns = Array As String()
 		' Return row after update
-		Log("Return row after update")
+		'Log("Return row after update")
 		Query
 	End If
 End Sub

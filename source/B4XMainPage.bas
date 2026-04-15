@@ -9,7 +9,7 @@ Version=9.85
 Sub Class_Globals
 	Private xui As XUI
 	Private DB As MiniORM
-	Private MS As ORMSettings
+	Private MS As MiniORMSettings
 	Private Root As B4XView
 	Private lblBack As B4XView
 	Private lblCode As B4XView

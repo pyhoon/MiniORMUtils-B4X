@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 5.20
+Version: 5.30
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries. \
 It is suitable for Web API Template or any database system. \
@@ -35,7 +35,7 @@ Dim MS As ORMSettings
 MS.Initialize
 MS.DBType = DB.MYSQL
 MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
-MS.DriverClass = "com.mysql.cj.jdbc.Driver"
+MS.Driver = "com.mysql.cj.jdbc.Driver"
 MS.DBName = "app"
 MS.DbHost = "localhost"
 MS.User = "root"

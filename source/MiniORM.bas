@@ -5,7 +5,7 @@ Type=Class
 Version=10.5
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 5.20
+' Version 5.30
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -39,7 +39,7 @@ Sub Class_Globals
 	Private mIfNotExist				As Boolean
 	Private mOptionalNull			As Boolean
 	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
-	Private mUseTimestampsAsTicks 	As Boolean ' B4J only
+	Private mUseTimestampsAsTicks 	As Boolean 'ignore ' B4J only
 	Private mUseDataAuditUserId 	As Boolean
 	Private mUpdateModifiedDate 	As Boolean
 	Private mQueryAddToBatch 		As Boolean
@@ -80,7 +80,7 @@ Sub Class_Globals
 	DBHost As String, _
 	DBPort As String, _
 	DBName As String, _
-	DriverClass As String, _
+	Driver As String, _
 	JdbcUrl As String, _
 	User As String, _
 	Password As String, _
@@ -156,7 +156,7 @@ Public Sub CreateSQLite As Boolean
 End Sub
 
 #If B4J
-' Create MySQL or MariaDB database
+' Create MariaDB Or MySQL database
 Public Sub CreateDatabaseAsync As ResumableSub
 	Try
 		If mSQL.IsInitialized = False Then
@@ -182,7 +182,7 @@ Public Sub InitPool
 		JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
 		JdbcUrl = JdbcUrl.Replace("{DbName}", mSettings.DBName)
 		JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
-		mConnectionPool.Initialize(mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
+		mConnectionPool.Initialize(mSettings.Driver, JdbcUrl, mSettings.User, mSettings.Password)
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
@@ -196,7 +196,7 @@ Public Sub InitSchemaAsync As ResumableSub
 	JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
 	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
 	JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
-	mSQL.InitializeAsync("DB", mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
+	mSQL.InitializeAsync("DB", mSettings.Driver, JdbcUrl, mSettings.User, mSettings.Password)
 	Wait For DB_Ready (Success As Boolean)
 	If Success = False Then
 		LogColor(LastException.Message, COLOR_RED)
@@ -213,7 +213,7 @@ Public Sub InitSchema
 	JdbcUrl = JdbcUrl.Replace("{DbHost}", mSettings.DBHost)
 	JdbcUrl = JdbcUrl.Replace("{DbName}", "information_schema")
 	JdbcUrl = IIf(mSettings.DBPort.Length = 0, JdbcUrl.Replace(":{DbPort}", ""), JdbcUrl.Replace("{DbPort}", mSettings.DBPort))
-	mSQL.Initialize2(mSettings.DriverClass, JdbcUrl, mSettings.User, mSettings.Password)
+	mSQL.Initialize2(mSettings.Driver, JdbcUrl, mSettings.User, mSettings.Password)
 End Sub
 #End If
 
@@ -232,6 +232,11 @@ End Sub
 Public Sub ExistAsync As ResumableSub
 	Dim DBFound As Boolean
 	Try
+		If Opened = False Then
+			'LogColor("Database not connected!", COLOR_RED)
+			'Return False
+			InitPool
+		End If		
 		If mSQL.IsInitialized = False Then
 			Wait For (InitSchemaAsync) Complete (Success As Boolean)
 			If Success = False Then
@@ -279,7 +284,7 @@ Public Sub OpenAsync As ResumableSub
 				Wait For Pool_ConnectionReady (DB1 As SQL)
 				mSQL = DB1
 			Case SQLITE
-				mSQL.InitializeAsync("DB", mSettings.DriverClass, mSettings.JdbcUrl, "", "")
+				mSQL.InitializeAsync("DB", mSettings.Driver, mSettings.JdbcUrl, "", "")
 				Wait For DB_Ready (Success As Boolean)
 				If Success = False Then
 					LogColor(LastException.Message, COLOR_RED)
@@ -456,7 +461,7 @@ Public Sub getLastInsertIDQuery As String
 	Return qry
 End Sub
 
-'Set DBType to SQLite, MySQL or MariaDB
+'Set DBType to SQLite, MariaDB Or MySQL
 Public Sub setDbType (Name As String)
 	Select Name.ToUpperCase
 		Case "SQLITE"
@@ -469,7 +474,7 @@ Public Sub setDbType (Name As String)
 			DATE_TIME = "TEXT"
 			TIMESTAMP = "TEXT"
 			mDbType = SQLITE
-		Case "MYSQL", "MARIADB"
+		Case "MARIADB", "MYSQL"
 			BLOB = "mediumblob"
 			INTEGER = "int"
 			BIG_INT = "bigint"
@@ -1553,7 +1558,7 @@ Public Sub Query
 							End If
 						Catch
 							' Conversion from BLOB to String in Android will fail
-							LogColor(LastException.Message, Main.COLOR_RED)
+							LogColor(LastException.Message, COLOR_RED)
 							Row(i) = RS.GetBlob2(i)
 							LogColor("Converted to BLOB", COLOR_RED)
 						End Try

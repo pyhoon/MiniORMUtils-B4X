@@ -15,9 +15,9 @@ NumberOfLibraries=4
 NumberOfModules=1
 Version=10.5
 @EndOfDesignText@
-' Version 5.20
+' Version 5.30
 #Region Macros
-#Macro: Title, Update Manifest, ide://run?file=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=5.20
+#Macro: Title, Update Manifest, ide://run?file=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=5.30
 #Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\MiniORMUtils.b4xlib&args=MiniORM.bas&args=..\manifest.txt&args=..\LICENSE
 #Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
@@ -34,15 +34,15 @@ Version=10.5
 	#MergeLibraries: True
 #End Region
 #If MariaDB
-	#AdditionalJar: mariadb-java-client-3.5.6
+#AdditionalJar: mariadb-java-client-3.5.6
 #Else If MySQL
-	#AdditionalJar: mysql-connector-j-9.3.0
+#AdditionalJar: mysql-connector-j-9.3.0
 #Else
-	#AdditionalJar: sqlite-jdbc-3.7.2
+#AdditionalJar: sqlite-jdbc-3.7.2
 #End If
 Sub Process_Globals
 	Private DB As MiniORM
-	'Private MS As ORMSettings
+	Private DBS As MiniORMSettings 'ignore
 	Private Const COLOR_RED As Int = -65536
 	Private Const COLOR_BLUE As Int = -16776961
 	Private Const COLOR_MAGENTA As Int = -65281	
@@ -51,37 +51,36 @@ End Sub
 Sub AppStart (Args() As String)
 	Log("Starting tests...")
 	DB.Initialize
-	'DB.QueryAddToBatch = True
-	'DB.QueryExecute = False
 	'ConfigureDatabase
 	CreateQueries
 	StartMessageLoop
 End Sub
 
 Public Sub CreateQueries
-	'DB.DbType = DB.SQLITE
-	'DB.QueryExecute = False
+	DB.QueryExecute = False
 	'DB.OptionalNull = False
 	'DB.ShowExtraLogs = True
-	#If MySQL Or MariaDB
+	
+	#If MariaDB Or MySQL
+	DB.DbType = DB.MYSQL
 	Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 	#Else
+	DB.DbType = DB.SQLITE
 	Dim DbFound As Boolean = DB.Exist
 	#End If
 	If DbFound Then
-		LogColor($"${DB.DBType} database found!"$, COLOR_BLUE)
-		#If MySQL Or MariaDB
+		LogColor($"${DB.DbType} database found!"$, COLOR_BLUE)
+		'DB.QueryExecute = False
+		#If MariaDB Or MySQL
 		DB.InitPool
 		#End If
-		DB.Initialize '<-- important
-		DB.QueryExecute = False
-		DB.Open
 	Else
 		LogColor($"${DB.DBType} database not found!"$, COLOR_RED)
-		Return
+		'Return
 	End If
 	
 	'DB.IfNotExist = True
+	'DB.Open
 	
 	DB.Table = "products"
 	DB.Columns.Add(CreateMap("Name": "product_code", "Size": 12))
@@ -127,7 +126,7 @@ Public Sub CreateQueries
 	
 	Log(TAB)
 	
-	DB.QueryExecute = True
+	'DB.QueryExecute = True
 	
 	DB.Table = "products p"
 	'DB.Columns = Array("col1", "col2", "col3")
@@ -149,45 +148,43 @@ Public Sub CreateQueries
 End Sub
 
 Public Sub ConfigureDatabase
-	'MS.Initialize
+	'DBS.Initialize
 	#If MySQL
-	MS.DBType = "MySQL"
-	MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
-	MS.DriverClass = "com.mysql.cj.jdbc.Driver"
+	DBS.DBType = "MySQL"
+	DBS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+	DBS.Driver = "com.mysql.cj.jdbc.Driver"
 	#Else If MariaDB
-	MS.DBType = "MariaDB"
-	MS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
-	MS.DriverClass = "org.mariadb.jdbc.Driver"
+	DBS.DBType = "MariaDB"
+	DBS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+	DBS.Driver = "org.mariadb.jdbc.Driver"
 	#Else
-	'MS.DBType = "SQLite"
-	'MS.DBFile = "Data.db"
-	#If B4J
-	'MS.DBDir = File.DirApp
-	#Else
-	MS.DBDir = xui.DefaultFolder
+	'DBS.DBType = "SQLite"
+	'DBS.DBFile = "Data.db"
+	#If B4A Or B4i
+	DBS.DBDir = xui.DefaultFolder
 	#End If
 	#End If
-	#If MySQL Or MariaDB
-	MS.DBName = "miniorm"
-	MS.DbHost = "localhost"
-	MS.User = "root"
-	MS.Password = "password"
+	#If MariaDB Or MySQL
+	DBS.DBName = "miniorm"
+	DBS.DbHost = "localhost"
+	DBS.User = "root"
+	DBS.Password = "password"
 	#End If
 	Try
 		DB.Initialize
 		'DB.Settings = MS
 		DB.ShowExtraLogs = True
-		#If MySQL Or MariaDB
+		#If MariaDB Or MySQL
 		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 		#Else
 		Dim DbFound As Boolean = DB.Exist
 		#End If
 		If DbFound Then
 			LogColor($"${DB.DBType} database found!"$, COLOR_BLUE)
-			#If MySQL Or MariaDB
+			#If MariaDB Or MySQL
 			DB.InitPool
 			#End If
-			'File.Delete(MS.DBDir, MS.DBFile)
+			'File.Delete(DBS.DBDir, DBS.DBFile)
 			DB.Open
 			GetCategories
 			GetProducts(2)
@@ -209,7 +206,7 @@ Private Sub CreateDatabase
 	LogColor("Creating database...", COLOR_MAGENTA)
 	DB.Initialize
 	'DB.Settings = MS
-	#If MySQL Or MariaDB
+	#If MariaDB Or MySQL
 	Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
 	#Else
 	Dim Success As Boolean = DB.CreateSQLite

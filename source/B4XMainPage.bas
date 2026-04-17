@@ -4,12 +4,12 @@ ModulesStructureVersion=1
 Type=Class
 Version=9.85
 @EndOfDesignText@
-#Macro: Title, GetLibraries, ide://run?file=%JAVABIN%\java.exe&args=-jar&args=%ADDITIONAL%\..\B4X\libget.jar&args=%PROJECT%&args=false
-#Macro: Title, Export, ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
+'#Macro: Title, Export, ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
+'#Macro: Title, GetLibraries, ide://run?file=%ADDITIONAL%\..\B4X\libget.jar&args=%PROJECT%&args=false
 Sub Class_Globals
 	Private xui As XUI
 	Private DB As MiniORM
-	Private MS As MiniORMSettings
+	Private DBS As MiniORMSettings
 	Private Root As B4XView
 	Private lblBack As B4XView
 	Private lblCode As B4XView
@@ -160,49 +160,50 @@ Private Sub btnDelete_Click
 End Sub
 
 Public Sub ConfigureDatabase
-	MS.Initialize
+	DBS.Initialize
 	#If MySQL
-		MS.DBType = "MySQL"
-		MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
-		MS.DriverClass = "com.mysql.cj.jdbc.Driver"
+		DBS.DBType = "MySQL"
+		DBS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
+		DBS.Driver = "com.mysql.cj.jdbc.Driver"
 	#Else If MariaDB
-		MS.DBType = "MariaDB"
-		MS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
-		MS.DriverClass = "org.mariadb.jdbc.Driver"
+		DBS.DBType = "MariaDB"
+		DBS.JdbcUrl = "jdbc:mariadb://{DbHost}:{DbPort}/{DbName}"
+		DBS.Driver = "org.mariadb.jdbc.Driver"
 	#Else
-	MS.DBType = "SQLite"
-	MS.DBFile = "Data.db"
+	DBS.DBType = "SQLite"
+	DBS.DBFile = "MiniORM.db"
 	#If B4J
-	MS.DBDir = File.DirApp
+	DBS.DBDir = File.DirApp
 	#Else
-	MS.DBDir = xui.DefaultFolder
+	DBS.DBDir = xui.DefaultFolder
 	#End If
 	#End If
 	#If MySQL Or MariaDB
-		MS.DBName = "miniorm"
-		MS.DbHost = "localhost"
-		MS.User = "root"
-		MS.Password = "password"
+		DBS.DBName = "miniorm"
+		DBS.DbHost = "localhost"
+		DBS.User = "root"
+		DBS.Password = "password"
 	#End If
 	Try
 		DB.Initialize
-		DB.Settings = MS
+		DB.Settings = DBS
 		DB.ShowExtraLogs = True
-		#If MySQL Or MariaDB
+		#If MariaDB Or MySQL
 		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 		#Else
 		Dim DbFound As Boolean = DB.Exist
 		#End If
 		If DbFound Then
-			LogColor($"${MS.DBType} database found!"$, COLOR_BLUE)
-			#If MySQL Or MariaDB
-			DB.InitPool
+			#If MariaDB Or MySQL
+			LogColor($"(${DBS.DBType}) ${DBS.DBName} database found!"$, COLOR_BLUE)
+			#Else
+			LogColor($"(${DBS.DBType}) ${DBS.DBFile} database found!"$, COLOR_BLUE)
 			#End If
 			'File.Delete(MS.DBDir, MS.DBFile)
 			DB.Open
 			GetCategories
 		Else
-			LogColor($"${MS.DBType} database not found!"$, COLOR_RED)
+			LogColor($"${DBS.DBType} database not found!"$, COLOR_RED)
 			CreateDatabase
 		End If
 	Catch
@@ -218,8 +219,10 @@ End Sub
 Private Sub CreateDatabase
 	LogColor("Creating database...", COLOR_MAGENTA)
 	DB.Initialize
-	DB.Settings = MS
+	DB.Settings = DBS
+	DB.QueryExecute = True
 	#If MySQL Or MariaDB
+	DB.InitPool
 	Wait For (DB.CreateDatabaseAsync) Complete (Success As Boolean)
 	#Else
 	Dim Success As Boolean = DB.CreateSQLite
@@ -232,6 +235,7 @@ Private Sub CreateDatabase
 	DB.Open
 	DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
+	DB.QueryExecute = False
 	DB.QueryAddToBatch = True
 	
 	DB.Table = "tbl_categories"
@@ -268,6 +272,7 @@ Private Sub CreateDatabase
 		LogColor("Database creation failed!", COLOR_RED)
 		Log(LastException.Message)
 	End If
+	DB.QueryExecute = True
 	
 	' Adding an image to blob field
 	Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")

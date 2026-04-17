@@ -255,7 +255,6 @@ End Sub
 
 ' Open database connection
 Public Sub Open As SQL
-	'LogQuery
 	#If B4J
 	Select mDbType
 		Case SQLITE
@@ -1260,7 +1259,7 @@ End Sub
 ' Execute Non Query batch
 '<code>Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)</code>
 Public Sub ExecuteBatchAsync As ResumableSub
-	If mShowExtraLogs Then LogQuery3
+	If mShowExtraLogs Then LogQuery3("ExecuteBatchAsync")
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
 	'mQueryExecute = True ' set back to Execute mode
@@ -1894,7 +1893,7 @@ Public Sub Destroy (ids() As Int) As ResumableSub
 		mStatement = mStatement & mCondition
 		mParameter = mID
 		mParameters = Array(id)
-		If mShowExtraLogs Then LogQuery4(id)
+		If mShowExtraLogs Then LogQuery4("Destroy", id)
 		AddNonQueryToBatch
 	Next
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
@@ -1928,7 +1927,7 @@ Public Sub TableExists (TableName As String) As Boolean
 		Case SQLITE
 			' SQLite code extracted from DBUtils
 			mStatement = $"SELECT count(name) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE"$
-			If mShowExtraLogs Then LogQuery4(TableName)
+			If mShowExtraLogs Then LogQuery4("TableExists", TableName)
 			Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(TableName))
 			Return count > 0
 		Case MYSQL, MARIADB
@@ -1937,7 +1936,7 @@ Public Sub TableExists (TableName As String) As Boolean
 				Return False
 			End If
 			mStatement = $"SELECT count(TABLE_NAME) FROM TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-			If mShowExtraLogs Then LogQuery4(Array As String(mDatabaseName, TableName))
+			If mShowExtraLogs Then LogQuery4("TableExists", Array As String(mDatabaseName, TableName))
 			Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(mDatabaseName, TableName))
 			Return count > 0
 		Case Else
@@ -1952,7 +1951,7 @@ Public Sub ViewExists (ViewName As String) As Boolean
 		Select mDbType
 			Case SQLITE
 				mStatement = $"SELECT COUNT(name) FROM main.sqlite_master WHERE type = 'view' AND name = ? COLLATE NOCASE"$
-				If mShowExtraLogs Then LogQuery4(ViewName)
+				If mShowExtraLogs Then LogQuery4("ViewExists", ViewName)
 				Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(ViewName))
 				Return count > 0
 			Case MYSQL, MARIADB
@@ -1961,7 +1960,7 @@ Public Sub ViewExists (ViewName As String) As Boolean
 					Return False
 				End If
 				mStatement = $"SELECT COUNT(TABLE_NAME) FROM VIEWS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"$
-				If mShowExtraLogs Then LogQuery4(Array As String(mDatabaseName, ViewName))
+				If mShowExtraLogs Then LogQuery4("ViewExists", Array As String(mDatabaseName, ViewName))
 				Dim count As Int = mSQL.ExecQuerySingleResult2(mStatement, Array As String(mDatabaseName, ViewName))
 				Return count > 0
 			Case Else
@@ -2061,7 +2060,8 @@ End Sub
 
 ' Print current SQL statement without parameters
 Public Sub LogQuery (CallingSub As String)
-	LogColor($"[${CallingSub}] ${mStatement}"$, COLOR_BLUE)
+	Log($"[${CallingSub}]"$)
+	LogColor(mStatement, COLOR_BLUE)
 End Sub
 
 ' Print current SQL statement on first line
@@ -2077,12 +2077,14 @@ Public Sub LogQuery2 (CallingSub As String)
 		started = True
 	Next
 	SB.Append("]")
-	LogColor($"[${CallingSub}] ${mStatement}"$, COLOR_BLUE)
-	LogColor(SB.ToString, COLOR_BLUE)
+	Log($"[${CallingSub}]"$)
+	LogColor(mStatement, COLOR_BLUE)
+	Log(SB.ToString)
 End Sub
 
 ' Print batch SQL statements and parameters
-Public Sub LogQuery3
+Public Sub LogQuery3 (CallingSub As String)
+	Log($"[${CallingSub}]"$)
 	For Each DBMap As Map In mBatch
 		Dim SB As StringBuilder
 		SB.Initialize
@@ -2101,7 +2103,8 @@ Public Sub LogQuery3
 End Sub
 
 ' Print current SQL statement and parameters on one line
-Public Sub LogQuery4 (Arg As Object)
+Public Sub LogQuery4 (CallingSub As String, Arg As Object)
+	Log($"[${CallingSub}]"$)
 	LogColor($"${mStatement} [${Arg}]"$, COLOR_BLUE)
 End Sub
 

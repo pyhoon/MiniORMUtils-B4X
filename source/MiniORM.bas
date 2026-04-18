@@ -5,7 +5,7 @@ Type=Class
 Version=10.5
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 5.31
+' Version 5.40
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int

@@ -187,7 +187,7 @@ Public Sub ConfigureDatabase
 	Try
 		DB.Initialize
 		DB.Settings = DBS
-		DB.ShowExtraLogs = True
+		'DB.ShowExtraLogs = True
 		#If MariaDB Or MySQL
 		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 		#Else
@@ -317,7 +317,8 @@ Private Sub GetProducts
 	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 	DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
 	'DB.Join = Array("tbl_categories c", "p.category_id = c.id")
-	DB.Join = DB.CreateJoin("LEFT", "tbl_categories AS c", Array("p.category_id = c.id"))
+	'DB.Join = DB.CreateJoin("LEFT", "tbl_categories AS c", Array("p.category_id = c.id"))
+	DB.Join("LEFT", "tbl_categories AS c", Array("p.category_id = c.id"))
 	DB.WhereParam("c.id = ?", CategoryId)
 	DB.Query
 	Dim Items As List = DB.Results

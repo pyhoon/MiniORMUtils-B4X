@@ -15,9 +15,9 @@ NumberOfLibraries=4
 NumberOfModules=1
 Version=10.5
 @EndOfDesignText@
-' Version 5.40
+' Version 5.50
 #Region Macros
-#Macro: Title, Update Manifest, ide://run?file=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=5.40
+#Macro: Title, Update Manifest, ide://run?file=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=5.50
 #Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\MiniORMUtils.b4xlib&args=MiniORM.bas&args=..\manifest.txt&args=..\LICENSE
 #Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
@@ -59,13 +59,18 @@ End Sub
 Public Sub CreateQueries
 	DB.QueryExecute = False
 	'DB.OptionalNull = False
-	'DB.ShowExtraLogs = True
+	'DB.ShowExtraLogs = False
 	
 	#If MariaDB Or MySQL
 	DB.DbType = DB.MYSQL
 	Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 	#Else
 	DB.DbType = DB.SQLITE
+	'DB.DbType = DB.MYSQL
+	DB.OptionalNull = False
+	'DB.IfNotExist = True
+	DB.Defaults.NotNull = Array(DB.VARCHAR.ToUpperCase)
+	
 	Dim DbFound As Boolean = DB.Exist
 	#End If
 	If DbFound Then
@@ -79,15 +84,19 @@ Public Sub CreateQueries
 		'Return
 	End If
 	
-	'DB.IfNotExist = True
-	'DB.Open
+	Log(TAB)
 	
 	DB.Table = "products"
-	DB.Columns.Add(CreateMap("Name": "product_code", "Size": 12))
-	DB.Columns.Add(CreateMap("Name": "category_id", "Type": DB.INTEGER))
-	DB.Columns.Add(CreateMap("Name": "product_name"))
-	DB.Columns.Add(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0))
-	DB.Columns.Add(CreateMap("Name": "product_image", "Type": DB.BLOB))
+	'DB.Columns.Add(CreateMap("Name": "product_code", "Size": 12))
+	'DB.Columns.Add(CreateMap("Name": "category_id", "Type": DB.INTEGER))
+	'DB.Columns.Add(CreateMap("Name": "product_name"))
+	'DB.Columns.Add(CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0))
+	'DB.Columns.Add(CreateMap("Name": "product_image", "Type": DB.BLOB))
+	DB.Column = CreateMap("Name": "product_code", "Size": 12)
+	DB.Column = CreateMap("Name": "category_id", "Type": DB.INTEGER)
+	DB.Column = CreateMap("Name": "product_name")
+	DB.Column = CreateMap("Name": "product_price", "Type": DB.DECIMAL, "Size": "10,2", "Default": 0.0)
+	DB.Column = CreateMap("Name": "product_image", "Type": DB.BLOB)
 	DB.Foreign = "category_id"
 	DB.References("categories", "id")
 	DB.Primary = Array("product_code")
@@ -99,13 +108,22 @@ Public Sub CreateQueries
 	
 	DB.UseTimestamps = True
 	DB.Table = "users"
-	DB.Primary = Array("email")
-	DB.Columns.Add(CreateMap("n": "email"))
-	DB.Columns.Add(CreateMap("n": "hash", "s": 50))
-	DB.Columns.Add(CreateMap("n": "salt", "s": 50))
-	DB.Columns.Add(CreateMap("n": "user_name"))
-	DB.Columns.Add(CreateMap("n": "logins", "t": DB.INTEGER, "d": 0))
-	DB.Columns.Add(CreateMap("n": "image", "t": DB.BLOB))
+	'DB.Primary = Array("email")
+	'DB.AutoIncrement = False
+	DB.AutoIncrement = True
+	'DB.Columns.Add(CreateMap("n": "email"))
+	'DB.Columns.Add(CreateMap("n": "hash", "s": 50))
+	'DB.Columns.Add(CreateMap("n": "salt", "s": 50))
+	'DB.Columns.Add(CreateMap("n": "user_name"))
+	'DB.Columns.Add(CreateMap("n": "logins", "t": DB.INTEGER, "d": 0))
+	'DB.Columns.Add(CreateMap("n": "image", "t": DB.BLOB))
+	'DB.Column(CreateMap("n": "email"))
+	DB.Column = CreateMap("n": "email", "u": True)
+	DB.Column = CreateMap("n": "hash", "s": 50)
+	DB.Column = CreateMap("n": "salt", "s": 50, "an": True)
+	DB.Column = CreateMap("n": "user_name")
+	DB.Column = CreateMap("n": "logins", "t": DB.INTEGER, "d": 0)
+	DB.Column = CreateMap("n": "image", "t": DB.BLOB)
 	DB.Create
 	DB.LogQuery("Create")
 
@@ -126,12 +144,15 @@ Public Sub CreateQueries
 	
 	Log(TAB)
 	
-	'DB.QueryExecute = True
+	' Execute
+	DB.Open
+	DB.QueryExecute = True
 	
 	DB.Table = "products p"
 	'DB.Columns = Array("col1", "col2", "col3")
 	'DB.Condition = "p.col2 = ?"
-	DB.Join = DB.CreateJoin("LEFT", "categories AS c", Array("p.category_id = c.id"))
+	'DB.Join = DB.CreateORMJoin("LEFT", "categories c", Array("p.category_id = c.id"))
+	DB.Join("LEFT", "categories c", Array("p.category_id = c.id"))
 	DB.Query
 	DB.LogQuery("Query")
 	If DB.Found Then
@@ -140,6 +161,7 @@ Public Sub CreateQueries
 	
 	Log(TAB)
 	
+	DB.Table = "products"
 	DB.Find(3)
 	DB.LogQuery4("Find", 3)
 	If DB.Found Then
@@ -221,7 +243,8 @@ Private Sub CreateDatabase
 	'DB.UseTimestamps = True
 	'DB.QueryAddToBatch = True
 	DB.IfNotExist = True
-	
+	DB.Defaults.NotNull = Array(DB.VARCHAR)
+
 	DB.Table = "categories"
 	'DB.Columns.Add("category_name")
 	DB.Columns = Array("category_name") ' passing array of String
@@ -232,11 +255,16 @@ Private Sub CreateDatabase
 	DB.Inserts = Array("Toys")
 	
 	DB.Table = "products"
-	DB.Columns.Add(CreateMap("N": "category_id", "T": DB.INTEGER))
-	DB.Columns.Add(CreateMap("N": "product_code", "S": 12))
-	DB.Columns.Add(CreateMap("N": "product_name"))
-	DB.Columns.Add(CreateMap("N": "product_price", "T": DB.DECIMAL, "S": "10,2", "D": 0.0))
-	DB.Columns.Add(CreateMap("N": "product_image", "T": DB.BLOB))
+	'DB.Columns.Add(CreateMap("N": "category_id", "T": DB.INTEGER))
+	'DB.Columns.Add(CreateMap("N": "product_code", "S": 12))
+	'DB.Columns.Add(CreateMap("N": "product_name"))
+	'DB.Columns.Add(CreateMap("N": "product_price", "T": DB.DECIMAL, "S": "10,2", "D": 0.0))
+	'DB.Columns.Add(CreateMap("N": "product_image", "T": DB.BLOB))
+	DB.Column = CreateMap("N": "category_id", "T": DB.INTEGER)
+	DB.Column = CreateMap("N": "product_code", "S": 12)
+	DB.Column = CreateMap("N": "product_name")
+	DB.Column = CreateMap("N": "product_price", "T": DB.DECIMAL, "S": "10,2", "D": 0.0)
+	DB.Column = CreateMap("N": "product_image", "T": DB.BLOB)
 	DB.Foreign = "category_id"
 	DB.References("categories", "id")
 	'DB.Foreign = DB.Foreign & " ON UPDATE CASCADE" ' ON UPDATE NO ACTION, ON UPDATE RESTRICT, ON UPDATE SET NULL
@@ -263,7 +291,7 @@ Private Sub CreateDatabase
 	'DB.UseTimestamps = True
 	DB.AutoIncrement = False
 	DB.Create
-
+	
 	Dim DB_Batch As List
 	DB_Batch.Initialize
 	Dim DB_Statement As String
@@ -308,7 +336,8 @@ Private Sub GetProducts (CategoryId As Int)
 		DB.Table = "products p"
 		DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 		DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
-		DB.Join = DB.CreateJoin("LEFT", "categories AS c", Array("p.category_id = c.id"))
+		'DB.Join = DB.CreateORMJoin("LEFT", "categories c", Array("p.category_id = c.id"))
+		DB.Join("LEFT", "categories c", Array("p.category_id = c.id"))
 		DB.Condition = "c.id = ?"
 		DB.Parameter = CategoryId
 		DB.Query

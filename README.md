@@ -28,10 +28,10 @@ Log(DB.Statement)
 DB.Settings.DBFile = "app.db"
 ```
 
-## Set ORMSettings for MySQL
+## Set MiniORMSettings for MySQL
 ```b4x
 DB.Initialize
-Dim MS As ORMSettings
+Dim MS As MiniORMSettings
 MS.Initialize
 MS.DBType = DB.MYSQL
 MS.JdbcUrl = "jdbc:mysql://{DbHost}:{DbPort}/{DbName}?characterEncoding=utf8&useSSL=False"
@@ -173,7 +173,7 @@ DB.OrderBy = CreateMap("id": "DESC")
 ```b4x
 DB.Table = "products p"
 DB.Columns = Array("p.*", "c.category_name")
-DB.Join = DB.CreateJoin("LEFT", "categories AS c", Array("p.category_id = c.id"))
+DB.Join = DB.CreateJoin("LEFT", "categories c", Array("p.category_id = c.id"))
 DB.WhereParam("c.id = ?", CategoryId)
 ```
 

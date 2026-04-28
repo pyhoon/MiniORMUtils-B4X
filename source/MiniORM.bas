@@ -5,7 +5,7 @@ Type=Class
 Version=10.5
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 5.50
+' Version 5.60
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -357,6 +357,7 @@ Public Sub GetDate As String
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 	Return str
 End Sub
@@ -382,6 +383,7 @@ Public Sub GetDate2 As ResumableSub
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 	Return str
 End Sub
@@ -410,6 +412,7 @@ Public Sub GetDateTime As String
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 	Return str
 End Sub
@@ -435,6 +438,7 @@ Public Sub GetDateTime2 As ResumableSub
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 	Return str
 End Sub
@@ -1339,6 +1343,7 @@ Private Sub ExecQuery As ResultSet
 	Catch
 		LogColor($"[ExecQuery] ${LastException.Message}"$, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 	Return RS
 End Sub
@@ -1355,6 +1360,7 @@ Private Sub ExecNonQuery
 	Catch
 		LogColor($"ExecNonQuery: ${LastException.Message}"$, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 End Sub
 
@@ -1532,6 +1538,7 @@ Public Sub Query
 		End If
 		If mError <> Null And mError.IsInitialized Then
 			If Initialized(RS) Then RS.Close
+			Close
 			Return
 		End If
 		ORMTable.ResultSet = RS
@@ -1661,6 +1668,7 @@ Public Sub Query
 		LogColor(LastException.Message, COLOR_RED)
 		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
+		Close
 	End Try
 	If mQueryAutoClose Then Close
 	Clear
@@ -1798,6 +1806,7 @@ Public Sub Save
 	If mQueryExecute = False Then Return
 	ExecNonQuery
 	If mError.IsInitialized Then ' bug fixed
+		Close
 		Return
 	End If
 	If BlnNew Then
@@ -2040,6 +2049,7 @@ Public Sub ViewExists (ViewName As String) As Boolean
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 		Return False
 	End Try
 End Sub
@@ -2056,12 +2066,14 @@ Public Sub ListTables As List
 				Do While RS.NextRow
 					lst.Add(RS.GetString("name"))
 				Loop
+				RS.Close
 			Case MYSQL, MARIADB
 				mStatement = "SELECT TABLE_NAME FROM TABLES WHERE TABLE_SCHEMA = ?"
 				Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, Array As String(mDatabaseName))
 				Do While RS.NextRow
 					lst.Add(RS.GetString("TABLE_NAME"))
 				Loop
+				RS.Close
 			Case Else
 				If mShowExtraLogs Then Log("Unknown DBType")
 				Return lst
@@ -2069,37 +2081,39 @@ Public Sub ListTables As List
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
-	RS.Close
 	Return lst
 End Sub
 
 ' Show Create Table query
 Public Sub ShowCreateTable (TableName As String) As String
 	Try
+		Dim stmt As String
 		Select mDbType
 			Case SQLITE
 				mStatement = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
 				Dim RS As ResultSet = mSQL.ExecQuery2(mStatement, Array As String(TableName))
 				Do While RS.NextRow
-					Return RS.GetString("sql")
+					stmt = RS.GetString("sql")
 				Loop
+				RS.Close
 			Case MYSQL, MARIADB
 				mStatement = $"SHOW CREATE TABLE ${TableName}"$
 				Dim RS As ResultSet = mSQL.ExecQuery(mStatement)
 				Do While RS.NextRow
-					Return RS.GetString("CREATE TABLE")
+					stmt = RS.GetString("CREATE TABLE")
 				Loop
+				RS.Close
 			Case Else
 				If mShowExtraLogs Then Log("Unknown DBType")
-				Return ""
 		End Select
 	Catch
 		LogColor(LastException.Message, COLOR_RED)
 		mError = LastException
+		Close
 	End Try
-	RS.Close
-	Return ""
+	Return stmt
 End Sub
 
 ' Append to the end of SQL statement

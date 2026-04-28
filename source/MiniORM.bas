@@ -39,11 +39,13 @@ Sub Class_Globals
 	Private mShowExtraLogs 			As Boolean
 	Private mIfNotExist				As Boolean
 	Private mOptionalNull			As Boolean
+	Private mReturnNewRow			As Boolean
 	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
 	Private mUseTimestampsAsTicks 	As Boolean ' B4J only 'ignore
 	Private mUseDataAuditUserId 	As Boolean
 	Private mUpdateModifiedDate 	As Boolean
 	Private mQueryAddToBatch 		As Boolean
+	Private mQueryAutoClose			As Boolean
 	Private mQueryExecute 			As Boolean
 	Private mQueryRaw				As Boolean ' No Table
 	Private mQueryClearParameters 	As Boolean
@@ -113,7 +115,11 @@ Public Sub Initialize
 	mJournalMode = "DELETE"
 	mDefaultUserId = "1"
 	mAutoIncrement = True
+	mShowExtraLogs = False
+	mIfNotExist = False
 	mOptionalNull = True ' NULL is not added to column in CREATE
+	mQueryAutoClose = True
+	mReturnNewRow = True ' set to False?
 	mQueryAddToBatch = False
 	mQueryExecute = True
 	mQueryRaw = False
@@ -313,6 +319,7 @@ End Sub
 
 ' Close SQL object
 Public Sub Close
+	'LogColor("Closing DB...", COLOR_RED)
 	If mJournalMode.EqualsIgnoreCase("WAL") Then Return
 	If Opened Then mSQL.Close
 End Sub
@@ -633,6 +640,14 @@ End Sub
 
 Public Sub setIfNotExist (Value As Boolean)
 	mIfNotExist = Value
+End Sub
+
+Public Sub setQueryAutoClose (Value As Boolean)
+	mQueryAutoClose = Value
+End Sub
+
+Public Sub setReturnNewRow (Value As Boolean)
+	mReturnNewRow = Value
 End Sub
 
 Public Sub Reset
@@ -1647,6 +1662,7 @@ Public Sub Query
 		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
 	End Try
+	If mQueryAutoClose Then Close
 	Clear
 	If mQueryClearParameters Then ClearParameters
 End Sub
@@ -1787,10 +1803,12 @@ Public Sub Save
 	If BlnNew Then
 		' View does not support auto-increment id or ID is not autoincrement
 		If mObject = "VIEW" Or mAutoIncrement = False Then Return
-		Dim NewID As Int = getLastInsertID
-		' Return new row
-		Log($"Finding row from ${mTable} for id = ${NewID}"$)
-		Find(NewID)
+		If mReturnNewRow Then
+			Dim NewID As Int = getLastInsertID
+			' Return new row
+			Log($"Finding row from ${mTable} for id = ${NewID}"$)
+			Find(NewID)
+		End If
 	Else
 		'ClearParameters
 		' Count numbers of ?

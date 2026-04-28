@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 5.40
+Version: 5.50
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries. \
 It is suitable for Web API Template or any database system. \
@@ -173,7 +173,7 @@ DB.OrderBy = CreateMap("id": "DESC")
 ```b4x
 DB.Table = "products p"
 DB.Columns = Array("p.*", "c.category_name")
-DB.Join = DB.CreateJoin("LEFT", "categories c", Array("p.category_id = c.id"))
+DB.Join("LEFT", "categories c", Array("p.category_id = c.id"))
 DB.WhereParam("c.id = ?", CategoryId)
 ```
 

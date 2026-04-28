@@ -15,9 +15,9 @@ NumberOfLibraries=4
 NumberOfModules=1
 Version=10.5
 @EndOfDesignText@
-' Version 5.50
+' Version 5.60
 #Region Macros
-#Macro: Title, Update Manifest, ide://run?file=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=5.50
+#Macro: Title, Update Manifest, ide://run?file=%ADDITIONAL%\..\B4X\manifest-writer.jar&Args=%PROJECT%\..\..&Args=%PROJECT%\..\..&Args=Version&Args=5.60
 #Macro: Title, Create B4xLib, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=%PROJECT%\..&args=-cMf&args=..\release\MiniORMUtils.b4xlib&args=MiniORM.bas&args=..\manifest.txt&args=..\LICENSE
 #Macro: Title, Release folder, ide://run?file=%WINDIR%\SysWOW64\explorer.exe&Args=%PROJECT%\..\..\release
 #Macro: Title, Copy to AddLibs, ide://run?file=%COMSPEC%&args=/c&args=copy&args=%PROJECT%\..\..\release\*.b4xlib&args=%ADDITIONAL%\..\B4X
@@ -161,6 +161,7 @@ Public Sub CreateQueries
 	
 	Log(TAB)
 	
+	DB.Open
 	DB.Table = "products"
 	DB.Find(3)
 	DB.LogQuery4("Find", 3)
@@ -313,6 +314,10 @@ Private Sub CreateDatabase
 		DB.Parameter = b
 		DB.Id = 3 ' after setting Columns and Parameters
 		DB.Save
+		If DB.Error.IsInitialized Then
+			LogColor(DB.Error.Message, COLOR_RED)
+			Return
+		End If		
 		LogColor("Image added as blob", COLOR_BLUE)
 	Else
 		LogColor("Database creation failed!", COLOR_RED)
@@ -324,6 +329,10 @@ Private Sub GetCategories
 	Try
 		DB.Table = "categories"
 		DB.Query
+		If DB.Error.IsInitialized Then
+			LogColor(DB.Error.Message, COLOR_RED)
+			Return
+		End If
 		Dim Items As List = DB.Results
 		LogColor(Items, COLOR_BLUE)
 	Catch
@@ -341,6 +350,10 @@ Private Sub GetProducts (CategoryId As Int)
 		DB.Condition = "c.id = ?"
 		DB.Parameter = CategoryId
 		DB.Query
+		If DB.Error.IsInitialized Then
+			LogColor(DB.Error.Message, COLOR_RED)
+			Return
+		End If		
 		Dim Items As List = DB.Results
 		LogColor(Items, COLOR_BLUE)
 		For Each Item As Map In Items

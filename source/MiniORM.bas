@@ -39,7 +39,7 @@ Sub Class_Globals
 	Private mShowExtraLogs 			As Boolean
 	Private mIfNotExist				As Boolean
 	Private mOptionalNull			As Boolean
-	Private mReturnNewRow			As Boolean
+	Private mReturnRow				As Boolean ' query new inserted or updated row after Save
 	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
 	Private mUseTimestampsAsTicks 	As Boolean ' B4J only 'ignore
 	Private mUseDataAuditUserId 	As Boolean
@@ -119,7 +119,7 @@ Public Sub Initialize
 	mIfNotExist = False
 	mOptionalNull = True ' NULL is not added to column in CREATE
 	mQueryAutoClose = True
-	mReturnNewRow = True ' set to False?
+	mReturnRow = False ' set to True?
 	mQueryAddToBatch = False
 	mQueryExecute = True
 	mQueryRaw = False
@@ -650,8 +650,12 @@ Public Sub setQueryAutoClose (Value As Boolean)
 	mQueryAutoClose = Value
 End Sub
 
-Public Sub setReturnNewRow (Value As Boolean)
-	mReturnNewRow = Value
+Public Sub setReturnRow (Value As Boolean)
+	mReturnRow = Value
+End Sub
+
+Public Sub getReturnRow As Boolean
+	Return mReturnRow
 End Sub
 
 Public Sub Reset
@@ -1812,7 +1816,7 @@ Public Sub Save
 	If BlnNew Then
 		' View does not support auto-increment id or ID is not autoincrement
 		If mObject = "VIEW" Or mAutoIncrement = False Then Return
-		If mReturnNewRow Then
+		If mReturnRow Then
 			Dim NewID As Int = getLastInsertID
 			' Return new row
 			Log($"Finding row from ${mTable} for id = ${NewID}"$)
@@ -1832,7 +1836,9 @@ Public Sub Save
 		mColumns = Array As String()
 		' Return row after update
 		'Log("Return row after update")
-		Query
+		If mReturnRow Then
+			Query
+		End If
 	End If
 End Sub
 

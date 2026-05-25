@@ -13,6 +13,7 @@ Sub Class_Globals
 	Private mJoins					As List
 	Private mColumns				As List
 	Private mConditions				As List
+	Private mParamList				As List
 	Private mPrimaryKeys 			As List
 	Private mColumnsType			As Map 		' B4A, B4i
 	Private mObject 				As String
@@ -103,6 +104,7 @@ Public Sub Initialize
 	Defaults.NotNull.Initialize
 	mSettings.Initialize
 	mConditions.Initialize
+	mParamList.Initialize
 	mPrimaryKeys.Initialize
 	mColumnsType = Null
 	mView = ""
@@ -705,6 +707,28 @@ End Sub
 ' Clear Parameters
 Private Sub ClearParameters
 	mParameters = Array As Object()
+	mParamList.Clear
+End Sub
+
+Private Sub FlushParameters
+	If mParamList.Size > 0 Then
+		AppendParameters(mParameters)
+		'mParameters = mParamList.ToArray
+		mParameters = ListToArray(mParamList)
+		mParamList.Clear
+	End If
+End Sub
+
+Public Sub ListToArray (Items As List) As Object()
+    #if B4A or B4J
+    Return Items.As(JavaObject).RunMethod("toArray", Null)
+    #Else
+    Dim b(Items.Size) As Object
+    For i = 0 To Items.Size - 1
+        b(i) = Items.Get(i)
+    Next
+    Return b
+    #End If
 End Sub
 
 Public Sub Results As List
@@ -1367,10 +1391,12 @@ End Sub
 ' Execute Non Query with Object type parameters
 Public Sub Execute2 (Parameter() As Object)
 	mParameters = Parameter
+	mParamList.Clear
 	ExecNonQuery
 End Sub
 
 Private Sub ExecQuery As ResultSet
+	FlushParameters
 	Try
 		Dim RS As ResultSet
 		If Opened = False Then
@@ -1399,6 +1425,7 @@ Private Sub ExecQuery As ResultSet
 End Sub
 
 Private Sub ExecNonQuery
+	FlushParameters
 	Try
 		If ParametersCount = 0 Then
 			If mShowExtraLogs Then LogQuery("ExecNonQuery")
@@ -1502,17 +1529,19 @@ End Sub
 ' Append new parameter
 Public Sub setParameter (Param As Object)
 	'mParameter = Param
-	Dim NewArray(mParameters.Length + 1) As Object
-	For i = 0 To mParameters.Length - 1
-		NewArray(i) = mParameters(i)
-	Next
-	NewArray(mParameters.Length) = Param
-	mParameters = NewArray
+	'Dim NewArray(mParameters.Length + 1) As Object
+	'For i = 0 To mParameters.Length - 1
+	'	NewArray(i) = mParameters(i)
+	'Next
+	'NewArray(mParameters.Length) = Param
+	'mParameters = NewArray
+	mParamList.Add(Param)
 End Sub
 
 Public Sub setParameters (Params() As Object)
 	mParameters = Params
 	'If mParameters.Length > 0 Then mParameter = mParameters(mParameters.Length - 1)
+	mParamList.Clear
 End Sub
 
 ' Assign array of parameters
@@ -1523,19 +1552,22 @@ End Sub
 ' Append Parameters at the end
 Public Sub AppendParameters (Params() As Object)
 	If Params.Length = 0 Then Return
-	If mParameters.Length > 0 Then
-		Dim NewArray(mParameters.Length + Params.Length) As Object
-		For i = 0 To mParameters.Length - 1
-			NewArray(i) = mParameters(i)
-		Next
-		For i = 0 To Params.Length - 1
-			NewArray(mParameters.Length + i) = Params(i)
-		Next
-		mParameters = NewArray
-	Else
-		mParameters = Params
-	End If
+	'If mParameters.Length > 0 Then
+	'	Dim NewArray(mParameters.Length + Params.Length) As Object
+	'	For i = 0 To mParameters.Length - 1
+	'		NewArray(i) = mParameters(i)
+	'	Next
+	'	For i = 0 To Params.Length - 1
+	'		NewArray(mParameters.Length + i) = Params(i)
+	'	Next
+	'	mParameters = NewArray
+	'Else
+	'	mParameters = Params
+	'End If
 	'If mParameters.Length > 0 Then mParameter = mParameters(mParameters.Length - 1)
+	For i = 0 To Params.Length - 1
+		mParamList.Add(Params(i))
+	Next
 End Sub
 
 ' Append single condition and parameter

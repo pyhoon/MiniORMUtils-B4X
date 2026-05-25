@@ -37,6 +37,7 @@ Sub Class_Globals
 	Private mIdColumn				As String
 	Private mAutoIncrement 			As Boolean
 	Private mShowExtraLogs 			As Boolean
+	Private mShowCallingSubName		As Boolean
 	Private mIfNotExist				As Boolean
 	Private mOptionalNull			As Boolean
 	Private mReturnRow				As Boolean ' Query new inserted or updated row after Save
@@ -115,6 +116,7 @@ Public Sub Initialize
 	mIdColumn = "id"
 	mAutoIncrement = True
 	mShowExtraLogs = False
+	mShowCallingSubName = False
 	mIfNotExist = False
 	mOptionalNull = True ' NULL is not added to column in CREATE
 	mQueryAutoClose = True
@@ -589,6 +591,10 @@ End Sub
 
 Public Sub setShowExtraLogs (Value As Boolean)
 	mShowExtraLogs = Value
+End Sub
+
+Public Sub setShowCallingSubName (Value As Boolean)
+	mShowCallingSubName = Value
 End Sub
 
 Public Sub setUpdateModifiedDate (Value As Boolean)
@@ -2046,7 +2052,7 @@ End Sub
 
 ' Print current SQL statement without parameters
 Public Sub LogQuery (CallingSub As String)
-	Log($"[${CallingSub}]"$)
+	If mShowCallingSubName Then Log($"[${CallingSub}]"$)
 	LogColor(mStatement, COLOR_BLUE)
 End Sub
 
@@ -2063,14 +2069,14 @@ Public Sub LogQuery2 (CallingSub As String)
 		started = True
 	Next
 	SB.Append("]")
-	Log($"[${CallingSub}]"$)
+	If mShowCallingSubName Then Log($"[${CallingSub}]"$)
 	LogColor(mStatement, COLOR_BLUE)
 	Log(SB.ToString)
 End Sub
 
 ' Print batch SQL statements and parameters
 Public Sub LogQuery3 (CallingSub As String)
-	Log($"[${CallingSub}]"$)
+	If mShowCallingSubName Then Log($"[${CallingSub}]"$)
 	For Each DBMap As Map In mBatch
 		Dim SB As StringBuilder
 		SB.Initialize
@@ -2090,7 +2096,7 @@ End Sub
 
 ' Print current SQL statement and parameters on one line
 Public Sub LogQuery4 (CallingSub As String, Arg As Object)
-	Log($"[${CallingSub}]"$)
+	If mShowCallingSubName Then Log($"[${CallingSub}]"$)
 	LogColor($"${mStatement} [${Arg}]"$, COLOR_BLUE)
 End Sub
 

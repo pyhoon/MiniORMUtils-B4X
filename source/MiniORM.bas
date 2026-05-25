@@ -1323,28 +1323,41 @@ Public Sub setConstraint (Params As List) ' (Columns As String, ConstraintType A
 	mConstraints = SB.ToString
 End Sub
 
-' Begin transaction
+'<code>
+'DB.BeginTransaction
+'Try
+'	'block of statements like:
+'	For i = 1 To 10
+'		DB.ExecNonQuery(qry)
+'	Next
+'	DB.TransactionSuccessful
+'Catch
+'	Log(LastException.Message) 'no changes will be made
+'End Try
+'DB.EndTransaction</code>
 Public Sub BeginTransaction
 	If Opened = False Then Open
 	mSQL.BeginTransaction
 End Sub
 
+#If B4A
+' End transaction
+Public Sub EndTransaction
+	mSQL.EndTransaction
+End Sub
+#End If
+
 ' Commit transaction
 Public Sub Commit
 	mSQL.TransactionSuccessful
-	#If Not(B4J)
-	mSQL.EndTransaction
-	#End If
 End Sub
 
+#If B4J Or B4i
 ' Rollback transaction
 Public Sub Rollback
-	#If B4J
 	mSQL.Rollback
-	#Else
-	mSQL.EndTransaction
-	#End If	
 End Sub
+#End If
 
 ' Execute Non Query
 Public Sub Execute

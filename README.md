@@ -1,5 +1,5 @@
 # MiniORMUtils-B4X
-Version: 5.60
+Version: 6.00
 
 A mini object–relational mapping (ORM) that can be use for creating db schema and SQL queries. \
 It is suitable for Web API Template or any database system. \
@@ -52,7 +52,6 @@ Dim DbFound As Boolean = DB.Exist
 #End If
 If DbFound Then
 	LogColor($"${DB.DBType} database found!"$, COLOR_BLUE)
-	DB.Open
 Else
 	LogColor($"${DB.DBType} database not found!"$, COLOR_RED)
 	CreateDatabase
@@ -96,9 +95,9 @@ DB.Create
 ## Insert rows
 ```b4x
 DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-DB.Inserts = Array(2, "T001", "Teddy Bear", 99.9)
-DB.Inserts = Array(1, "H001", "Hammer", 15.75)
-DB.Inserts = Array(2, "T002", "Optimus Prime", 1000)
+DB.InsertWithParams = Array(2, "T001", "Teddy Bear", 99.9)
+DB.InsertWithParams = Array(1, "H001", "Hammer", 15.75)
+DB.InsertWithParams = Array(2, "T002", "Optimus Prime", 1000)
 ```
 
 ## Execute NonQuery batch
@@ -114,12 +113,14 @@ DB.Close
 
 ## Select all rows
 ```b4x
+DB.Open
 DB.Table = "categories"
 DB.Query
 ```
 
 ## Return single row
 ```b4x
+DB.Open
 DB.Find(3)
 If DB.Found Then
     Log(DB.First)
@@ -136,7 +137,7 @@ Dim Data As List = DB.Results
 DB.Table = "products"
 DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 DB.Id = 2
-DB.Save2 = Array(Category_Id, Product_Code, Product_Name, Product_Price)
+DB.SaveWithParams = Array(Category_Id, Product_Code, Product_Name, Product_Price)
 ```
 
 ## Soft delete row

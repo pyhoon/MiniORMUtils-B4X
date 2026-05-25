@@ -200,7 +200,6 @@ Public Sub ConfigureDatabase
 			LogColor($"(${DBS.DBType}) ${DBS.DBFile} database found!"$, COLOR_BLUE)
 			#End If
 			'File.Delete(MS.DBDir, MS.DBFile)
-			'DB.QueryExecute = True
 			GetCategories
 		Else
 			LogColor($"${DBS.DBType} database not found!"$, COLOR_RED)

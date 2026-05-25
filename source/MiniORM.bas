@@ -713,7 +713,6 @@ End Sub
 Private Sub FlushParameters
 	If mParamList.Size > 0 Then
 		AppendParameters(mParameters)
-		'mParameters = mParamList.ToArray
 		mParameters = ListToArray(mParamList)
 		mParamList.Clear
 	End If
@@ -736,9 +735,9 @@ Public Sub Results As List
 End Sub
 
 'Deprecated
-Public Sub Results2 As List
-	Return ORMTable.Results2
-End Sub
+'Public Sub Results2 As List
+'	Return ORMTable.Results2
+'End Sub
 
 ' Query column id
 Public Sub Find (ID As Int)
@@ -771,9 +770,9 @@ Public Sub First As Map
 End Sub
 
 'Deprecated. Returns first row in results with ordered keys
-Public Sub First2 As Map
-	Return ORMTable.First2
-End Sub
+'Public Sub First2 As Map
+'	Return ORMTable.First2
+'End Sub
 
 ' Returns first row in results with specified columns
 Public Sub First3 (Columns As List) As Map
@@ -793,9 +792,9 @@ Public Sub Last As Map
 End Sub
 
 'Deprecated. Returns last row in results with ordered keys
-Public Sub Last2 As Map
-	Return ORMTable.Last2
-End Sub
+'Public Sub Last2 As Map
+'	Return ORMTable.Last2
+'End Sub
 
 ' Returns last row in results with specified columns
 Public Sub Last3 (Columns As List) As Map

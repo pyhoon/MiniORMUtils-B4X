@@ -5,7 +5,7 @@ Type=Class
 Version=10.5
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 5.70
+' Version 6.00
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -13,9 +13,8 @@ Sub Class_Globals
 	Private mJoins					As List
 	Private mColumns				As List
 	Private mConditions				As List
-	Private mParamList				As List
 	Private mPrimaryKeys 			As List
-	Private mColumnsType			As Map 		' B4A, B4i
+	Private mColumnsType			As Map 	  ' B4A, B4i
 	Private mObject 				As String
 	Private mTable 					As String
 	Private mView					As String
@@ -31,7 +30,6 @@ Sub Class_Globals
 	Private mHaving 				As String
 	Private mCondition				As String
 	Private mJoin					As String
-	'Private mParameter				As Object
 	Private mParameters() 			As Object
 	Private mDbType 				As String
 	Private mJournalMode 			As String
@@ -41,8 +39,8 @@ Sub Class_Globals
 	Private mShowExtraLogs 			As Boolean
 	Private mIfNotExist				As Boolean
 	Private mOptionalNull			As Boolean
-	Private mReturnRow				As Boolean ' query new inserted or updated row after Save
-	Private mUseTimestamps 			As Boolean ' may need to disable when working on view
+	Private mReturnRow				As Boolean ' Query new inserted or updated row after Save
+	Private mUseTimestamps 			As Boolean ' May need to disable when working on view
 	Private mUseTimestampsAsTicks 	As Boolean ' B4J only 'ignore
 	Private mUseDataAuditUserId 	As Boolean
 	Private mUpdateModifiedDate 	As Boolean
@@ -76,7 +74,7 @@ Sub Class_Globals
 	Public Const MARIADB 			As String = "MariaDB"
 	Public Const COLOR_RED 			As Int = 0xffff0000 '-65536
 	Public Const COLOR_BLUE 		As Int = 0xff0000ff '-16776961
-	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, Results2 As List, First As Map, First2 As Map, Last As Map, Last2 As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps, Results2 = Results + map ("__order": ["column1", "column2", "column3"])
+	Type ORMTable (ResultSet As ResultSet, Columns As List, Rows As List, Results As List, First As Map, Last As Map, RowCount As Int) ' Columns = list of keys, Rows = list of values, Results = list of maps
 	Type ORMJoin (Modifier As String, Target As String, Criteria As List)
 	Type ORMDefaults (NotNull As List)
 	Type ORMColumn (ColumnName As String, ColumnType As String, ColumnLength As String, Collation As String, DefaultValue As String, Constraint As String, UseFunction As Boolean, AllowNull As Boolean, Unique As Boolean, AutoIncrement As Boolean) ' B4i dislike word Nullable
@@ -104,7 +102,6 @@ Public Sub Initialize
 	Defaults.NotNull.Initialize
 	mSettings.Initialize
 	mConditions.Initialize
-	mParamList.Initialize
 	mPrimaryKeys.Initialize
 	mColumnsType = Null
 	mView = ""
@@ -707,37 +704,11 @@ End Sub
 ' Clear Parameters
 Private Sub ClearParameters
 	mParameters = Array As Object()
-	mParamList.Clear
-End Sub
-
-Private Sub FlushParameters
-	If mParamList.Size > 0 Then
-		AppendParameters(mParameters)
-		mParameters = ListToArray(mParamList)
-		mParamList.Clear
-	End If
-End Sub
-
-Public Sub ListToArray (Items As List) As Object()
-    #if B4A or B4J
-    Return Items.As(JavaObject).RunMethod("toArray", Null)
-    #Else
-    Dim b(Items.Size) As Object
-    For i = 0 To Items.Size - 1
-        b(i) = Items.Get(i)
-    Next
-    Return b
-    #End If
 End Sub
 
 Public Sub Results As List
 	Return ORMTable.Results
 End Sub
-
-'Deprecated
-'Public Sub Results2 As List
-'	Return ORMTable.Results2
-'End Sub
 
 ' Query column id
 Public Sub Find (ID As Int)
@@ -757,7 +728,8 @@ End Sub
 ' Existing parameters are preserved
 Public Sub setId (ID As Int)
 	mID = ID
-	WhereParams(Array(mIdColumn & " = ?"), Array(ID)) ' Use WhereParams to append extra condition
+	'WhereParams(Array(mIdColumn & " = ?"), Array(ID)) ' Use WhereParams to append extra condition
+	WhereParam(mIdColumn & " = ?", ID) ' Use WhereParam to append extra condition
 End Sub
 
 Public Sub getId As Int
@@ -769,13 +741,8 @@ Public Sub First As Map
 	Return ORMTable.First
 End Sub
 
-'Deprecated. Returns first row in results with ordered keys
-'Public Sub First2 As Map
-'	Return ORMTable.First2
-'End Sub
-
 ' Returns first row in results with specified columns
-Public Sub First3 (Columns As List) As Map
+Public Sub FirstWithColumns (Columns As List) As Map
 	Dim NewMap As Map
 	NewMap.Initialize
 	For Each Col As String In Columns
@@ -791,13 +758,8 @@ Public Sub Last As Map
 	Return ORMTable.Last
 End Sub
 
-'Deprecated. Returns last row in results with ordered keys
-'Public Sub Last2 As Map
-'	Return ORMTable.Last2
-'End Sub
-
 ' Returns last row in results with specified columns
-Public Sub Last3 (Columns As List) As Map
+Public Sub LastWithColumns (Columns As List) As Map
 	Dim NewMap As Map
 	NewMap.Initialize
 	For Each Col As String In Columns
@@ -1387,15 +1349,7 @@ Public Sub Execute
 	ExecNonQuery
 End Sub
 
-' Execute Non Query with Object type parameters
-Public Sub Execute2 (Parameter() As Object)
-	mParameters = Parameter
-	mParamList.Clear
-	ExecNonQuery
-End Sub
-
 Private Sub ExecQuery As ResultSet
-	FlushParameters
 	Try
 		Dim RS As ResultSet
 		If Opened = False Then
@@ -1423,8 +1377,9 @@ Private Sub ExecQuery As ResultSet
 	Return RS
 End Sub
 
+' Similar to: SQL.ExecNonQuery(Statement) or SQL.ExecNonQuery2(Statement, Parameters)
+'<code>DB.ExecNonQuery</code>
 Private Sub ExecNonQuery
-	FlushParameters
 	Try
 		If ParametersCount = 0 Then
 			If mShowExtraLogs Then LogQuery("ExecNonQuery")
@@ -1440,20 +1395,26 @@ Private Sub ExecNonQuery
 	End Try
 End Sub
 
-' Execute Non Query batch
+' Execute Non Query with parameters
+'<code>DB.ExecuteNonQueryWithParams = Array("value1", "value2")</code>
+Public Sub setExecuteNonQueryWithParams (Params() As Object)
+	setParameters(Params)
+	ExecNonQuery
+End Sub
+
+' Similar to: Wait For (SQL.ExecNonQueryBatch("SQL")) SQL_NonQueryComplete (Success As Boolean)
 '<code>Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)</code>
 Public Sub ExecuteBatchAsync As ResumableSub
 	If mShowExtraLogs Then LogQuery3("ExecuteBatchAsync")
 	Dim SenderFilter As Object = mSQL.ExecNonQueryBatch("SQL")
 	Wait For (SenderFilter) SQL_NonQueryComplete (Success As Boolean)
-	'mQueryExecute = True ' set back to Execute mode
 	mQueryAddToBatch = False ' set Add to batch as False
 	' Clear batch statement and parameters
 	mBatch.Clear
 	Return Success
 End Sub
 
-' Example: SQL1.ExecQuerySingleResult(mStatement)
+' Similar to: SQL.ExecQuerySingleResult and SQL.ExecQuerySingleResult2
 '<code>Dim res As Int = DB.ExecuteScalar</code>
 Public Sub ExecuteScalar As Object
 	If Opened = False Then
@@ -1461,22 +1422,14 @@ Public Sub ExecuteScalar As Object
 		Return Null
 	End If
 	mStatement = mStatement & mCondition
-	Return mSQL.ExecQuerySingleResult(mStatement)
-End Sub
-
-' Example: SQL1.ExecQuerySingleResult2(mStatement, mParameters)
-'<code>Dim res As Int = DB.ExecuteScalar2</code>
-Public Sub ExecuteScalar2 As Object
-	If Opened = False Then
-		LogColor("Database not connected!", COLOR_RED)
-		Return Null
+	If ParametersCount = 0 Then
+		Return mSQL.ExecQuerySingleResult(mStatement)
+	Else
+		Return mSQL.ExecQuerySingleResult2(mStatement, mParameters)
 	End If
-	mStatement = mStatement & mCondition
-	Return mSQL.ExecQuerySingleResult2(mStatement, mParameters)
 End Sub
 
-' Example: SQL.AddNonQueryToBatch(Statement, Parameters)
-' This is handled internally inside the library
+' Similar to: SQL.AddNonQueryToBatch(Statement, Parameters)
 Public Sub AddNonQueryToBatch
 	mBatch.Add(CreateMap("DB_Statement": mStatement, "DB_Parameters": mParameters))
 	mSQL.AddNonQueryToBatch(mStatement, mParameters)
@@ -1527,20 +1480,11 @@ End Sub
 
 ' Append new parameter
 Public Sub setParameter (Param As Object)
-	'mParameter = Param
-	'Dim NewArray(mParameters.Length + 1) As Object
-	'For i = 0 To mParameters.Length - 1
-	'	NewArray(i) = mParameters(i)
-	'Next
-	'NewArray(mParameters.Length) = Param
-	'mParameters = NewArray
-	mParamList.Add(Param)
+	AppendParams(Array As Object(Param))
 End Sub
 
 Public Sub setParameters (Params() As Object)
 	mParameters = Params
-	'If mParameters.Length > 0 Then mParameter = mParameters(mParameters.Length - 1)
-	mParamList.Clear
 End Sub
 
 ' Assign array of parameters
@@ -1549,24 +1493,21 @@ Public Sub getParameters As Object()
 End Sub
 
 ' Append Parameters at the end
-Public Sub AppendParameters (Params() As Object)
+Public Sub AppendParams (Params() As Object)
 	If Params.Length = 0 Then Return
-	'If mParameters.Length > 0 Then
-	'	Dim NewArray(mParameters.Length + Params.Length) As Object
-	'	For i = 0 To mParameters.Length - 1
-	'		NewArray(i) = mParameters(i)
-	'	Next
-	'	For i = 0 To Params.Length - 1
-	'		NewArray(mParameters.Length + i) = Params(i)
-	'	Next
-	'	mParameters = NewArray
-	'Else
-	'	mParameters = Params
-	'End If
+	If mParameters.Length > 0 Then
+		Dim NewArray(mParameters.Length + Params.Length) As Object
+		For i = 0 To mParameters.Length - 1
+			NewArray(i) = mParameters(i)
+		Next
+		For i = 0 To Params.Length - 1
+			NewArray(mParameters.Length + i) = Params(i)
+		Next
+		mParameters = NewArray
+	Else
+		mParameters = Params
+	End If
 	'If mParameters.Length > 0 Then mParameter = mParameters(mParameters.Length - 1)
-	For i = 0 To Params.Length - 1
-		mParamList.Add(Params(i))
-	Next
 End Sub
 
 ' Append single condition and parameter
@@ -1578,7 +1519,6 @@ End Sub
 ' Set new Conditions and Parameters
 Public Sub WhereParams (Statements As List, Params() As Object)
 	setConditions(Statements)
-	'AppendParameters(Params)
 	setParameters(Params)
 End Sub
 
@@ -1594,17 +1534,12 @@ Public Sub Query
 		ORMTable.Columns.Initialize
 		ORMTable.Rows.Initialize
 		ORMTable.Results.Initialize
-		ORMTable.Results2.Initialize
 		ORMTable.First.Initialize
-		ORMTable.First2.Initialize
 		ORMTable.Last.Initialize
-		ORMTable.Last2.Initialize
 		ORMTable.RowCount = 0
 		
 		If mQueryRaw = False Then
 			SelectFromObject
-		'Else
-			'mQueryRaw = False
 		End If
 		If mUnion <> "" Then
 			mStatement = mUnion & mStatement
@@ -1634,7 +1569,7 @@ Public Sub Query
 			Dim rsmd As JavaObject = jrs.RunMethod("getMetaData", Null)
 			Do While RS.NextRow
 				Dim Row(cols) As Object ' ORMResult (array of object)
-				Dim Row2 As List 		' ORMTable (list of object)
+				Dim Row2 As List 		' ORMTable  (list of object)
 				Row2.Initialize
 				For i = 0 To cols - 1
 					Dim ct As Int = rsmd.RunMethod("getColumnType", Array(i + 1))
@@ -1726,23 +1661,16 @@ Public Sub Query
 		If Initialized(RS) Then RS.Close ' test 2025-09-18, 2026-03-25
 		For Each Rows As List In ORMTable.Rows
 			Dim Result As Map
-			Dim Result2 As Map
 			Result.Initialize
-			Result2.Initialize
-			Result2.Put("__order", ORMTable.Columns)
 			For i = 0 To Rows.Size - 1
 				Result.Put(ORMTable.Columns.Get(i), Rows.Get(i))
-				Result2.Put(ORMTable.Columns.Get(i), Rows.Get(i))
 			Next
 			ORMTable.Results.Add(Result)
-			ORMTable.Results2.Add(Result2)
 		Next
 		ORMTable.RowCount = ORMTable.Rows.Size
 		If ORMTable.Results.Size > 0 Then
 			ORMTable.First = ORMTable.Results.Get(0)
-			ORMTable.First2 = ORMTable.Results2.Get(0)
 			ORMTable.Last = ORMTable.Results.Get(ORMTable.Results.Size - 1)
-			ORMTable.Last2 = ORMTable.Results2.Get(ORMTable.Results.Size - 1)
 		End If
 		'RS.Close ' test 2023-10-24
 	Catch
@@ -1756,8 +1684,8 @@ Public Sub Query
 	If mQueryClearParameters Then ClearParameters
 End Sub
 
-'<code>DB.Query2 = Array("param1", "param2")</code>
-Public Sub setQuery2 (Params() As Object)
+'<code>DB.QueryWithParams = Array("param1", "param2")</code>
+Public Sub setQueryWithParams (Params() As Object)
 	setParameters(Params)
 	Query
 End Sub
@@ -1765,52 +1693,17 @@ End Sub
 ' Return an object without calling Query
 ' Note: ORMTable and ORMResults are not affected
 Public Sub Scalar As Object
-	If ParametersCount = 0 Then
-		Return ExecuteScalar
-	Else
-		Return ExecuteScalar2
-	End If
+	Return ExecuteScalar
 End Sub
 
 ' Similar to Scalar but passing Params
-Public Sub setScalars (Params() As Object) As Object
+'<code>DB.ScalarWithParams = Array("param1", "param2")</code>
+Public Sub setScalarWithParams (Params() As Object) As Object
 	setParameters(Params)
 	Return Scalar
 End Sub
 
 Public Sub Insert
-	'Dim cd As Boolean ' contains created_date
-	'Dim SB As StringBuilder
-	'Dim vb As StringBuilder
-	'SB.Initialize
-	'vb.Initialize
-	'For Each col As String In mColumns
-	'	If SB.Length > 0 Then
-	'		SB.Append(", ")
-	'		vb.Append(", ")
-	'	End If
-	'	SB.Append(col)
-	'	vb.Append("?")
-	'	If col.EqualsIgnoreCase("created_date") Then cd = True
-	'Next
-	'
-	'' To handle varchar timestamps
-	'If mUseTimestamps And Not(cd) Then
-	'	If SB.Length > 0 Then
-	'		SB.Append(", ")
-	'		vb.Append(", ")
-	'	End If
-	'	SB.Append("created_date")
-	'	Select mDbType
-	'		Case SQLITE
-	'			vb.Append("(datetime('now'))")
-	'		Case MYSQL, MARIADB
-	'			vb.Append("now()")
-	'	End Select
-	'End If
-	'
-	'mStatement = $"INSERT INTO ${mTable} (${SB.ToString}) VALUES (${vb.ToString})"$
-	
 	BuildInsertStatement
 	If mQueryAddToBatch Then AddNonQueryToBatch
 	If mQueryExecute Then ExecNonQuery
@@ -1850,30 +1743,30 @@ Private Sub BuildInsertStatement
 	'If mQueryExecute Then ExecNonQuery	
 End Sub
 
-'<code>DB.Inserts = Array("param1", "param2")</code>
-Public Sub setInserts (Params() As Object)
+'<code>DB.InsertWithParams = Array("param1", "param2")</code>
+Public Sub setInsertWithParams (Params() As Object)
 	setParameters(Params)
 	Insert
 End Sub
 
 ' Update must have at least 1 condition
 Public Sub Save
-	SaveInternal(mIdColumn, False)
+	SaveInternal(mIdColumn)
 End Sub
 
-'<code>DB.Save2 = Array("param1", "param2")</code>
-Public Sub setSave2 (Params() As Object)
+'<code>DB.SaveWithParams = Array("param1", "param2")</code>
+Public Sub setSaveWithParams (Params() As Object)
 	setParameters(Params)
 	Save
 End Sub
 
-' Same as Save but returned row has custom primary key
-'<code>DB.Save3 = "UserID"</code>
-Public Sub setSave3 (IdColumn As String)
-	SaveInternal(IdColumn, True)
+' Same as Save but returns row with custom primary key
+'<code>DB.SaveWithCustomId("UserID")</code>
+Public Sub SaveWithCustomId (IdColumn As String)
+	SaveInternal(IdColumn)
 End Sub
 
-Private Sub SaveInternal (IdColumn As String, AlwaysQueryAfterUpdate As Boolean)
+Private Sub SaveInternal (IdColumn As String)
 	Dim BlnNew As Boolean
 	If mCondition.Length > 0 Then
 		Dim md As Boolean ' contains modified_date
@@ -1932,204 +1825,11 @@ Private Sub SaveInternal (IdColumn As String, AlwaysQueryAfterUpdate As Boolean)
 			mParameters = ConditionParams
 		End If
 		mColumns = Array As String()
-		If mReturnRow Or AlwaysQueryAfterUpdate Then
+		If mReturnRow Then
 			Query
 		End If
 	End If
 End Sub
-
-' Update must have at least 1 condition
-'Public Sub Save
-'	Dim BlnNew As Boolean
-'	If mCondition.Length > 0 Then
-'		Dim md As Boolean ' contains modified_date
-'		Dim SB As StringBuilder
-'		SB.Initialize
-'		mStatement = $"UPDATE ${mTable} SET "$
-'		For Each col As String In mColumns
-'			If SB.Length > 0 Then SB.Append(", ")
-'			If col.EqualsIgnoreCase("modified_date") Then md = True
-'			If col.Contains("=") Then
-'				SB.Append(col)
-'			Else If col.EndsWith("++") Then
-'				col = col.Replace("++", "").Trim
-'				SB.Append($"${col} = ${col} + 1"$)
-'			Else
-'				SB.Append(col & " = ?")
-'			End If
-'		Next
-'		mStatement = mStatement & SB.ToString
-'		' To handle varchar timestamps
-'		If mUpdateModifiedDate And Not(md) Then
-'			Select mDbType
-'				Case MYSQL, MARIADB
-'					mStatement = mStatement & ", modified_date = now()"
-'				Case SQLITE
-'					mStatement = mStatement & ", modified_date = (datetime('now'))"
-'			End Select
-'		End If
-'		mStatement = mStatement & mCondition
-'	Else
-'		Dim cd As Boolean ' contains created_date
-'		Dim SB, vb As StringBuilder
-'		SB.Initialize
-'		vb.Initialize
-'		For Each col As String In mColumns
-'			If SB.Length > 0 Then
-'				SB.Append(", ")
-'				vb.Append(", ")
-'			End If
-'			col = col.Replace("++", "").Trim ' in case
-'			SB.Append(col)
-'			vb.Append("?")
-'			If col.EqualsIgnoreCase("created_date") Then cd = True
-'		Next
-'		' To handle varchar timestamps
-'		If mUseTimestamps And Not(cd) Then
-'			If SB.Length > 0 Then
-'				SB.Append(", ")
-'				vb.Append(", ")
-'			End If
-'			SB.Append("created_date")
-'			Select mDbType
-'				Case SQLITE
-'					vb.Append("(datetime('now'))")
-'				Case MYSQL, MARIADB
-'					vb.Append("now()")
-'			End Select
-'		End If
-'		mStatement = $"INSERT INTO ${mTable} (${SB.ToString}) VALUES (${vb.ToString})"$
-'		BlnNew = True
-'	End If
-'	If mQueryAddToBatch Then AddNonQueryToBatch
-'	If mQueryExecute = False Then Return
-'	mError = Null
-'	ExecNonQuery
-'	If Initialized(mError) Then
-'		Close
-'		Return
-'	End If
-'	If BlnNew Then
-'		' View does not support auto-increment id or ID is not autoincrement
-'		If mObject = "VIEW" Or mAutoIncrement = False Then Return
-'		If mReturnRow Then
-'			Dim NewID As Int = getLastInsertID
-'			' Return new row
-'			Log($"Finding row from ${mTable} for id = ${NewID}"$)
-'			Find(NewID)
-'		End If
-'	Else
-'		'ClearParameters
-'		' Count numbers of ?
-'		Dim ParamChars As Int = CountChar("?", mCondition)
-'		Dim ParamCount As Int = ParametersCount
-'		'Log($"${ParamChars} vs ${ParamCount}"$)
-'		Dim ConditionParams(ParamChars) As Object
-'		For i = 0 To ParamChars - 1
-'			ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
-'		Next
-'		mParameters = ConditionParams
-'		mColumns = Array As String()
-'		' Return row after update
-'		'Log("Return row after update")
-'		If mReturnRow Then
-'			Query
-'		End If
-'	End If
-'End Sub
-
-'<code>DB.Save2 = Array("param1", "param2")</code>
-'Public Sub setSave2 (Params() As Object)
-'	setParameters(Params)
-'	Save
-'End Sub
-
-' Same as Save but returned row has custom primary key
-'<code>DB.Save3 = "UserID"</code>
-'Public Sub setSave3 (IdColumn As String)
-'	Dim BlnNew As Boolean
-'	If mCondition.Length > 0 Then
-'		Dim md As Boolean ' contains modified_date
-'		Dim SB As StringBuilder
-'		SB.Initialize
-'		mStatement = $"UPDATE ${mTable} SET "$
-'		For Each col As String In mColumns
-'			If SB.Length > 0 Then SB.Append(", ")
-'			If col.EqualsIgnoreCase("modified_date") Then md = True
-'			If col.Contains("=") Then
-'				SB.Append(col)
-'			Else If col.EndsWith("++") Then
-'				col = col.Replace("++", "").Trim
-'				SB.Append($"${col} = ${col} + 1"$)
-'			Else
-'				SB.Append(col & " = ?")
-'			End If
-'		Next
-'		mStatement = mStatement & SB.ToString
-'		' To handle varchar timestamps
-'		If mUpdateModifiedDate And Not(md) Then
-'			Select mDbType
-'				Case MYSQL, MARIADB
-'					mStatement = mStatement & ", modified_date = now()"
-'				Case SQLITE
-'					mStatement = mStatement & ", modified_date = (datetime('now'))"
-'			End Select
-'		End If
-'		mStatement = mStatement & mCondition
-'	Else
-'		Dim cd As Boolean ' contains created_date
-'		Dim SB, vb As StringBuilder
-'		SB.Initialize
-'		vb.Initialize
-'		For Each col As String In mColumns
-'			If SB.Length > 0 Then
-'				SB.Append(", ")
-'				vb.Append(", ")
-'			End If
-'			SB.Append(col)
-'			vb.Append("?")
-'			If col.EqualsIgnoreCase("created_date") Then cd = True
-'		Next
-'		' To handle varchar timestamps
-'		If mUseTimestamps And Not(cd) Then
-'			If SB.Length > 0 Then
-'				SB.Append(", ")
-'				vb.Append(", ")
-'			End If
-'			SB.Append("created_date")
-'			Select mDbType
-'				Case MYSQL, MARIADB
-'					vb.Append("now()")
-'				Case SQLITE
-'					vb.Append("(datetime('now'))")
-'			End Select
-'		End If
-'		mStatement = $"INSERT INTO ${mTable} (${SB.ToString}) VALUES (${vb.ToString})"$
-'		BlnNew = True
-'	End If
-'	If mQueryAddToBatch Then AddNonQueryToBatch
-'	If mQueryExecute = False Then Return
-'	ExecNonQuery
-'	If BlnNew Then
-'		' View does not support auto-increment id
-'		'If mObject = mView Then Return
-'		If mObject = "VIEW" Or mAutoIncrement = False Then Return
-'		Dim NewID As Int = getLastInsertID
-'		' Return new row
-'		Find2(IdColumn & " = ?", NewID)
-'	Else
-'		' Count numbers of ?
-'		Dim ParamChars As Int = CountChar("?", mCondition)
-'		Dim ParamCount As Int = ParametersCount
-'		Dim ConditionParams(ParamChars) As Object
-'		For i = 0 To ParamChars - 1
-'			ConditionParams(i) = mParameters(ParamCount - ParamChars + i)
-'		Next
-'		mParameters = ConditionParams
-'		' Return row after update
-'		Query
-'	End If
-'End Sub
 
 Public Sub getLastInsertID As Object
 	Select mDbType

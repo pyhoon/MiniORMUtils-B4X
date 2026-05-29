@@ -288,7 +288,7 @@ End Sub
 
 Private Sub GetCategories
 	Try
-		Log("GetCategories")
+		'Log("GetCategories")
 		DB.Open
 		DB.Table = "tbl_categories"
 		DB.Query

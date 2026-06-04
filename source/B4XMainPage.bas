@@ -187,7 +187,7 @@ Public Sub ConfigureDatabase
 	Try
 		DB.Initialize
 		DB.Settings = DBS
-		'DB.ShowExtraLogs = True
+		DB.ShowExtraLogs = True
 		#If MariaDB Or MySQL
 		Wait For (DB.ExistAsync) Complete (DbFound As Boolean)
 		#Else
@@ -200,7 +200,6 @@ Public Sub ConfigureDatabase
 			LogColor($"(${DBS.DBType}) ${DBS.DBFile} database found!"$, COLOR_BLUE)
 			#End If
 			'File.Delete(MS.DBDir, MS.DBFile)
-			DB.Open
 			GetCategories
 		Else
 			LogColor($"${DBS.DBType} database not found!"$, COLOR_RED)
@@ -231,7 +230,7 @@ Private Sub CreateDatabase
 		Log("Database creation failed!")
 		Return
 	End If
-
+	
 	DB.Open
 	DB.ShowExtraLogs = True
 	'DB.UseTimestamps = True
@@ -243,8 +242,8 @@ Private Sub CreateDatabase
 	DB.Create
 	
 	DB.Columns = Array("category_name")
-	DB.Inserts = Array("Hardwares")
-	DB.Inserts = Array("Toys")
+	DB.InsertWithParams = Array("Hardwares")
+	DB.InsertWithParams = Array("Toys")
 
 	DB.Table = "tbl_products"
 	DB.Columns.Add(CreateMap("Name": "category_id", "Type": DB.INTEGER))
@@ -261,9 +260,9 @@ Private Sub CreateDatabase
 	DB.Create
 	
 	DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
-	DB.Inserts = Array(2, "T001", "Teddy Bear", 99.9)
-	DB.Inserts = Array(1, "H001", "Hammer", 15.75)
-	DB.Inserts = Array(2, "T002", "Optimus Prime", 1000)
+	DB.InsertWithParams = Array(2, "T001", "Teddy Bear", 99.9)
+	DB.InsertWithParams = Array(1, "H001", "Hammer", 15.75)
+	DB.InsertWithParams = Array(2, "T002", "Optimus Prime", 1000)
 
 	Wait For (DB.ExecuteBatchAsync) Complete (Success As Boolean)
 	If Success Then
@@ -276,10 +275,12 @@ Private Sub CreateDatabase
 	
 	' Adding an image to blob field
 	Dim b() As Byte = File.ReadBytes(File.DirAssets, "icon.png")
+	DB.Open
 	DB.Table = "tbl_products"
 	DB.Columns = Array("product_image")
 	DB.Parameters = Array(b)
 	DB.Id = 3 ' after setting Columns and Parameters
+	'DB.WhereParam("id = ?", 3)
 	DB.Save
 	
 	GetCategories
@@ -287,6 +288,8 @@ End Sub
 
 Private Sub GetCategories
 	Try
+		'Log("GetCategories")
+		DB.Open
 		DB.Table = "tbl_categories"
 		DB.Query
 		Dim Items As List = DB.Results
@@ -313,11 +316,10 @@ End Sub
 
 Private Sub GetProducts
 	clvRecord.Clear
+	DB.Open
 	DB.Table = "tbl_products p"
 	DB.ColumnsType = CreateMap("product_image": DB.BLOB)
 	DB.Columns = Array("p.id", "p.product_code", "p.product_name", "p.product_price", "p.product_image", "p.category_id", "c.category_name")
-	'DB.Join = Array("tbl_categories c", "p.category_id = c.id")
-	'DB.Join = DB.CreateJoin("LEFT", "tbl_categories AS c", Array("p.category_id = c.id"))
 	DB.Join("LEFT", "tbl_categories AS c", Array("p.category_id = c.id"))
 	DB.WhereParam("c.id = ?", CategoryId)
 	DB.Query
@@ -469,6 +471,7 @@ Private Sub ShowDialog1 (Action As String, Item As Map)
 	Wait For (sf) Complete (Result As Int)
 	If Result = xui.DialogResponse_Positive Then
 		If 0 = Item.Get("id") Then ' New row
+			DB.Open
 			DB.Table = "tbl_categories"
 			DB.WhereParam("category_name = ?", Item.Get("Category Name"))
 			DB.Query
@@ -476,15 +479,18 @@ Private Sub ShowDialog1 (Action As String, Item As Map)
 				xui.MsgboxAsync("Category already exist", "Error")
 				Return
 			End If
-			DB.Reset
+			DB.Open
+			DB.Table = "tbl_categories"
 			DB.Columns = Array("category_name")
-			DB.Save2 = Array(Item.Get("Category Name"))
+			DB.SaveWithParams = Array(Item.Get("Category Name"))
 			xui.MsgboxAsync("New category created!", $"ID: ${DB.First.Get("id")}"$)
 		Else
+			DB.Open
 			DB.Table = "tbl_categories"
 			DB.Columns = Array("category_name")
 			DB.Parameters = Array As Object(Item.Get("Category Name"))
 			DB.Id = Item.Get("id")
+			'DB.WhereParam("id = ?", Item.Get("id"))
 			DB.Save
 			xui.MsgboxAsync("Category updated!", "Edit")
 		End If
@@ -507,6 +513,7 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 	Wait For (sf) Complete (Result As Int)
 	If Result = xui.DialogResponse_Positive Then
 		If 0 = Item.Get("id") Then ' New row
+			DB.Open
 			DB.Table = "tbl_products"
 			DB.WhereParam("product_code = ?", Item.Get("Product Code"))
 			DB.Query
@@ -518,13 +525,15 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 				xui.MsgboxAsync("Product Price must be a number", "Error")
 				Return
 			End If
-			DB.Reset
+			DB.Open
+			DB.Table = "tbl_products"
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 			Dim SelectedCategory As Int = GetCategoryId(Item.Get("Category"))
-			DB.Save2 = Array(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
+			DB.SaveWithParams = Array(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
 			CategoryId = SelectedCategory
 			xui.MsgboxAsync("New product created!", $"ID: ${DB.First.Get("id")}"$)
 		Else
+			DB.Open
 			DB.Table = "tbl_products"
 			DB.WhereParams(Array("product_code = ?", "id <> ?"), Array As Object(Item.Get("Product Code"), Item.Get("id")))
 			DB.Query
@@ -536,11 +545,13 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 				xui.MsgboxAsync("Product Price must be a number", "Error")
 				Return
 			End If
-			DB.Reset
+			DB.Open
+			DB.Table = "tbl_products"
 			Dim NewCategoryId As Int = GetCategoryId(Item.Get("Category"))
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 			DB.Parameters = Array As Object(NewCategoryId, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
 			DB.Id = Item.Get("id")
+			'DB.WhereParam("id = ?", Item.Get("id"))
 			DB.Save
 			xui.MsgboxAsync("Product updated!", "Edit")
 			CategoryId = NewCategoryId
@@ -575,10 +586,13 @@ Private Sub ShowDialog3 (Item As Map, Id As Int)
 		Else
 			DB.Table = "tbl_categories"
 		End If
+		DB.Open
 		DB.Find(Id)
 		If DB.Found Then
 			DB.Reset
+			DB.Open
 			DB.Id = Id
+			'DB.WhereParam("id = ?", Id)
 			DB.Delete
 			xui.MsgboxAsync(Viewing &" deleted successfully", "Delete")
 		Else

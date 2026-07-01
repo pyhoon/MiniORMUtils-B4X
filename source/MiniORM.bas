@@ -854,8 +854,8 @@ Public Sub setHaving (Statements As List)
 	mHaving = SB.ToString
 End Sub
 
-'Example: ORDER BY id, name DESC
-'<code>DB.OrderBy = CreateMap("id": "", "name", "DESC")</code>
+'Example: ORDER BY id DESC, name
+'<code>DB.OrderBy = CreateMap("id": "DESC", "name": "")</code>
 Public Sub setOrderBy (Col As Map)
 	If Col.IsInitialized Then
 		Dim SB As StringBuilder
@@ -1427,7 +1427,9 @@ Public Sub ExecuteScalar As Object
 		LogColor("Database not connected!", COLOR_RED)
 		Return Null
 	End If
-	mStatement = mStatement & mCondition
+	SelectFromObject
+	'mStatement = mStatement & mCondition
+	If mShowExtraLogs Then LogQuery("ExecuteScalar")
 	If ParametersCount = 0 Then
 		Return mSQL.ExecQuerySingleResult(mStatement)
 	Else
@@ -1550,7 +1552,7 @@ Public Sub Query
 		If mUnion <> "" Then
 			mStatement = mUnion & mStatement
 		End If
-			mUnion = ""
+		mUnion = ""
 		'Log(mStatement)
 		
 		If mQueryExecute = False Then Return

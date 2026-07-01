@@ -4,8 +4,14 @@ ModulesStructureVersion=1
 Type=Class
 Version=9.85
 @EndOfDesignText@
+#Region Macros
 '#Macro: Title, Export, ide://run?File=%B4X%\Zipper.jar&Args=%PROJECT_NAME%.zip
-'#Macro: Title, GetLibraries, ide://run?file=%ADDITIONAL%\..\B4X\libget.jar&args=%PROJECT%&args=false
+'#Macro: Title, GetLibraries, ide://run?File=%ADDITIONAL%\..\B4X\libget.jar&Args=%PROJECT%&Args=false
+'#Macro: Title, Backup, ide://run?file=%JAVABIN%\jar.exe&WorkingDirectory=..&Args=-cMf&Args=..\%PROJECT_NAME%.zip&args=Files&args=*.b4*&args=*.b4*.meta
+#If B4J
+#Macro: Title, Objects, ide://run?File=%WINDIR%\SysWOW64\explorer.exe&args=%PROJECT%\Objects
+#End If
+#End Region
 Sub Class_Globals
 	Private xui As XUI
 	Private DB As MiniORM
@@ -525,8 +531,7 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 				xui.MsgboxAsync("Product Price must be a number", "Error")
 				Return
 			End If
-			DB.Open
-			DB.Table = "tbl_products"
+			DB.Reset
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 			Dim SelectedCategory As Int = GetCategoryId(Item.Get("Category"))
 			DB.SaveWithParams = Array(SelectedCategory, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
@@ -545,8 +550,7 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 				xui.MsgboxAsync("Product Price must be a number", "Error")
 				Return
 			End If
-			DB.Open
-			DB.Table = "tbl_products"
+			DB.Reset
 			Dim NewCategoryId As Int = GetCategoryId(Item.Get("Category"))
 			DB.Columns = Array("category_id", "product_code", "product_name", "product_price")
 			DB.Parameters = Array As Object(NewCategoryId, Item.Get("Product Code"), Item.Get("Product Name"), Item.Get("Product Price"))
@@ -557,8 +561,6 @@ Private Sub ShowDialog2 (Action As String, Item As Map)
 			CategoryId = NewCategoryId
 		End If
 		GetProducts
-	Else
-		Return
 	End If
 End Sub
 
@@ -598,12 +600,10 @@ Private Sub ShowDialog3 (Item As Map, Id As Int)
 		Else
 			xui.MsgboxAsync(Viewing & " not found", "Error")
 		End If
-	Else
-		Return
-	End If
-	If Viewing = "Product" Then
-		GetProducts
-	Else
-		GetCategories
+		If Viewing = "Product" Then
+			GetProducts
+		Else
+			GetCategories
+		End If
 	End If
 End Sub

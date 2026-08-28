@@ -5,7 +5,7 @@ Type=Class
 Version=10.5
 @EndOfDesignText@
 ' Mini Object-Relational Mapper (ORM) class
-' Version 6.03
+' Version 6.04
 Sub Class_Globals
 	Private mSQL 					As SQL
 	Private mID 					As Int
@@ -540,6 +540,7 @@ Public Sub setTable (Table As String)
 	Reset
 	mTable = Table
 	mObject = "TABLE" 'mTable
+	mQueryRaw = False
 End Sub
 
 Public Sub getTable As String
@@ -550,6 +551,7 @@ Public Sub setView (View As String)
 	Reset
 	mView = View
 	mObject = "VIEW" 'mView
+	mQueryRaw = False
 End Sub
 
 Public Sub getView As String
@@ -627,10 +629,6 @@ End Sub
 
 Public Sub setQueryExecute (Value As Boolean)
 	mQueryExecute = Value
-End Sub
-
-Public Sub setQueryRaw (Value As Boolean)
-	mQueryRaw = Value
 End Sub
 
 ' Clear Parameters after Query
@@ -790,6 +788,7 @@ End Sub
 
 'Replaced SelectFromTableOrView
 Private Sub SelectFromObject
+	If mQueryRaw Then Return
 	Dim ac As Boolean ' Add Comma
 	Dim SB As StringBuilder
 	SB.Initialize
@@ -1533,19 +1532,11 @@ Public Sub Query
 		ORMTable.First.Initialize
 		ORMTable.Last.Initialize
 		ORMTable.RowCount = 0
-		
-		If mQueryRaw = False Then
-			SelectFromObject
-		End If
-		
+		SelectFromObject
 		If mQueryExecute = False Then Return
 		Dim RS As ResultSet = ExecQuery
-		If RS = Null Then
-			Return
-		End If
 		If Initialized(mError) Then
-			If Initialized(RS) Then RS.Close
-			Close
+			FinalizeQuery(RS)
 			Return
 		End If
 		If RS.IsInitialized Then
@@ -1648,7 +1639,6 @@ Public Sub Query
 			Loop
 			ORMResult.Columns = Columns
 			#End If
-			RS.Close ' test 2026-08-28
 		End If
 		'If Initialized(RS) Then RS.Close ' test 2025-09-18, 2026-03-25
 		For Each Rows As List In ORMTable.Rows
@@ -1669,11 +1659,16 @@ Public Sub Query
 		LogColor(LastException.Message, COLOR_RED)
 		LogColor("Are you missing ' = ?' in query?", COLOR_RED)
 		mError = LastException
-		Close
+		'Close
 	End Try
+	FinalizeQuery(RS)
+End Sub
+
+Private Sub FinalizeQuery (RS As ResultSet)
+	If Initialized(RS) Then RS.Close
 	If mQueryAutoClose Then Close
-	Clear
 	If mQueryClearParameters Then ClearParameters
+	Clear
 End Sub
 
 '<code>DB.QueryWithParams = Array("param1", "param2")</code>
@@ -2016,9 +2011,10 @@ Public Sub Append (strSQL As String) As String
 	Return mStatement
 End Sub
 
-' Set raw SQL statement. Set DB.QueryRaw = True
+' Set raw SQL statement
 Public Sub setStatement (strSQL As String)
 	mStatement = strSQL
+	mQueryRaw = True
 End Sub
 
 ' Return SQL statement
